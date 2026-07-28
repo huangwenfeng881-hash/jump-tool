@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>弹跳高度测量 · 手动精准分析</title>
+    <style>
+        :root {
+            --bg: #0d0f13;
+            --surface: #1a1d25;
+            --surface2: #21252f;
+            --border: #2a2f3a;
+            --text: #e0e3ea;
+            --text2: #a0a5b0;
+            --accent: #00c6ff;
+            --success: #3ddc84;
+            --warning: #ffb347;
+            --danger: #ff4d6a;
+            --glow: 0 0 18px rgba(0, 198, 255, 0.35);
+            --glow-success: 0 0 18px rgba(61, 220, 132, 0.4);
+            --radius: 20px;
+            --radius-sm: 12px;
+            --font-mono: 'Cascadia Code', 'Consolas', 'SF Mono', 'Fira Code', monospace;
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
+        .app-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .app-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            background: linear-gradient(135deg, var(--accent), #5eb8ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            padding: 8px 18px;
+            border-radius: 24px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            white-space: nowrap;
+            letter-spacing: 0.03em;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #555;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+        .status-dot.active {
+            background: var(--success);
+            box-shadow: 0 0 12px rgba(61, 220, 132, 0.7);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.6);
+                opacity: 0.55;
+            }
+        }
+        .main-layout {
+            display: flex;
+            gap: 24px;
+            flex: 1;
+            min-height: 0;
+        }
+        .video-section {
+            flex: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .panel-section {
+            flex: 0 0 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .video-zone {
+            position: relative;
+            width: 100%;
+            max-height: 540px;
+            background: #000;
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 2px solid var(--border);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 360px;
+        }
+        .video-zone.analysis-active {
+            border-color: var(--accent);
+            box-shadow: var(--glow);
+        }
+        .video-inner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-origin: 0 0;
+            will-change: transform;
+            cursor: grab;
+        }
+        .video-inner.dragging {
+            cursor: grabbing;
+        }
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            pointer-events: none;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .video-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            font-size: 1.1rem;
+            gap: 12px;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(4px);
+            z-index: 2;
+        }
+        .video-placeholder .icon-large {
+            font-size: 3.5rem;
+            opacity: 0.6;
+        }
+        .drop-hint {
+            font-size: 0.9rem;
+            color: var(--text2);
+            opacity: 0.8;
+        }
+        .motion-strip {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--surface2);
+            flex-shrink: 0;
+            overflow: hidden;
+            display: none;
+        }
+        .motion-strip.visible {
+            display: block;
+        }
+        .motion-strip-inner {
+            height: 100%;
+            display: flex;
+            gap: 1px;
+        }
+        .motion-strip-seg {
+            flex: 1;
+            min-width: 3px;
+            border-radius: 1px;
+            transition: opacity 0.15s;
+        }
+        .timeline-container {
+            flex-shrink: 0;
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            background: var(--surface);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+        }
+        .timeline-container.visible {
+            display: flex;
+        }
+        .timeline-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text2);
+            font-family: var(--font-mono);
+            padding: 0 4px;
+        }
+        .timeline-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 24px;
+            border-radius: 12px;
+            background: var(--surface2);
+            outline: none;
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+        .timeline-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 3px solid #fff;
+            cursor: pointer;
+            box-shadow: var(--glow);
+            transition: var(--transition);
+        }
+        .timeline-markers {
+            position: relative;
+            height: 18px;
+            pointer-events: none;
+            margin: 0 16px;
+        }
+        .timeline-marker {
+            position: absolute;
+            top: 2px;
+            width: 3px;
+            height: 14px;
+            border-radius: 2px;
+            transform: translateX(-50%);
+        }
+        .timeline-marker.liftoff {
+            background: var(--success);
+            box-shadow: 0 0 6px rgba(61, 220, 132, 0.7);
+        }
+        .timeline-marker.landing {
+            background: var(--warning);
+            box-shadow: 0 0 6px rgba(255, 179, 71, 0.7);
+        }
+        .frame-nav {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            flex-shrink: 0;
+        }
+        .frame-nav.visible {
+            display: flex;
+        }
+        .frame-nav-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 1.5px solid var(--border);
+            background: var(--surface2);
+            color: var(--text);
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+        .frame-nav-btn:hover {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+        .frame-nav-btn:active {
+            transform: scale(0.92);
+        }
+        .frame-info {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text2);
+            min-width: 100px;
+            text-align: center;
+            letter-spacing: 0.03em;
+        }
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .btn {
+            flex: 1;
+            min-width: 90px;
+            padding: 12px 22px;
+            border-radius: var(--radius-sm);
+            border: 1.5px solid var(--border);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: var(--transition);
+            text-align: center;
+            background: var(--surface2);
+            color: var(--text);
+            white-space: nowrap;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn:hover {
+            background: #2c3140;
+            border-color: #555;
+        }
+        .btn:active {
+            transform: scale(0.96);
+            opacity: 0.9;
+        }
+        .btn.primary {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+            font-weight: 700;
+            box-shadow: var(--glow);
+        }
+        .btn.primary:hover {
+            box-shadow: 0 0 28px rgba(0, 198, 255, 0.6);
+        }
+        .btn.success {
+            background: var(--success);
+            color: #000;
+            border-color: var(--success);
+            font-weight: 700;
+            box-shadow: var(--glow-success);
+        }
+        .btn.outline {
+            background: transparent;
+            border: 1.5px solid var(--accent);
+            color: var(--accent);
+        }
+        .btn:disabled {
+            opacity: 0.35;
+            pointer-events: none;
+            filter: grayscale(40%);
+        }
+        .btn-icon {
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+        .panel-card {
+            background: var(--surface);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .panel-card h3 {
+            font-size: 0.85rem;
+            color: var(--text2);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .marker-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: var(--surface2);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            gap: 10px;
+        }
+        .marker-type {
+            font-weight: 700;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+        .marker-type.liftoff-tag {
+            background: rgba(61, 220, 132, 0.25);
+            color: var(--success);
+        }
+        .marker-type.landing-tag {
+            background: rgba(255, 179, 71, 0.25);
+            color: var(--warning);
+        }
+        .marker-time {
+            font-family: var(--font-mono);
+            color: var(--text2);
+            font-size: 0.8rem;
+        }
+        .marker-delete {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 77, 106, 0.25);
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+        .marker-delete:hover {
+            background: rgba(255, 77, 106, 0.5);
+        }
+        .results-panel {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            flex-shrink: 0;
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 2px solid var(--success);
+            box-shadow: var(--glow-success);
+        }
+        .results-panel.visible {
+            display: flex;
+        }
+        .result-main {
+            text-align: center;
+        }
+        .result-value {
+            font-size: 3.4rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            color: var(--success);
+            font-family: var(--font-mono);
+            line-height: 1;
+        }
+        .result-unit {
+            font-size: 1.1rem;
+            color: var(--text2);
+        }
+        .result-detail {
+            font-size: 0.8rem;
+            color: var(--text2);
+            text-align: center;
+            letter-spacing: 0.03em;
+        }
+        .result-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--surface2);
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-family: var(--font-mono);
+        }
+        .result-row .r-height {
+            color: var(--success);
+            font-weight: 700;
+        }
+        .settings-inline {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-shrink: 0;
+            font-size: 0.8rem;
+            color: var(--text2);
+            background: var(--surface);
+            border-radius: var(--radius-sm);
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+        }
+        .settings-inline input[type="range"] {
+            width: 100px;
+            accent-color: var(--accent);
+        }
+        .toast {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            padding: 12px 28px;
+            border-radius: 24px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+            animation: slide-down 0.3s ease-out;
+            text-align: center;
+            max-width: 90vw;
+        }
+        .toast.error {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+        .toast.success {
+            border-color: var(--success);
+            color: var(--success);
+        }
+        @keyframes slide-down {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .kbd-hint {
+            font-size: 0.75rem;
+            color: var(--text2);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+        .kbd {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+        }
+        @media (max-width: 900px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            .panel-section {
+                flex: none;
+                width: 100%;
+                max-height: none;
+            }
+            .video-zone {
+                max-height: 400px;
+            }
+        }
+        @media (max-width: 600px) {
+            .app-container {
+                padding: 16px 12px;
+            }
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.85rem;
+            }
+            .result-value {
+                font-size: 2.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="appContainer">
+        <header class="app-header">
+            <span class="app-title">🏀 弹跳高度测量 · 手动精准分析</span>
+            <span class="status-pill" id="statusPill">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">等待视频导入</span>
+            </span>
+        </header>
+
+        <div class="main-layout">
+            <div class="video-section">
+                <div class="video-zone" id="videoZone">
+                    <div class="video-inner" id="videoInner">
+                        <video id="playbackVideo" playsinline loop style="display:none;"></video>
+                    </div>
+                    <canvas class="overlay-canvas" id="overlayCanvas"></canvas>
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <span class="icon-large">📂</span>
+                        <span>拖拽视频到此处 或 点击下方按钮选择</span>
+                        <span class="drop-hint">🖱 左键拖拽平移 · 滚轮缩放 · 按钮/键盘标记</span>
+                    </div>
+                </div>
+
+                <div class="motion-strip" id="motionStrip">
+                    <div class="motion-strip-inner" id="motionStripInner"></div>
+                </div>
+
+                <div class="timeline-container" id="timelineContainer">
+                    <input type="range" class="timeline-slider" id="timelineSlider" min="0" max="1000" value="0" step="1">
+                    <div class="timeline-labels">
+                        <span id="timelineStart">0.000s</span>
+                        <span id="timelineCurrent">0.000s</span>
+                        <span id="timelineEnd">0.000s</span>
+                    </div>
+                    <div class="timeline-markers" id="timelineMarkers"></div>
+                </div>
+
+                <div class="frame-nav" id="frameNav">
+                    <button class="frame-nav-btn" id="btnFrameBack" title="后退一帧 (←)">◀</button>
+                    <span class="frame-info" id="frameInfo">0.000s</span>
+                    <button class="frame-nav-btn" id="btnFrameFwd" title="前进一帧 (→)">▶</button>
+                    <button class="frame-nav-btn" id="btnSlowPlay" title="慢动作回放 (空格)" style="font-size:0.9rem;">0.5x</button>
+                </div>
+
+                <div class="btn-row" id="btnRowMain">
+                    <button class="btn primary" id="btnSelectVideo">
+                        <span class="btn-icon">📂</span> 选择视频
+                    </button>
+                    <button class="btn success" id="btnAnalyze" disabled>
+                        <span class="btn-icon">🔍</span> 开始分析
+                    </button>
+                    <button class="btn outline" id="btnReset">
+                        <span class="btn-icon">↻</span> 重置
+                    </button>
+                </div>
+
+                <div class="btn-row" id="btnRowAnalysis" style="display:none;">
+                    <button class="btn success" id="btnMarkLiftoff">
+                        <span class="btn-icon">⬆</span> 标记离地 (A)
+                    </button>
+                    <button class="btn" style="border-color:var(--warning);color:var(--warning);" id="btnMarkLanding">
+                        <span class="btn-icon">⬇</span> 标记着陆 (S)
+                    </button>
+                    <button class="btn outline" id="btnAutoPair">
+                        <span class="btn-icon">⚡</span> 自动配对
+                    </button>
+                </div>
+
+                <div class="settings-inline">
+                    <span>🔍 缩放</span>
+                    <input type="range" id="zoomSlider" min="1" max="3" step="0.1" value="1">
+                    <span id="zoomValue">1.0x</span>
+                    <button class="btn" id="btnResetView" style="padding:6px 14px;font-size:0.8rem;flex:0 0 auto;">重置视图</button>
+                    <span style="font-size:0.7rem;color:var(--text2);margin-left:4px;">左键拖拽 | 滚轮缩放</span>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-card" id="markersPanel" style="display:none;">
+                    <h3>📌 时间标记</h3>
+                    <div id="markersList" style="display:flex;flex-direction:column;gap:8px;">
+                        <span style="color:var(--text2);font-size:0.8rem;">尚未标记</span>
+                    </div>
+                </div>
+
+                <div class="results-panel" id="resultsPanel">
+                    <div class="result-main">
+                        <div style="font-size:0.85rem;color:var(--text2);letter-spacing:0.04em;">最佳弹跳高度</div>
+                        <span class="result-value" id="resultValue">--</span>
+                        <span class="result-unit">cm</span>
+                    </div>
+                    <div class="result-detail" id="resultDetail"></div>
+                    <div class="result-list" id="resultList"></div>
+                </div>
+
+                <div class="kbd-hint">
+                    <span><span class="kbd">← →</span> 逐帧</span>
+                    <span><span class="kbd">A</span> 离地</span>
+                    <span><span class="kbd">S</span> 着陆</span>
+                    <span><span class="kbd">空格</span> 慢放</span>
+                    <span><span class="kbd">左键</span> 拖拽</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept="video/*">
+    <div id="toastContainer"></div>
+
+    <script>
+        (function() {
+            const bus = new(class {
+                constructor() { this.h = {}; }
+                on(e, f) { (this.h[e] = this.h[e] || []).push(f); }
+                emit(e, ...a) { (this.h[e] || []).forEach(f => f(...a)); }
+            })();
+
+            const $ = (sel) => document.querySelector(sel);
+            const dom = {
+                videoZone: $('#videoZone'),
+                videoInner: $('#videoInner'),
+                playbackVideo: $('#playbackVideo'),
+                overlayCanvas: $('#overlayCanvas'),
+                videoPlaceholder: $('#videoPlaceholder'),
+                statusDot: $('#statusDot'),
+                statusText: $('#statusText'),
+                motionStrip: $('#motionStrip'),
+                motionStripInner: $('#motionStripInner'),
+                timelineContainer: $('#timelineContainer'),
+                timelineSlider: $('#timelineSlider'),
+                timelineStart: $('#timelineStart'),
+                timelineCurrent: $('#timelineCurrent'),
+                timelineEnd: $('#timelineEnd'),
+                timelineMarkers: $('#timelineMarkers'),
+                frameNav: $('#frameNav'),
+                frameInfo: $('#frameInfo'),
+                btnFrameBack: $('#btnFrameBack'),
+                btnFrameFwd: $('#btnFrameFwd'),
+                btnSlowPlay: $('#btnSlowPlay'),
+                btnRowMain: $('#btnRowMain'),
+                btnRowAnalysis: $('#btnRowAnalysis'),
+                btnSelectVideo: $('#btnSelectVideo'),
+                btnAnalyze: $('#btnAnalyze'),
+                btnReset: $('#btnReset'),
+                btnMarkLiftoff: $('#btnMarkLiftoff'),
+                btnMarkLanding: $('#btnMarkLanding'),
+                btnAutoPair: $('#btnAutoPair'),
+                markersPanel: $('#markersPanel'),
+                markersList: $('#markersList'),
+                resultsPanel: $('#resultsPanel'),
+                resultValue: $('#resultValue'),
+                resultDetail: $('#resultDetail'),
+                resultList: $('#resultList'),
+                toastContainer: $('#toastContainer'),
+                fileInput: $('#fileInput'),
+                zoomSlider: $('#zoomSlider'),
+                zoomValue: $('#zoomValue'),
+                btnResetView: $('#btnResetView'),
+            };
+
+            let toastTimer;
+
+            function showToast(msg, type = '') {
+                if (toastTimer) clearTimeout(toastTimer);
+                const old = dom.toastContainer.querySelector('.toast');
+                if (old) old.remove();
+                const el = document.createElement('div');
+                el.className = 'toast ' + type;
+                el.textContent = msg;
+                dom.toastContainer.appendChild(el);
+                toastTimer = setTimeout(() => {
+                    el.style.opacity = '0';
+                    el.style.transition = 'opacity 0.3s';
+                    setTimeout(() => el.remove(), 300);
+                }, 2500);
+            }
+
+            class PhysicsCalculator {
+                constructor() { this.g = 9.81; }
+                calcByFlightTime(t) {
+                    if (t <= 0) return { heightCm: 0, flightTime: 0 };
+                    const h = (this.g * t * t) / 8;
+                    return { heightCm: Math.round(h * 10000) / 100, flightTime: Math.round(t * 1000) / 1000 };
+                }
+            }
+
+            class VideoAnalyzer {
+                constructor() {
+                    this.videoEl = dom.playbackVideo;
+                    this.overlayCtx = null;
+                    this.markers = [];
+                    this.pairedJumps = [];
+                    this.motionData = [];
+                    this.currentTime = 0;
+                    this.fps = 30;
+                    this.videoDuration = 0;
+                    this.slowMotionActive = false;
+                    this.slowMotionRate = 0.5;
+                    this._ready = false;
+                }
+
+                initCanvas() {
+                    const rect = dom.videoZone.getBoundingClientRect();
+                    dom.overlayCanvas.width = Math.floor(rect.width);
+                    dom.overlayCanvas.height = Math.floor(rect.height);
+                    this.overlayCtx = dom.overlayCanvas.getContext('2d');
+                }
+
+                loadVideo(url) {
+                    return new Promise((resolve, reject) => {
+                        this.videoEl.src = url;
+                        this.videoEl.style.display = 'block';
+                        this.videoEl.onloadedmetadata = () => {
+                            this.videoDuration = this.videoEl.duration;
+                            this.fps = 30;
+                            if (this.videoDuration > 0 && this.videoDuration <= 120) {
+                                this._ready = true;
+                                this.initCanvas();
+                                this.videoEl.currentTime = 0;
+                                resolve(this.videoDuration);
+                            } else if (this.videoDuration > 120) {
+                                reject(new Error('视频时长过长（最大120秒）'));
+                            } else {
+                                reject(new Error('视频加载失败，时长无效'));
+                            }
+                        };
+                        this.videoEl.onerror = () => reject(new Error('视频文件无法解码，请检查格式'));
+                        this.videoEl.load();
+                    });
+                }
+
+                async analyzeMotion() {
+                    if (!this._ready || this.videoDuration <= 0) return;
+                    const numSamples = Math.min(150, Math.floor(this.videoDuration * 5));
+                    const interval = this.videoDuration / numSamples;
+                    this.motionData = [];
+                    const offCanvas = document.createElement('canvas');
+                    offCanvas.width = 160;
+                    offCanvas.height = 90;
+                    const offCtx = offCanvas.getContext('2d');
+                    let prevImageData = null;
+                    for (let i = 0; i < numSamples; i++) {
+                        const t = i * interval;
+                        try {
+                            await this._seekToTime(t, 300);
+                            offCtx.drawImage(this.videoEl, 0, 0, 160, 90);
+                            const imageData = offCtx.getImageData(0, 0, 160, 90);
+                            if (prevImageData) {
+                                let diff = 0;
+                                const d1 = prevImageData.data;
+                                const d2 = imageData.data;
+                                for (let p = 0; p < d1.length; p += 4) {
+                                    diff += Math.abs(d1[p] - d2[p]) + Math.abs(d1[p + 1] - d2[p + 1]) + Math.abs(d1[p +
+                                        2] - d2[p + 2]);
+                                }
+                                diff /= (160 * 90 * 3);
+                                this.motionData.push({ time: t, diff: Math.round(diff * 1000) / 1000 });
+                            }
+                            prevImageData = imageData;
+                        } catch (e) {}
+                    }
+                    this._renderMotionStrip();
+                    bus.emit('analyzer:motionDone', this.motionData);
+                }
+
+                _renderMotionStrip() {
+                    if (!this.motionData.length) return;
+                    dom.motionStrip.classList.add('visible');
+                    dom.motionStripInner.innerHTML = '';
+                    const maxDiff = Math.max(...this.motionData.map(d => d.diff), 0.01);
+                    this.motionData.forEach(d => {
+                        const seg = document.createElement('div');
+                        seg.className = 'motion-strip-seg';
+                        const intensity = d.diff / maxDiff;
+                        seg.style.backgroundColor =
+                            `rgb(${Math.round(60+intensity*195)},${Math.round(100+intensity*155)},${Math.round(180-intensity*120)})`;
+                        seg.style.opacity = 0.5 + intensity * 0.5;
+                        seg.title = `${d.time.toFixed(2)}s 运动量 ${d.diff.toFixed(3)}`;
+                        dom.motionStripInner.appendChild(seg);
+                    });
+                }
+
+                _seekToTime(time, timeoutMs = 500) {
+                    return new Promise((resolve) => {
+                        const t = Math.max(0, Math.min(time, this.videoDuration));
+                        this.videoEl.currentTime = t;
+                        const onSeeked = () => {
+                            this.videoEl.removeEventListener('seeked', onSeeked);
+                            this.currentTime = this.videoEl.currentTime;
+                            resolve(this.currentTime);
+                        };
+                        const timer = setTimeout(() => {
+                            this.videoEl.removeEventListener('seeked', onSeeked);
+                            this.currentTime = this.videoEl.currentTime;
+                            resolve(this.currentTime);
+                        }, timeoutMs);
+                        this.videoEl.addEventListener('seeked', onSeeked, { once: true });
+                    });
+                }
+
+                seekTo(time) { return this._seekToTime(time); }
+                stepForward() { return this._seekToTime(Math.min(this.currentTime + 1 / this.fps, this.videoDuration)); }
+                stepBackward() { return this._seekToTime(Math.max(this.currentTime - 1 / this.fps, 0)); }
+
+                addMarker(type, time) {
+                    if (!time && time !== 0) time = this.currentTime;
+                    time = Math.round(time * 1000) / 1000;
+                    if (time < 0 || time > this.videoDuration) return null;
+                    if (this.markers.some(m => m.type === type && Math.abs(m.time - time) < 0.03)) return null;
+                    const marker = { type, time, id: Date.now() + Math.random() };
+                    this.markers.push(marker);
+                    this.markers.sort((a, b) => a.time - b.time);
+                    bus.emit('analyzer:markersChanged', this.markers);
+                    return marker;
+                }
+
+                removeMarker(id) {
+                    // 修复：使用严格相等比较数字
+                    this.markers = this.markers.filter(m => m.id !== id);
+                    this.pairedJumps = [];
+                    bus.emit('analyzer:markersChanged', this.markers);
+                    bus.emit('analyzer:jumpsChanged', this.pairedJumps);
+                }
+
+                autoPairMarkers() {
+                    this.pairedJumps = [];
+                    const liftoffs = this.markers.filter(m => m.type === 'liftoff').sort((a, b) => a.time - b.time);
+                    const landings = this.markers.filter(m => m.type === 'landing').sort((a, b) => a.time - b.time);
+                    const used = new Set();
+                    for (const lo of liftoffs) {
+                        let best = null,
+                            bestDiff = Infinity;
+                        for (const la of landings) {
+                            if (used.has(la.id)) continue;
+                            const diff = la.time - lo.time;
+                            if (diff > 0.02 && diff < 3.0 && diff < bestDiff) {
+                                bestDiff = diff;
+                                best = la;
+                            }
+                        }
+                        if (best) {
+                            used.add(best.id);
+                            const result = new PhysicsCalculator().calcByFlightTime(best.time - lo.time);
+                            this.pairedJumps.push({
+                                liftoffTime: lo.time,
+                                landingTime: best.time,
+                                flightTime: best.time - lo.time,
+                                heightCm: result.heightCm,
+                            });
+                        }
+                    }
+                    this.pairedJumps.sort((a, b) => b.heightCm - a.heightCm);
+                    bus.emit('analyzer:jumpsChanged', this.pairedJumps);
+                    return this.pairedJumps;
+                }
+
+                clearMarkers() {
+                    this.markers = [];
+                    this.pairedJumps = [];
+                    bus.emit('analyzer:markersChanged', []);
+                    bus.emit('analyzer:jumpsChanged', []);
+                }
+
+                reset() {
+                    this.clearMarkers();
+                    this.motionData = [];
+                    this.currentTime = 0;
+                    this.videoDuration = 0;
+                    this._ready = false;
+                    this.videoEl.src = '';
+                    this.videoEl.style.display = 'none';
+                    dom.motionStrip.classList.remove('visible');
+                    dom.timelineContainer.classList.remove('visible');
+                    dom.frameNav.classList.remove('visible');
+                    dom.markersPanel.style.display = 'none';
+                    dom.resultsPanel.classList.remove('visible');
+                    dom.btnRowAnalysis.style.display = 'none';
+                    dom.btnRowMain.style.display = 'flex';
+                    dom.videoZone.classList.remove('analysis-active');
+                    if (this.overlayCtx) this.overlayCtx.clearRect(0, 0, dom.overlayCanvas.width, dom.overlayCanvas
+                    .height);
+                    dom.timelineMarkers.innerHTML = '';
+                    dom.timelineSlider.value = 0;
+                }
+
+                getMarkers() { return [...this.markers]; }
+                getPairedJumps() { return [...this.pairedJumps]; }
+                isReady() { return this._ready; }
+            }
+
+            class AppController {
+                constructor() {
+                    this.analyzer = new VideoAnalyzer();
+                    this.state = 'idle';
+                    this.selectedVideoUrl = null;
+                    this.transform = { x: 0, y: 0, scale: 1 };
+                    this._bindEvents();
+                    this._initState();
+                }
+
+                _initState() {
+                    this.state = 'idle';
+                    dom.btnAnalyze.disabled = true;
+                    dom.btnRowAnalysis.style.display = 'none';
+                    dom.markersPanel.style.display = 'none';
+                    dom.resultsPanel.classList.remove('visible');
+                    dom.timelineContainer.classList.remove('visible');
+                    dom.frameNav.classList.remove('visible');
+                    dom.motionStrip.classList.remove('visible');
+                    dom.statusDot.classList.remove('active');
+                    dom.statusText.textContent = '等待视频导入';
+                    this._applyView();
+                    dom.zoomSlider.value = 1;
+                    dom.zoomValue.textContent = '1.0x';
+                }
+
+                _bindEvents() {
+                    dom.btnSelectVideo.addEventListener('click', () => dom.fileInput.click());
+                    dom.fileInput.addEventListener('change', (e) => this._handleFileSelect(e.target.files[0]));
+                    dom.btnAnalyze.addEventListener('click', () => this._handleAnalyze());
+                    dom.btnReset.addEventListener('click', () => this._handleReset());
+                    dom.btnMarkLiftoff.addEventListener('click', () => this._markLiftoff());
+                    dom.btnMarkLanding.addEventListener('click', () => this._markLanding());
+                    dom.btnAutoPair.addEventListener('click', () => this._autoPair());
+                    dom.btnFrameBack.addEventListener('click', () => this._frameBack());
+                    dom.btnFrameFwd.addEventListener('click', () => this._frameForward());
+                    dom.btnSlowPlay.addEventListener('click', () => this._slowPlay());
+                    dom.timelineSlider.addEventListener('input', () => this._timelineInput());
+                    dom.timelineSlider.addEventListener('change', () => this._timelineChange());
+                    dom.zoomSlider.addEventListener('input', () => {
+                        this.transform.scale = parseFloat(dom.zoomSlider.value);
+                        this._applyView();
+                    });
+                    dom.btnResetView.addEventListener('click', () => {
+                        this.transform = { x: 0, y: 0, scale: 1 };
+                        dom.zoomSlider.value = 1;
+                        dom.zoomValue.textContent = '1.0x';
+                        this._applyView();
+                    });
+
+                    const zone = dom.videoZone;
+                    zone.addEventListener('dragover', (e) => { e.preventDefault();
+                        zone.style.borderColor = 'var(--accent)'; });
+                    zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+                    zone.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        zone.style.borderColor = '';
+                        const file = e.dataTransfer.files[0];
+                        if (file) this._handleFileSelect(file);
+                    });
+
+                    // 鼠标左键拖拽平移
+                    let dragging = false,
+                        lastX, lastY;
+                    const videoInner = dom.videoInner;
+                    videoInner.addEventListener('mousedown', (e) => {
+                        if (e.button === 0) { // 左键
+                            e.preventDefault();
+                            dragging = true;
+                            lastX = e.clientX;
+                            lastY = e.clientY;
+                            videoInner.classList.add('dragging');
+                        }
+                    });
+                    window.addEventListener('mousemove', (e) => {
+                        if (!dragging) return;
+                        const dx = e.clientX - lastX;
+                        const dy = e.clientY - lastY;
+                        this.transform.x += dx;
+                        this.transform.y += dy;
+                        lastX = e.clientX;
+                        lastY = e.clientY;
+                        this._applyView();
+                    });
+                    window.addEventListener('mouseup', (e) => {
+                        if (e.button === 0 && dragging) {
+                            dragging = false;
+                            videoInner.classList.remove('dragging');
+                        }
+                    });
+
+                    // 滚轮缩放
+                    dom.videoZone.addEventListener('wheel', (e) => {
+                        e.preventDefault();
+                        const rect = dom.videoZone.getBoundingClientRect();
+                        const mouseX = e.clientX - rect.left;
+                        const mouseY = e.clientY - rect.top;
+                        const oldScale = this.transform.scale;
+                        let newScale = oldScale * (e.deltaY < 0 ? 1.08 : 0.92);
+                        newScale = Math.min(3, Math.max(1, newScale));
+                        const scaleChange = newScale / oldScale;
+                        this.transform.x = mouseX - scaleChange * (mouseX - this.transform.x);
+                        this.transform.y = mouseY - scaleChange * (mouseY - this.transform.y);
+                        this.transform.scale = newScale;
+                        dom.zoomSlider.value = Math.round(newScale * 10) / 10;
+                        dom.zoomValue.textContent = newScale.toFixed(1) + 'x';
+                        this._applyView();
+                    });
+
+                    document.addEventListener('keydown', (e) => {
+                        if (this.state !== 'analyzing') return;
+                        if (e.key === 'ArrowRight') { e.preventDefault();
+                            this._frameForward(); } else if (e.key === 'ArrowLeft') { e
+                                .preventDefault();
+                            this._frameBack(); } else if (e.key === 'a' || e.key === 'A') { e
+                            .preventDefault();
+                            this._markLiftoff(); } else if (e.key === 's' || e.key === 'S') { e
+                            .preventDefault();
+                            this._markLanding(); } else if (e.key === ' ') { e.preventDefault();
+                            this._slowPlay(); }
+                    });
+
+                    bus.on('analyzer:markersChanged', (markers) => this._renderMarkers(markers));
+                    bus.on('analyzer:jumpsChanged', (jumps) => this._renderResults(jumps));
+                    bus.on('analyzer:motionDone', () => { if (this.state === 'analyzing') this._updateTimelineMarkers(
+                        ); });
+                    window.addEventListener('resize', () => { if (this.analyzer.isReady()) { this.analyzer.initCanvas();
+                            this._drawOverlay(); } });
+                }
+
+                _handleFileSelect(file) {
+                    if (!file || !file.type.startsWith('video/')) return showToast('请选择视频文件', 'error');
+                    if (this.selectedVideoUrl) URL.revokeObjectURL(this.selectedVideoUrl);
+                    this.selectedVideoUrl = URL.createObjectURL(file);
+                    this.analyzer.videoEl.src = this.selectedVideoUrl;
+                    this.analyzer.videoEl.style.display = 'block';
+                    dom.videoPlaceholder.style.display = 'none';
+                    dom.statusDot.classList.add('active');
+                    dom.statusText.textContent = '视频已加载';
+                    this.state = 'video_loaded';
+                    dom.btnAnalyze.disabled = false;
+                    showToast('视频已导入，点击"开始分析"', 'success');
+                }
+
+                async _handleAnalyze() {
+                    if (!this.selectedVideoUrl) return showToast('请先导入视频', 'error');
+                    try {
+                        dom.statusText.textContent = '加载视频...';
+                        dom.videoZone.classList.add('analysis-active');
+                        const dur = await this.analyzer.loadVideo(this.selectedVideoUrl);
+                        this.state = 'analyzing';
+                        dom.btnAnalyze.disabled = true;
+                        dom.btnRowAnalysis.style.display = 'flex';
+                        dom.markersPanel.style.display = 'flex';
+                        dom.timelineContainer.classList.add('visible');
+                        dom.frameNav.classList.add('visible');
+                        dom.resultsPanel.classList.remove('visible');
+                        dom.timelineSlider.max = 1000;
+                        dom.timelineSlider.value = 0;
+                        dom.timelineEnd.textContent = dur.toFixed(3) + 's';
+                        dom.timelineStart.textContent = '0.000s';
+                        dom.timelineCurrent.textContent = '0.000s';
+                        dom.frameInfo.textContent = '0.000s';
+                        this.analyzer.clearMarkers();
+                        this._drawOverlay();
+                        this._renderMarkers([]);
+                        dom.statusText.textContent = '分析模式 · 手动标记';
+                        showToast('逐帧浏览，用按钮或键盘(A/S)标记', 'success');
+                        setTimeout(() => this.analyzer.analyzeMotion(), 200);
+                    } catch (err) {
+                        showToast('分析失败: ' + err.message, 'error');
+                        this._handleReset();
+                    }
+                }
+
+                _handleReset() {
+                    if (this.selectedVideoUrl) URL.revokeObjectURL(this.selectedVideoUrl);
+                    this.selectedVideoUrl = null;
+                    this.analyzer.reset();
+                    this._initState();
+                    dom.videoPlaceholder.style.display = 'flex';
+                    dom.fileInput.value = '';
+                    this.transform = { x: 0, y: 0, scale: 1 };
+                    this._applyView();
+                    dom.resultValue.textContent = '--';
+                    dom.resultDetail.textContent = '';
+                    dom.resultList.innerHTML = '';
+                    dom.markersList.innerHTML = '<span style="color:var(--text2);">尚未标记</span>';
+                    showToast('已重置', 'success');
+                }
+
+                _markLiftoff() { if (this.state !== 'analyzing') return; const m = this.analyzer.addMarker('liftoff'); if (
+                        m) { showToast(`⬆ 离地 ${m.time.toFixed(3)}s`, 'success');
+                        this._updateTimelineMarkers();
+                        this._drawOverlay(); } }
+                _markLanding() { if (this.state !== 'analyzing') return; const m = this.analyzer.addMarker('landing'); if (
+                        m) { showToast(`⬇ 着陆 ${m.time.toFixed(3)}s`, 'success');
+                        this._updateTimelineMarkers();
+                        this._drawOverlay(); } }
+                _autoPair() { const jumps = this.analyzer.autoPairMarkers(); if (!jumps.length) showToast(
+                        '未找到可配对的离地/着陆组合', 'error'); else showToast(`⚡ 已配对 ${jumps.length} 次弹跳`, 'success');
+                    this._updateTimelineMarkers(); }
+                async _frameForward() { await this.analyzer.stepForward();
+                    this._syncTimeline(); }
+                async _frameBack() { await this.analyzer.stepBackward();
+                    this._syncTimeline(); }
+                _slowPlay() {
+                    this.analyzer.slowMotionActive = !this.analyzer.slowMotionActive;
+                    if (this.analyzer.slowMotionActive) {
+                        this.analyzer.videoEl.playbackRate = this.analyzer.slowMotionRate;
+                        this.analyzer.videoEl.play();
+                        dom.btnSlowPlay.textContent = '1x';
+                        dom.btnSlowPlay.style.background = 'var(--accent)';
+                        dom.btnSlowPlay.style.color = '#000';
+                    } else {
+                        this.analyzer.videoEl.playbackRate = 1;
+                        this.analyzer.videoEl.pause();
+                        dom.btnSlowPlay.textContent = '0.5x';
+                        dom.btnSlowPlay.style.background = '';
+                        dom.btnSlowPlay.style.color = '';
+                    }
+                }
+
+                _timelineInput() {
+                    const ratio = parseInt(dom.timelineSlider.value) / 1000;
+                    const t = ratio * this.analyzer.videoDuration;
+                    dom.timelineCurrent.textContent = t.toFixed(3) + 's';
+                    dom.frameInfo.textContent = t.toFixed(3) + 's';
+                }
+                async _timelineChange() {
+                    const ratio = parseInt(dom.timelineSlider.value) / 1000;
+                    await this.analyzer.seekTo(ratio * this.analyzer.videoDuration);
+                    this._syncTimeline();
+                }
+                _syncTimeline() {
+                    const t = this.analyzer.currentTime;
+                    const dur = this.analyzer.videoDuration;
+                    dom.timelineSlider.value = dur ? Math.round((t / dur) * 1000) : 0;
+                    dom.timelineCurrent.textContent = t.toFixed(3) + 's';
+                    dom.frameInfo.textContent = t.toFixed(3) + 's';
+                    this._drawOverlay();
+                }
+
+                _drawOverlay() {
+                    if (!this.analyzer.isReady()) return;
+                    const ctx = this.analyzer.overlayCtx;
+                    if (!ctx) return;
+                    const w = dom.overlayCanvas.width,
+                        h = dom.overlayCanvas.height;
+                    ctx.clearRect(0, 0, w, h);
+                    const t = this.analyzer.currentTime,
+                        dur = this.analyzer.videoDuration;
+                    if (dur > 0) {
+                        const x = (t / dur) * w;
+                        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([5, 8]);
+                        ctx.beginPath();
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, h);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '12px ' + getComputedStyle(document.body).fontFamily;
+                        ctx.fillText(t.toFixed(3) + 's', x + 6, h - 8);
+                    }
+                    this.analyzer.getMarkers().forEach(m => {
+                        const mx = (m.time / dur) * w;
+                        ctx.fillStyle = m.type === 'liftoff' ? '#3ddc84' : '#ffb347';
+                        ctx.beginPath();
+                        ctx.arc(mx, h - 22, 6, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                    });
+                }
+
+                _updateTimelineMarkers() {
+                    const dur = this.analyzer.videoDuration;
+                    if (!dur) return;
+                    dom.timelineMarkers.innerHTML = '';
+                    this.analyzer.getMarkers().forEach(m => {
+                        const el = document.createElement('div');
+                        el.className = 'timeline-marker ' + (m.type === 'liftoff' ? 'liftoff' : 'landing');
+                        el.style.left = (m.time / dur * 100) + '%';
+                        dom.timelineMarkers.appendChild(el);
+                    });
+                    this.analyzer.getPairedJumps().forEach(j => {
+                        const el = document.createElement('div');
+                        el.style.cssText = `position:absolute;top:3px;height:10px;background:rgba(61,220,132,0.45);border-radius:2px;left:${(j.liftoffTime/dur)*100}%;width:${((j.landingTime-j.liftoffTime)/dur)*100}%;min-width:3px;`;
+                        dom.timelineMarkers.appendChild(el);
+                    });
+                }
+
+                _renderMarkers(markers) {
+                    if (!markers.length) {
+                        dom.markersList.innerHTML = '<span style="color:var(--text2);">点击按钮或按 A/S 添加标记</span>';
+                        return;
+                    }
+                    dom.markersList.innerHTML = markers.map(m => `
+                        <div class="marker-item">
+                            <span class="marker-type ${m.type==='liftoff'?'liftoff-tag':'landing-tag'}">${m.type==='liftoff'?'⬆ 离地':'⬇ 着陆'}</span>
+                            <span class="marker-time">${m.time.toFixed(3)}s</span>
+                            <button class="marker-delete" data-id="${m.id}">✕</button>
+                        </div>`).join('');
+                    // 修复删除功能：使用 Number 转换 data-id 并与标记 id 严格匹配
+                    dom.markersList.querySelectorAll('.marker-delete').forEach(b => {
+                        b.addEventListener('click', () => {
+                            const markerId = Number(b.dataset.id);
+                            this.analyzer.removeMarker(markerId);
+                            this._updateTimelineMarkers();
+                            this._drawOverlay();
+                        });
+                    });
+                }
+
+                _renderResults(jumps) {
+                    if (!jumps.length) {
+                        dom.resultsPanel.classList.remove('visible');
+                        dom.resultValue.textContent = '--';
+                        dom.resultDetail.textContent = '';
+                        dom.resultList.innerHTML = '';
+                        return;
+                    }
+                    dom.resultsPanel.classList.add('visible');
+                    const best = jumps[0];
+                    dom.resultValue.textContent = best.heightCm.toFixed(1);
+                    dom.resultDetail.textContent = `飞行时间 ${best.flightTime.toFixed(3)}s · 公式 h = g·t²/8 (g=9.81)`;
+                    dom.resultList.innerHTML = jumps.map((j, i) => `
+                        <div class="result-row">
+                            <span>#${i+1}</span>
+                            <span>⏱ ${j.flightTime.toFixed(3)}s</span>
+                            <span class="r-height">${j.heightCm.toFixed(1)} cm</span>
+                        </div>`).join('');
+                }
+
+                _applyView() {
+                    dom.videoInner.style.transform =
+                        `translate(${this.transform.x}px,${this.transform.y}px) scale(${this.transform.scale})`;
+                    dom.zoomValue.textContent = this.transform.scale.toFixed(1) + 'x';
+                    dom.zoomSlider.value = Math.round(this.transform.scale * 10) / 10;
+                }
+            }
+
+            new AppController();
+            console.log('🏀 弹跳高度测量工具（左键拖拽 + 删除修复版）已启动');
+        })();
+    </script>
+</body>
+</html>
