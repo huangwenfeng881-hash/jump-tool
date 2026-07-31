@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 · Jump Tools</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .jt-nav {
+      width: 100%;
+    }
+    .config-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: rgba(255, 179, 71, 0.12);
+      border: 1px solid rgba(255, 179, 71, 0.4);
+      color: var(--warning);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+    .config-warning code {
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+    }
+    .jt-link {
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .jt-link:hover {
+      text-decoration: underline;
+    }
+    .forgot-link {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 0.8rem;
+    }
+    .logged-panel {
+      text-align: center;
+    }
+    .logged-email {
+      font-family: var(--font-mono);
+      font-size: 1.05rem;
+      color: var(--text);
+      font-weight: 600;
+      margin: 10px 0 18px;
+      word-break: break-all;
+    }
+    .btn-row-logged {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-row-logged .jt-btn {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="jt-nav">
+    <a class="jt-nav-logo" href="index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Jump Tools</span>
+    </a>
+    <div class="jt-nav-links">
+      <a class="jt-nav-link" href="index.html">首页</a>
+      <a class="jt-nav-link" href="barbell.html">杠铃速度追踪</a>
+      <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+      <a class="jt-nav-link active" href="login.html">登录</a>
+    </div>
+    <div class="jt-nav-user">
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html" style="display:none">登录</a>
+    </div>
+  </nav>
+
+  <div class="jt-auth-wrap">
+    <div class="jt-auth-card">
+      <div class="auth-logo">⚡</div>
+      <h2 id="authTitle">欢迎回来</h2>
+      <div class="auth-sub" id="authSub">登录后可将训练记录保存到云端</div>
+
+      <!-- 未配置提示（填好 js/supabase-config.js 后自动消失） -->
+      <div class="config-warning" id="configWarning" style="display:none">
+        ⚠️ Supabase 尚未配置：请在 <code>js/supabase-config.js</code> 中填入项目 URL 与 anon key，
+        并在 Supabase SQL Editor 执行建表 + RLS 脚本（见该文件注释）。
+      </div>
+
+      <!-- 登录 -->
+      <form id="formLogin" onsubmit="return doLogin(event)">
+        <div class="jt-field">
+          <label for="loginEmail">邮箱</label>
+          <input class="jt-input" id="loginEmail" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="jt-field">
+          <label for="loginPassword">密码</label>
+          <input class="jt-input" id="loginPassword" type="password" placeholder="请输入密码" autocomplete="current-password">
+        </div>
+        <div class="jt-msg err" id="loginMsg"></div>
+        <button class="jt-btn jt-btn-accent" type="submit" style="width:100%">登 录</button>
+        <div class="forgot-link"><a class="jt-link" onclick="toggleForm('forgot')">忘记密码？</a></div>
+      </form>
+
+      <!-- 注册 -->
+      <form id="formRegister" style="display:none" onsubmit="return doRegister(event)">
+        <div class="jt-field">
+          <label for="regEmail">邮箱</label>
+          <input class="jt-input" id="regEmail" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="jt-field">
+          <label for="regPassword">密码</label>
+          <input class="jt-input" id="regPassword" type="password" placeholder="至少 6 位" autocomplete="new-password">
+        </div>
+        <div class="jt-field">
+          <label for="regConfirm">确认密码</label>
+          <input class="jt-input" id="regConfirm" type="password" placeholder="再次输入密码" autocomplete="new-password">
+        </div>
+        <div class="jt-msg err" id="regMsg"></div>
+        <button class="jt-btn jt-btn-accent" type="submit" style="width:100%">注 册</button>
+      </form>
+
+      <!-- 忘记密码 -->
+      <form id="formForgot" style="display:none" onsubmit="return doForgot(event)">
+        <div class="jt-field">
+          <label for="forgotEmail">邮箱</label>
+          <input class="jt-input" id="forgotEmail" type="email" placeholder="请输入注册邮箱" autocomplete="email">
+        </div>
+        <div class="jt-msg err" id="forgotMsg"></div>
+        <button class="jt-btn jt-btn-accent" type="submit" style="width:100%">发送重置邮件</button>
+        <div class="forgot-link"><a class="jt-link" onclick="toggleForm('login')">返回登录</a></div>
+      </form>
+
+      <!-- 设置新密码（从重置邮件链接跳转后显示） -->
+      <form id="formReset" style="display:none" onsubmit="return doReset(event)">
+        <div class="jt-field">
+          <label for="resetPassword">新密码</label>
+          <input class="jt-input" id="resetPassword" type="password" placeholder="至少 6 位" autocomplete="new-password">
+        </div>
+        <div class="jt-field">
+          <label for="resetConfirm">确认新密码</label>
+          <input class="jt-input" id="resetConfirm" type="password" placeholder="再次输入新密码" autocomplete="new-password">
+        </div>
+        <div class="jt-msg err" id="resetMsg"></div>
+        <button class="jt-btn jt-btn-accent" type="submit" style="width:100%">确认重置密码</button>
+        <div class="forgot-link"><a class="jt-link" onclick="toggleForm('login')">返回登录</a></div>
+      </form>
+
+      <!-- 已登录 -->
+      <div id="loggedPanel" style="display:none">
+        <div class="logged-panel">
+          <div style="font-size:0.85rem;color:var(--text2);margin-bottom:6px;">当前登录账号</div>
+          <div class="logged-email" id="loggedEmail">--</div>
+          <div class="btn-row-logged">
+            <a class="jt-btn jt-btn-accent" href="history.html">📋 我的记录</a>
+            <a class="jt-btn jt-btn-outline" href="index.html">返回首页</a>
+          </div>
+          <div class="forgot-link"><a class="jt-link" onclick="doLogout()">退出登录</a></div>
+        </div>
+      </div>
+
+      <div class="jt-auth-switch" id="authSwitch">
+        还没有账号？<a class="jt-link" onclick="toggleForm('register')">立即注册</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="jt-toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var Auth = window.JTAuth;
+
+      function showToast(msg, type) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'jt-toast show ' + (type || '');
+        setTimeout(function () { t.className = 'jt-toast'; }, 2600);
+      }
+
+      // 登录成功后的跳转目标（仅允许站内页面，避免开放重定向）
+      function nextUrl() {
+        var next = new URLSearchParams(location.search).get('next') || '';
+        return /^[a-zA-Z0-9_\-]+\.html$/.test(next) ? next : 'index.html';
+      }
+
+      function setMsg(id, msg, ok) {
+        var el = document.getElementById(id);
+        el.textContent = msg;
+        el.className = 'jt-msg ' + (ok ? 'ok' : 'err');
+      }
+
+      function toggleForm(mode) {
+        document.getElementById('formLogin').style.display = mode === 'login' ? 'block' : 'none';
+        document.getElementById('formRegister').style.display = mode === 'register' ? 'block' : 'none';
+        document.getElementById('formForgot').style.display = mode === 'forgot' ? 'block' : 'none';
+        document.getElementById('formReset').style.display = 'none';
+        document.getElementById('loggedPanel').style.display = 'none';
+        document.getElementById('authSwitch').style.display = mode === 'forgot' ? 'none' : 'block';
+        document.getElementById('authTitle').textContent =
+          mode === 'register' ? '创建账号' : (mode === 'forgot' ? '重置密码' : '欢迎回来');
+        document.getElementById('authSub').textContent =
+          mode === 'register' ? '注册后即可免费使用全部工具'
+            : (mode === 'forgot' ? '输入注册邮箱，我们将发送重置链接' : '登录后可将训练记录保存到云端');
+        document.getElementById('authSwitch').innerHTML =
+          mode === 'register'
+            ? '已有账号？<a class="jt-link" onclick="toggleForm(\'login\')">直接登录</a>'
+            : '还没有账号？<a class="jt-link" onclick="toggleForm(\'register\')">立即注册</a>';
+        document.getElementById('loginMsg').textContent = '';
+        document.getElementById('regMsg').textContent = '';
+        document.getElementById('forgotMsg').textContent = '';
+        document.getElementById('resetMsg').textContent = '';
+      }
+      window.toggleForm = toggleForm;
+
+      window.doLogin = function (e) {
+        e.preventDefault();
+        var btn = e.target.querySelector('button');
+        btn.disabled = true;
+        Auth.signIn(
+          document.getElementById('loginEmail').value,
+          document.getElementById('loginPassword').value
+        ).then(function (r) {
+          btn.disabled = false;
+          setMsg('loginMsg', r.msg, r.ok);
+          if (r.ok) {
+            showToast(r.msg, 'ok');
+            setTimeout(function () { location.href = nextUrl(); }, 600);
+          }
+        });
+        return false;
+      };
+
+      window.doRegister = function (e) {
+        e.preventDefault();
+        var p1 = document.getElementById('regPassword').value;
+        var p2 = document.getElementById('regConfirm').value;
+        if (p1 !== p2) { setMsg('regMsg', '两次输入的密码不一致', false); return false; }
+        var btn = e.target.querySelector('button');
+        btn.disabled = true;
+        Auth.signUp(document.getElementById('regEmail').value, p1).then(function (r) {
+          btn.disabled = false;
+          setMsg('regMsg', r.msg, r.ok);
+          if (r.ok) {
+            showToast(r.msg, 'ok');
+            if (r.needConfirm) {
+              // 需邮箱确认：切回登录表单提示
+              toggleForm('login');
+              setMsg('loginMsg', r.msg, true);
+            } else {
+              setTimeout(function () { location.href = nextUrl(); }, 600);
+            }
+          }
+        });
+        return false;
+      };
+
+      window.doForgot = function (e) {
+        e.preventDefault();
+        var btn = e.target.querySelector('button');
+        btn.disabled = true;
+        Auth.resetPassword(document.getElementById('forgotEmail').value).then(function (r) {
+          btn.disabled = false;
+          setMsg('forgotMsg', r.msg, r.ok);
+        });
+        return false;
+      };
+
+      window.doReset = function (e) {
+        e.preventDefault();
+        var p1 = document.getElementById('resetPassword').value;
+        var p2 = document.getElementById('resetConfirm').value;
+        if (p1 !== p2) { setMsg('resetMsg', '两次输入的密码不一致', false); return false; }
+        var btn = e.target.querySelector('button');
+        btn.disabled = true;
+        Auth.updatePassword(p1).then(function (r) {
+          btn.disabled = false;
+          setMsg('resetMsg', r.msg, r.ok);
+          if (r.ok) {
+            showToast(r.msg, 'ok');
+            inRecovery = false;
+            // 清除恢复会话，回到登录页用新密码登录
+            Auth.signOut().then(function () { toggleForm('login'); });
+          }
+        });
+        return false;
+      };
+
+      // 从重置邮件链接跳转时，Supabase 会触发 PASSWORD_RECOVERY 事件，显示设置新密码表单
+      var inRecovery = false;
+      function showResetForm() {
+        inRecovery = true;
+        document.getElementById('formLogin').style.display = 'none';
+        document.getElementById('formRegister').style.display = 'none';
+        document.getElementById('formForgot').style.display = 'none';
+        document.getElementById('formReset').style.display = 'block';
+        document.getElementById('loggedPanel').style.display = 'none';
+        document.getElementById('authSwitch').style.display = 'none';
+        document.getElementById('authTitle').textContent = '设置新密码';
+        document.getElementById('authSub').textContent = '请输入新的登录密码';
+        document.getElementById('resetMsg').textContent = '';
+      }
+      // 先注册事件监听，确保能捕获初始化时的 PASSWORD_RECOVERY 事件
+      Auth.onAuthStateChange(function (event) {
+        if (event === 'PASSWORD_RECOVERY') showResetForm();
+      });
+
+      window.doLogout = function () {
+        Auth.signOut().then(function () { location.reload(); });
+      };
+
+      // 初始化：恢复登录状态 + 刷新导航
+      Auth.init(function (session) {
+        var logged = !!session && !inRecovery;
+        document.getElementById('loggedPanel').style.display = logged ? 'block' : 'none';
+        document.getElementById('formLogin').style.display = (logged || inRecovery) ? 'none' : 'block';
+        document.getElementById('authSwitch').style.display = (logged || inRecovery) ? 'none' : 'block';
+        document.getElementById('authTitle').textContent = logged ? '已登录' : (inRecovery ? '设置新密码' : '欢迎回来');
+        document.getElementById('authSub').textContent = logged ? '训练记录已保存在云端' : (inRecovery ? '请输入新的登录密码' : '登录后可将训练记录保存到云端');
+        if (logged && session.user) document.getElementById('loggedEmail').textContent = session.user.email;
+      });
+
+      // 未配置提示
+      if (!Auth.configured()) {
+        document.getElementById('configWarning').style.display = 'block';
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -631,7 +631,8 @@
         <div class="jt-nav-user">
             <span class="user-name" id="navUserName">未登录</span>
             <span class="plan-pill" id="navPlan">FREE</span>
-            <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.logout(); location.href='index.html'">退出</button>
+            <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.signOut()">退出</button>
+            <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html?next=jump.html" style="display:none">登录</a>
         </div>
     </nav>
     <div class="app-container" id="appContainer">
@@ -727,6 +728,9 @@
                     </div>
                     <div class="result-detail" id="resultDetail"></div>
                     <div class="result-list" id="resultList"></div>
+                    <button class="btn success" id="btnSaveJump" style="display:none;">
+                        <span class="btn-icon">💾</span> 保存本次分析
+                    </button>
                 </div>
 
                 <div class="kbd-hint">
@@ -787,6 +791,7 @@
                 resultValue: $('#resultValue'),
                 resultDetail: $('#resultDetail'),
                 resultList: $('#resultList'),
+                btnSaveJump: $('#btnSaveJump'),
                 toastContainer: $('#toastContainer'),
                 fileInput: $('#fileInput'),
                 zoomSlider: $('#zoomSlider'),
@@ -1058,6 +1063,7 @@
                     dom.btnMarkLiftoff.addEventListener('click', () => this._markLiftoff());
                     dom.btnMarkLanding.addEventListener('click', () => this._markLanding());
                     dom.btnAutoPair.addEventListener('click', () => this._autoPair());
+                    dom.btnSaveJump.addEventListener('click', () => this._saveJumps());
                     dom.btnFrameBack.addEventListener('click', () => this._frameBack());
                     dom.btnFrameFwd.addEventListener('click', () => this._frameForward());
                     dom.btnSlowPlay.addEventListener('click', () => this._slowPlay());
@@ -1347,9 +1353,11 @@
                         dom.resultValue.textContent = '--';
                         dom.resultDetail.textContent = '';
                         dom.resultList.innerHTML = '';
+                        dom.btnSaveJump.style.display = 'none';
                         return;
                     }
                     dom.resultsPanel.classList.add('visible');
+                    dom.btnSaveJump.style.display = 'flex';
                     const best = jumps[0];
                     dom.resultValue.textContent = best.heightCm.toFixed(1);
                     dom.resultDetail.textContent = `飞行时间 ${best.flightTime.toFixed(3)}s · 公式 h = g·t²/8 (g=9.81)`;
@@ -1359,6 +1367,34 @@
                             <span>⏱ ${j.flightTime.toFixed(3)}s</span>
                             <span class="r-height">${j.heightCm.toFixed(1)} cm</span>
                         </div>`).join('');
+                }
+
+                // 保存本次分析的弹跳记录到云端（需登录；绑定用户 ID，RLS 保证只存本人数据）
+                async _saveJumps() {
+                    const jumps = this.analyzer.getPairedJumps();
+                    if (!jumps.length) return showToast('暂无配对成功的弹跳数据，请先「自动配对」', 'error');
+                    const user = await window.JTAuth.getCurrentUser();
+                    if (!user) {
+                        showToast('未登录，无法保存历史记录，请先登录', 'error');
+                        setTimeout(() => {
+                            location.href = 'login.html?next=' + encodeURIComponent('jump.html');
+                        }, 900);
+                        return;
+                    }
+                    try {
+                        let saved = 0;
+                        for (const j of jumps) {
+                            const res = await window.JTAuth.saveJumpRecord({
+                                height_cm: j.heightCm,
+                                flight_time: j.flightTime
+                            });
+                            if (res.error) throw new Error(res.error.message);
+                            saved++;
+                        }
+                        showToast(`已保存 ${saved} 条弹跳记录`, 'success');
+                    } catch (err) {
+                        showToast('保存失败: ' + err.message, 'error');
+                    }
                 }
 
                 _applyView() {
@@ -1374,21 +1410,15 @@
         })();
     </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        // 登录守卫 + 顶部用户信息
+        // 登录状态：自动维持（刷新页面自动恢复）+ 刷新导航。
+        // 未登录也可使用弹跳测量，只是无法保存历史记录。
         (function () {
             'use strict';
-            if (!window.JTAuth.requireAuth()) return;
-            var s = window.JTAuth.current();
-            if (s) {
-                var u = document.getElementById('navUserName');
-                var p = document.getElementById('navPlan');
-                var b = document.getElementById('btnLogout');
-                if (u) u.textContent = s.username;
-                if (p) p.textContent = (window.JTAuth.getPlan() || 'free').toUpperCase();
-                if (b) b.style.display = 'inline-flex';
-            }
+            window.JTAuth.init();
         })();
     </script>
 </body>

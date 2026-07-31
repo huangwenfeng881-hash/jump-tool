@@ -577,12 +577,14 @@
         <div class="jt-nav-user">
             <span class="user-name" id="navUserName">未登录</span>
             <span class="plan-pill" id="navPlan">FREE</span>
-            <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.logout(); location.href='index.html'">退出</button>
+            <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.signOut()">退出</button>
+            <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html?next=barbell.html" style="display:none">登录</a>
         </div>
     </nav>
     <header class="app-header">
         <div class="app-logo"><div class="icon">🏋️</div><span>杠铃速度追踪</span><span class="header-badge">力量训练分析</span></div>
         <div class="header-actions">
+            <button class="btn btn-accent btn-sm" id="btnSaveRecord" disabled>💾 保存曲线数据</button>
             <button class="btn btn-outline btn-sm" id="btnExportCSV" disabled>📊 导出CSV</button>
             <button class="btn btn-outline btn-sm" id="btnScreenshot" disabled>📸 截图曲线</button>
             <button class="btn btn-danger btn-sm" id="btnReset">🔄 重置</button>
@@ -698,6 +700,7 @@
             const btnSelectROI = document.getElementById('btnSelectROI');
             const btnStartTracking = document.getElementById('btnStartTracking');
             const btnCancelTracking = document.getElementById('btnCancelTracking');
+            const btnSaveRecord = document.getElementById('btnSaveRecord');
             const btnExportCSV = document.getElementById('btnExportCSV');
             const btnScreenshot = document.getElementById('btnScreenshot');
             const btnReset = document.getElementById('btnReset');
@@ -834,6 +837,7 @@
                 } else {
                     if (chartInstance) { chartInstance.data.labels = []; chartInstance.data.datasets[0].data = []; chartInstance.data.datasets[1].data = []; chartInstance.update('none'); }
                     updateStatsPanel(trackingData);
+                    btnSaveRecord.disabled = true;
                     btnExportCSV.disabled = true;
                     btnScreenshot.disabled = true;
                 }
@@ -873,6 +877,7 @@
                     btnCalibrate.disabled = true;
                     btnSelectROI.disabled = true;
                     btnStartTracking.disabled = true;
+                    btnSaveRecord.disabled = true;
                     btnExportCSV.disabled = true;
                     btnScreenshot.disabled = true;
                     tagTrackingStatus.style.display = 'none';
@@ -1632,6 +1637,7 @@
                     trackingData = trackingData.filter(x => x.time >= -0.0001 && x.time <= (clipEnd - clipStart) + 0.0001);
                     smoothVelocityData(trackingData);
                     tagTrackingDone.style.display = 'inline';
+                    btnSaveRecord.disabled = false;
                     btnExportCSV.disabled = false;
                     btnScreenshot.disabled = false;
                     // 重置图表缩放，确保 x 轴按剪辑范围显示，不被之前的缩放状态覆盖
@@ -1648,6 +1654,7 @@
                 cancelTrackingRequested = true;
                 isTracking = false;
                 btnStartTracking.disabled = false;
+                btnSaveRecord.disabled = true;
                 btnCancelTracking.style.display = 'none';
                 tagTrackingStatus.style.display = 'none';
                 progressWrap.style.display = 'none';
@@ -1872,6 +1879,37 @@
                 showToast('截图已导出');
             }
 
+            // 保存本次追踪的杠铃速度曲线与统计到云端（需登录；绑定用户 ID，RLS 保证只存本人数据）
+            async function saveRecord() {
+                if (!trackingData.length) return showToast('无数据可保存', true);
+                const user = await JTAuth.getCurrentUser();
+                if (!user) {
+                    showToast('未登录，无法保存历史记录，请先登录', true);
+                    setTimeout(() => { location.href = 'login.html?next=barbell.html'; }, 900);
+                    return;
+                }
+                const s = computeStats(trackingData);
+                if (!s) return showToast('数据不足，无法保存', true);
+                // 曲线只保留关键字段，控制 jsonb 体积
+                const curve = trackingData.map(d => ({
+                    time: +d.time.toFixed(4),
+                    velocity_ms: +d.velocity_ms.toFixed(4),
+                    cumulativeDisplacement_m: +d.cumulativeDisplacement_m.toFixed(4),
+                    phase: d.phase
+                }));
+                const res = await JTAuth.saveBarbellRecord({
+                    peak_speed: s.peakSpeed,
+                    avg_concentric: s.avgConcentric,
+                    avg_eccentric: s.avgEccentric,
+                    concentric_time: s.concentricTime,
+                    eccentric_time: s.eccentricTime,
+                    total_displacement: s.totalDisplacement,
+                    curve_data: curve
+                });
+                if (res.error) return showToast('保存失败: ' + (res.error.message || ''), true);
+                showToast('曲线数据已保存到云端');
+            }
+
             // ---------- 事件绑定 ----------
             videoContainer.addEventListener('dragover', e => { e.preventDefault();
                 dropZone.classList.add('active'); });
@@ -1970,6 +2008,7 @@
                 runTracking();
             });
             btnCancelTracking.addEventListener('click', cancelTracking);
+            btnSaveRecord.addEventListener('click', saveRecord);
             btnExportCSV.addEventListener('click', exportCSV);
             btnScreenshot.addEventListener('click', exportScreenshot);
             btnReset.addEventListener('click', () => {
@@ -1993,6 +2032,7 @@
                 overlayCanvas.classList.remove('interactive');
                 document.body.style.cursor = '';
                 btnStartTracking.disabled = true;
+                btnSaveRecord.disabled = true;
                 btnExportCSV.disabled = true;
                 btnScreenshot.disabled = true;
                 // 重置后回到剪辑模式：需重新确认剪辑才正式导入
@@ -2059,21 +2099,15 @@
         })();
     </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        // 登录守卫 + 顶部用户信息
+        // 登录状态：自动维持（刷新页面自动恢复）+ 刷新导航。
+        // 未登录也可使用杠铃测速，只是无法保存历史记录。
         (function () {
             'use strict';
-            if (!window.JTAuth.requireAuth()) return;
-            var s = window.JTAuth.current();
-            if (s) {
-                var u = document.getElementById('navUserName');
-                var p = document.getElementById('navPlan');
-                var b = document.getElementById('btnLogout');
-                if (u) u.textContent = s.username;
-                if (p) p.textContent = (window.JTAuth.getPlan() || 'free').toUpperCase();
-                if (b) b.style.display = 'inline-flex';
-            }
+            window.JTAuth.init();
         })();
     </script>
 </body>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的训练记录 · Jump Tools</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .jt-nav {
+      width: 100%;
+    }
+    .history-wrap {
+      width: 100%;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 28px 28px 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .history-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .history-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #5eb8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .record-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      transition: var(--transition);
+    }
+    .record-card:hover {
+      border-color: var(--accent);
+    }
+    .rec-main {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      flex-wrap: wrap;
+      flex: 1;
+      min-width: 260px;
+    }
+    .rec-date {
+      font-size: 0.75rem;
+      color: var(--text2);
+      font-family: var(--font-mono);
+    }
+    .rec-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--success);
+      font-family: var(--font-mono);
+    }
+    .rec-meta {
+      font-size: 0.8rem;
+      color: var(--text2);
+      font-family: var(--font-mono);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .rec-del {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 77, 106, 0.22);
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: var(--transition);
+    }
+    .rec-del:hover {
+      background: rgba(255, 77, 106, 0.45);
+    }
+    .jt-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .jt-link:hover {
+      text-decoration: underline;
+    }
+    .empty-tip {
+      color: var(--text2);
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 30px 16px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .loading {
+      color: var(--text2);
+      text-align: center;
+      padding: 24px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="jt-nav">
+    <a class="jt-nav-logo" href="index.html">
+      <span class="logo-badge">📋</span>
+      <span>Jump Tools</span>
+    </a>
+    <div class="jt-nav-links">
+      <a class="jt-nav-link" href="index.html">首页</a>
+      <a class="jt-nav-link" href="barbell.html">杠铃速度追踪</a>
+      <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+      <a class="jt-nav-link active" href="history.html">我的记录</a>
+    </div>
+    <div class="jt-nav-user">
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html?next=history.html" style="display:none">登录</a>
+    </div>
+  </nav>
+
+  <div class="history-wrap">
+    <div class="history-head">
+      <div class="history-title">📋 我的训练记录</div>
+      <button class="jt-btn jt-btn-outline jt-btn-sm" id="btnRefresh">↻ 刷新</button>
+    </div>
+
+    <div class="jt-section-title">🏀 弹跳记录（<span id="jumpCount">0</span>）</div>
+    <div id="jumpList"><div class="loading">加载中...</div></div>
+
+    <div class="jt-section-title">🏋️ 杠铃速度记录（<span id="barbellCount">0</span>）</div>
+    <div id="barbellList"><div class="loading">加载中...</div></div>
+  </div>
+
+  <div class="jt-toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var Auth = window.JTAuth;
+
+      function showToast(msg, type) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'jt-toast show ' + (type || '');
+        setTimeout(function () { t.className = 'jt-toast'; }, 2600);
+      }
+
+      function fmtDate(s) {
+        var d = new Date(s);
+        if (isNaN(d.getTime())) return s;
+        var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+          ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      }
+
+      function renderJumps(list) {
+        var el = document.getElementById('jumpList');
+        document.getElementById('jumpCount').textContent = list.length;
+        if (!list.length) {
+          el.innerHTML = '<div class="empty-tip">暂无弹跳记录，去 <a class="jt-link" href="jump.html">弹跳测量</a> 分析后保存</div>';
+          return;
+        }
+        el.innerHTML = list.map(function (r) {
+          return '<div class="record-card">' +
+            '<div class="rec-main">' +
+            '<span class="rec-date">' + fmtDate(r.created_at) + '</span>' +
+            '<span class="rec-value">' + Number(r.height_cm).toFixed(1) + ' cm</span>' +
+            '<span class="rec-meta">⏱ 腾空 ' + Number(r.flight_time).toFixed(3) + 's</span>' +
+            '</div>' +
+            '<button class="rec-del" data-table="jump_records" data-id="' + r.id + '" title="删除">✕</button>' +
+            '</div>';
+        }).join('');
+      }
+
+      function renderBarbells(list) {
+        var el = document.getElementById('barbellList');
+        document.getElementById('barbellCount').textContent = list.length;
+        if (!list.length) {
+          el.innerHTML = '<div class="empty-tip">暂无杠铃记录，去 <a class="jt-link" href="barbell.html">杠铃速度追踪</a> 分析后保存</div>';
+          return;
+        }
+        el.innerHTML = list.map(function (r) {
+          var pts = r.curve_data && r.curve_data.length ? r.curve_data.length : 0;
+          var f = function (v) { return (v === null || v === undefined) ? '--' : Number(v).toFixed(3); };
+          return '<div class="record-card">' +
+            '<div class="rec-main">' +
+            '<span class="rec-date">' + fmtDate(r.created_at) + '</span>' +
+            '<span class="rec-value">' + f(r.peak_speed) + ' m/s</span>' +
+            '<span class="rec-meta">向心 ' + f(r.avg_concentric) + ' · 离心 ' + f(r.avg_eccentric) +
+            ' · 总路径 ' + f(r.total_displacement) + ' m · ' + pts + ' 点曲线</span>' +
+            '</div>' +
+            '<button class="rec-del" data-table="barbell_records" data-id="' + r.id + '" title="删除">✕</button>' +
+            '</div>';
+        }).join('');
+      }
+
+      function bindDelete() {
+        document.querySelectorAll('.rec-del').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.dataset.id;
+            var table = btn.dataset.table;
+            if (!id || !table) return;
+            if (!confirm('确定删除这条训练记录吗？删除后不可恢复。')) return;
+            Auth.deleteRecord(table, id).then(function (res) {
+              if (res.error) { showToast('删除失败: ' + (res.error.message || ''), 'err'); return; }
+              showToast('已删除', 'ok');
+              loadRecords();
+            });
+          });
+        });
+      }
+
+      function loadRecords() {
+        document.getElementById('jumpList').innerHTML = '<div class="loading">加载中...</div>';
+        document.getElementById('barbellList').innerHTML = '<div class="loading">加载中...</div>';
+        Auth.fetchRecords().then(function (res) {
+          if (res.error) showToast('加载失败: ' + (res.error.message || ''), 'err');
+          renderJumps(res.jumps || []);
+          renderBarbells(res.barbells || []);
+          bindDelete();
+        });
+      }
+
+      document.getElementById('btnRefresh').addEventListener('click', loadRecords);
+
+      Auth.init(function (session) {
+        if (!session) {
+          // 未登录：跳转登录页（历史记录需登录）
+          location.href = 'login.html?next=history.html';
+          return;
+        }
+        loadRecords();
+      });
+
+      if (!Auth.configured()) {
+        showToast('Supabase 未配置，无法加载云端记录', 'err');
+      }
+    })();
+  </script>
+</body>
+</html>

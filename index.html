@@ -22,61 +22,38 @@
     <div class="jt-nav-user" id="navUser">
       <span class="user-name" id="navUserName">未登录</span>
       <span class="plan-pill" id="navPlan">FREE</span>
-      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.logout(); location.reload()">退出</button>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.signOut()">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html" style="display:none">登录</a>
     </div>
   </nav>
 
   <!-- Hero -->
   <header class="jt-hero">
     <h1>Jump Tools</h1>
-    <p>基于视频的运动分析工具集：杠铃速度追踪、弹跳高度测量。注册登录后即可免费使用全部功能。</p>
+    <p>基于视频的运动分析工具集：杠铃速度追踪、弹跳高度测量。无需注册即可免费使用全部工具，登录后可把训练记录保存到云端。</p>
   </header>
 
-  <!-- 未登录时显示登录/注册卡片 -->
+  <!-- 未登录时显示登录提示（未登录也可免费使用工具，登录后可保存记录） -->
   <div class="jt-auth-wrap" id="authSection">
-    <div class="jt-auth-card">
+    <div class="jt-auth-card" style="text-align:center;">
       <div class="auth-logo">⚡</div>
-      <h2 id="authTitle">欢迎回来</h2>
-      <div class="auth-sub" id="authSub">登录后使用全部工具</div>
-
-      <form id="formLogin" onsubmit="return doLogin(event)">
-        <div class="jt-field">
-          <label for="loginAccount">用户名 / 邮箱</label>
-          <input class="jt-input" id="loginAccount" type="text" placeholder="请输入用户名或邮箱" autocomplete="username">
-        </div>
-        <div class="jt-field">
-          <label for="loginPassword">密码</label>
-          <input class="jt-input" id="loginPassword" type="password" placeholder="请输入密码" autocomplete="current-password">
-        </div>
-        <div class="jt-msg err" id="loginMsg"></div>
-        <button class="jt-btn jt-btn-accent" type="submit" style="width:100%">登 录</button>
-      </form>
-
-      <form id="formRegister" style="display:none" onsubmit="return doRegister(event)">
-        <div class="jt-field">
-          <label for="regUsername">用户名</label>
-          <input class="jt-input" id="regUsername" type="text" placeholder="至少 2 个字符" autocomplete="username">
-        </div>
-        <div class="jt-field">
-          <label for="regEmail">邮箱</label>
-          <input class="jt-input" id="regEmail" type="email" placeholder="用于找回账号" autocomplete="email">
-        </div>
-        <div class="jt-field">
-          <label for="regPassword">密码</label>
-          <input class="jt-input" id="regPassword" type="password" placeholder="至少 6 位" autocomplete="new-password">
-        </div>
-        <div class="jt-msg err" id="regMsg"></div>
-        <button class="jt-btn jt-btn-accent" type="submit" style="width:100%">注 册</button>
-      </form>
-
-      <div class="jt-auth-switch" id="authSwitch">
-        还没有账号？<a onclick="toggleAuth(true)">立即注册</a>
+      <h2>欢迎使用 Jump Tools</h2>
+      <div class="auth-sub">未登录也可免费使用全部工具；登录后可把弹跳、杠铃训练记录保存到云端。</div>
+      <a class="jt-btn jt-btn-accent" href="login.html" style="width:100%;margin-top:8px;">登录 / 注册</a>
+      <div class="jt-auth-switch">
+        <a href="login.html">前往登录页面</a>
       </div>
     </div>
   </div>
 
-  <!-- 工具选择（登录后解锁） -->
-  <div id="toolsSection" style="display:none">
+  <!-- 已登录欢迎条（登录后显示，提供历史记录入口） -->
+  <div id="userBar" style="display:none;text-align:center;padding:4px 28px 0;">
+    <span style="color:var(--text2);font-size:0.9rem;margin-right:12px;">已登录：<span id="userBarName" style="color:var(--text);font-weight:600;"></span></span>
+    <a class="jt-btn jt-btn-outline jt-btn-sm" href="history.html">📋 我的训练记录</a>
+  </div>
+
+  <!-- 工具选择（未登录也可使用，登录后解锁云保存） -->
+  <div id="toolsSection">
     <div class="jt-section-title">运动分析工具</div>
     <div class="jt-tools">
       <a class="jt-tool-card" href="barbell.html">
@@ -125,79 +102,26 @@
 
   <div class="jt-toast" id="toast"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
   <script src="js/auth.js"></script>
   <script>
     (function () {
       'use strict';
       var Auth = window.JTAuth;
 
-      function showToast(msg, type) {
-        var t = document.getElementById('toast');
-        t.textContent = msg;
-        t.className = 'jt-toast show ' + (type || '');
-        setTimeout(function () { t.className = 'jt-toast'; }, 2600);
-      }
-
-      function refreshUI() {
-        var s = Auth.current();
-        var logged = !!s;
+      // 登录状态刷新：登录后隐藏登录提示卡并显示欢迎条；未登录显示提示卡（工具始终可用）
+      function refreshUI(session) {
+        var logged = !!session;
         document.getElementById('authSection').style.display = logged ? 'none' : 'flex';
-        document.getElementById('toolsSection').style.display = logged ? 'block' : 'none';
-        document.getElementById('navUserName').textContent = logged ? s.username : '未登录';
-        document.getElementById('btnLogout').style.display = logged ? 'inline-flex' : 'none';
-        document.getElementById('navPlan').textContent = (Auth.getPlan() || 'free').toUpperCase();
+        document.getElementById('userBar').style.display = logged ? 'block' : 'none';
+        if (logged && session.user) {
+          document.getElementById('userBarName').textContent = session.user.email;
+        }
       }
 
-      function toggleAuth(toRegister) {
-        var reg = !!toRegister;
-        document.getElementById('formLogin').style.display = reg ? 'none' : 'block';
-        document.getElementById('formRegister').style.display = reg ? 'block' : 'none';
-        document.getElementById('authTitle').textContent = reg ? '创建账号' : '欢迎回来';
-        document.getElementById('authSub').textContent = reg ? '注册后即可免费使用全部工具' : '登录后使用全部工具';
-        document.getElementById('authSwitch').innerHTML = reg
-          ? '已有账号？<a onclick="toggleAuth(false)">直接登录</a>'
-          : '还没有账号？<a onclick="toggleAuth(true)">立即注册</a>';
-        document.getElementById('loginMsg').textContent = '';
-        document.getElementById('regMsg').textContent = '';
-      }
-
-      window.doLogin = function (e) {
-        e.preventDefault();
-        var r = Auth.login(
-          document.getElementById('loginAccount').value,
-          document.getElementById('loginPassword').value
-        );
-        document.getElementById('loginMsg').textContent = r.msg;
-        document.getElementById('loginMsg').className = 'jt-msg ' + (r.ok ? 'ok' : 'err');
-        if (r.ok) { showToast(r.msg, 'ok'); setTimeout(refreshUI, 500); }
-        return false;
-      };
-
-      window.doRegister = function (e) {
-        e.preventDefault();
-        var r = Auth.register(
-          document.getElementById('regUsername').value,
-          document.getElementById('regEmail').value,
-          document.getElementById('regPassword').value
-        );
-        document.getElementById('regMsg').textContent = r.msg;
-        document.getElementById('regMsg').className = 'jt-msg ' + (r.ok ? 'ok' : 'err');
-        if (r.ok) { showToast(r.msg, 'ok'); setTimeout(refreshUI, 500); }
-        return false;
-      };
-
-      // ?login=1 时聚焦登录
-      if (/[?&]login=1/.test(location.search)) {
-        setTimeout(function () {
-          document.getElementById('formLogin').style.display = 'block';
-          document.getElementById('formRegister').style.display = 'none';
-          document.getElementById('loginAccount').focus();
-        }, 100);
-      }
-
-      refreshUI();
-      // 暴露给导航切换使用
-      window.toggleAuth = toggleAuth;
+      // 自动维持登录状态（刷新页面自动恢复），并刷新导航 + 页面登录区
+      Auth.init(refreshUI);
     })();
   </script>
 </body>
