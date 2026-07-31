@@ -243,7 +243,7 @@
         .tracking-box {
             position: absolute;
             border: 2px solid #00c6ff;
-            background: rgba(240, 184, 96, 0.15);
+            background: rgba(0, 198, 255, 0.15);
             pointer-events: none;
             z-index: 4;
             box-shadow: 0 0 8px rgba(0, 198, 255, 0.5);
@@ -985,7 +985,9 @@
                     overlayCtx.setLineDash([]);
                 }
                 if (trackingData.length > 0) {
-                    const t = videoEl.currentTime || 0;
+                    // 数据时间已改为剪辑后的相对时间（从 0 开始），需用相对时间匹配
+                    const clipOffset = videoLoaded ? (parseFloat(clipStartInput.value) || 0) : 0;
+                    const t = (videoEl.currentTime || 0) - clipOffset;
                     const near = findNearestTrackingPoint(t);
                     if (near) {
                         const bw = roiRect ? roiRect.w : 40;
