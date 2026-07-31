@@ -1,0 +1,567 @@
+/* ============================================================
+   Jump Tools 统一网站样式（青色主题）
+   所有页面共用：门户 index.html、杠铃速度追踪 barbell.html、
+   弹跳测量 jump.html
+   ============================================================ */
+
+:root {
+  --bg: #0d0f13;
+  --surface: #1a1d25;
+  --surface2: #21252f;
+  --surface3: #2a2f3a;
+  --border: #2a2f3a;
+  --text: #e0e3ea;
+  --text2: #a0a5b0;
+  --accent: #00c6ff;
+  --accent-bright: #3fd4ff;
+  --accent-dim: #0090c4;
+  --success: #3ddc84;
+  --warning: #ffb347;
+  --danger: #ff4d6a;
+  --glow: 0 0 18px rgba(0, 198, 255, 0.35);
+  --glow-success: 0 0 18px rgba(61, 220, 132, 0.4);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --font-mono: 'Cascadia Code', 'Consolas', 'SF Mono', 'Fira Code', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* :where 使此规则优先级为 0，工具页自带的 body 规则优先，不会覆盖其主题 */
+:where(body) {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============ 顶部导航栏 ============ */
+.jt-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 28px;
+  background: rgba(13, 15, 19, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.jt-nav .jt-nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.jt-nav .jt-nav-logo .logo-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  color: #0d0f13;
+  flex-shrink: 0;
+  box-shadow: var(--glow);
+}
+
+.jt-nav .jt-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.jt-nav .jt-nav-link {
+  padding: 8px 16px;
+  border-radius: 24px;
+  font-size: 0.88rem;
+  color: var(--text2);
+  text-decoration: none;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+}
+
+.jt-nav .jt-nav-link:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.jt-nav .jt-nav-link.active {
+  color: #0d0f13;
+  background: var(--accent);
+  font-weight: 600;
+  box-shadow: var(--glow);
+}
+
+.jt-nav .jt-nav-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--text2);
+}
+
+.jt-nav .jt-nav-user .user-name {
+  color: var(--text);
+  font-weight: 600;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jt-nav .jt-nav-user .plan-pill {
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  letter-spacing: 0.03em;
+}
+
+/* ============ 按钮 ============ */
+.jt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  transition: all var(--transition);
+  white-space: nowrap;
+  user-select: none;
+  text-decoration: none;
+}
+
+.jt-btn-accent {
+  background: var(--accent);
+  color: #0d0f13;
+  border-color: var(--accent);
+}
+
+.jt-btn-accent:hover {
+  background: var(--accent-bright);
+  box-shadow: var(--glow);
+}
+
+.jt-btn-outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.jt-btn-outline:hover {
+  background: var(--surface2);
+  border-color: var(--text2);
+}
+
+.jt-btn-ghost {
+  background: transparent;
+  color: var(--text2);
+}
+
+.jt-btn-ghost:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.jt-btn-sm {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+}
+
+.jt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============ 表单输入 ============ */
+.jt-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+}
+
+.jt-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 198, 255, 0.15);
+}
+
+.jt-input::placeholder {
+  color: var(--text2);
+  opacity: 0.6;
+}
+
+.jt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.jt-field label {
+  font-size: 0.85rem;
+  color: var(--text2);
+  letter-spacing: 0.02em;
+}
+
+.jt-msg {
+  font-size: 0.85rem;
+  margin-top: 4px;
+  min-height: 1.2em;
+  transition: all var(--transition);
+}
+
+.jt-msg.ok {
+  color: var(--success);
+}
+
+.jt-msg.err {
+  color: var(--danger);
+}
+
+/* ============ 卡片 ============ */
+.jt-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+}
+
+.jt-card-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.jt-card-sub {
+  color: var(--text2);
+  font-size: 0.88rem;
+  margin-bottom: 20px;
+}
+
+/* ============ 门户页 ============ */
+.jt-hero {
+  text-align: center;
+  padding: 64px 24px 32px;
+}
+
+.jt-hero h1 {
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, var(--accent), #5eb8ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+.jt-hero p {
+  color: var(--text2);
+  font-size: 1.05rem;
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.jt-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 40px 28px 16px;
+}
+
+.jt-tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  padding: 0 28px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.jt-tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 26px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.jt-tool-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+  opacity: 0.6;
+  transition: opacity var(--transition);
+}
+
+.jt-tool-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+}
+
+.jt-tool-card:hover::before {
+  opacity: 1;
+}
+
+.jt-tool-card .tool-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  color: #0d0f13;
+  box-shadow: var(--glow);
+}
+
+.jt-tool-card .tool-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.jt-tool-card .tool-desc {
+  color: var(--text2);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  flex: 1;
+}
+
+.jt-tool-card .tool-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+
+.jt-tool-card .tool-status.free {
+  color: var(--success);
+  border-color: rgba(61, 220, 132, 0.4);
+}
+
+.jt-tool-card .tool-status.pro {
+  color: var(--warning);
+  border-color: rgba(255, 179, 71, 0.4);
+}
+
+/* 会员/收费占位 */
+.jt-pricing {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 28px 48px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.jt-price-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 26px;
+  text-align: center;
+  position: relative;
+  opacity: 0.85;
+}
+
+.jt-price-card.featured {
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+  opacity: 1;
+}
+
+.jt-price-card .price-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+}
+
+.jt-price-card .price-amount {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin: 12px 0 4px;
+}
+
+.jt-price-card .price-amount small {
+  font-size: 0.85rem;
+  color: var(--text2);
+  font-weight: 500;
+}
+
+.jt-price-card .price-desc {
+  color: var(--text2);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.jt-price-card .price-note {
+  font-size: 0.75rem;
+  color: var(--warning);
+}
+
+/* 登录/注册页 */
+.jt-auth-wrap {
+  min-height: calc(100vh - 62px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.jt-auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 36px 32px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
+.jt-auth-card .auth-logo {
+  font-size: 2.4rem;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.jt-auth-card h2 {
+  text-align: center;
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+
+.jt-auth-card .auth-sub {
+  text-align: center;
+  color: var(--text2);
+  font-size: 0.88rem;
+  margin-bottom: 24px;
+}
+
+.jt-auth-switch {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text2);
+  margin-top: 16px;
+}
+
+.jt-auth-switch a {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.jt-auth-switch a:hover {
+  text-decoration: underline;
+}
+
+/* 提示条 */
+.jt-toast {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-12px);
+  z-index: 9999;
+  padding: 10px 22px;
+  border-radius: 24px;
+  font-size: 0.88rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: all var(--transition);
+  color: var(--text);
+}
+
+.jt-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.jt-toast.ok {
+  border-color: rgba(61, 220, 132, 0.5);
+  color: var(--success);
+}
+
+.jt-toast.err {
+  border-color: rgba(255, 77, 106, 0.5);
+  color: var(--danger);
+}
+
+/* ============ 响应式 ============ */
+@media (max-width: 640px) {
+  .jt-nav {
+    padding: 10px 16px;
+  }
+  .jt-hero h1 {
+    font-size: 1.9rem;
+  }
+  .jt-tools,
+  .jt-pricing {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .jt-auth-card {
+    padding: 28px 20px;
+  }
+}
