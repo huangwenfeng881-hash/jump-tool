@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我的训练记录 · Jump Tools</title>
+  <title>我的训练记录 · Vertrise跃升</title>
+  <link rel="icon" type="image/png" href="img/logo.png">
   <link rel="stylesheet" href="css/style.css">
   <style>
     body {
@@ -126,13 +127,15 @@
 
   <nav class="jt-nav">
     <a class="jt-nav-logo" href="index.html">
-      <span class="logo-badge">📋</span>
-      <span>Jump Tools</span>
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
     </a>
     <div class="jt-nav-links">
       <a class="jt-nav-link" href="index.html">首页</a>
-      <a class="jt-nav-link" href="barbell.html">杠铃速度追踪</a>
-      <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+      <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+      <a class="jt-nav-link" href="jump.html">弹跳</a>
+      <a class="jt-nav-link" href="trainer.html">AI训练师</a>
+      <a class="jt-nav-link" href="feedback.html">问题反馈</a>
       <a class="jt-nav-link active" href="history.html">我的记录</a>
     </div>
     <div class="jt-nav-user">
@@ -154,6 +157,9 @@
 
     <div class="jt-section-title">🏋️ 杠铃速度记录（<span id="barbellCount">0</span>）</div>
     <div id="barbellList"><div class="loading">加载中...</div></div>
+
+    <div class="jt-section-title">🧠 训练计划（<span id="planCount">0</span>）</div>
+    <div id="planList"><div class="loading">加载中...</div></div>
   </div>
 
   <div class="jt-toast" id="toast"></div>
@@ -204,7 +210,7 @@
         var el = document.getElementById('barbellList');
         document.getElementById('barbellCount').textContent = list.length;
         if (!list.length) {
-          el.innerHTML = '<div class="empty-tip">暂无杠铃记录，去 <a class="jt-link" href="barbell.html">杠铃速度追踪</a> 分析后保存</div>';
+          el.innerHTML = '<div class="empty-tip">暂无杠铃记录，去 <a class="jt-link" href="barbell.html">杠铃测速</a> 分析后保存</div>';
           return;
         }
         el.innerHTML = list.map(function (r) {
@@ -218,6 +224,27 @@
             ' · 总路径 ' + f(r.total_displacement) + ' m · ' + pts + ' 点曲线</span>' +
             '</div>' +
             '<button class="rec-del" data-table="barbell_records" data-id="' + r.id + '" title="删除">✕</button>' +
+            '</div>';
+        }).join('');
+      }
+
+      function renderPlans(list) {
+        var el = document.getElementById('planList');
+        document.getElementById('planCount').textContent = list.length;
+        if (!list.length) {
+          el.innerHTML = '<div class="empty-tip">暂无保存的训练计划，去 <a class="jt-link" href="trainer.html">AI 弹跳训练师</a> 生成并保存</div>';
+          return;
+        }
+        el.innerHTML = list.map(function (r) {
+          var summary = r.summary || '';
+          var src = (r.plan_json && r.plan_json.type === 'llm') ? 'AI 生成' : '免费模板';
+          return '<div class="record-card">' +
+            '<div class="rec-main">' +
+            '<span class="rec-date">' + fmtDate(r.created_at) + '</span>' +
+            '<span class="rec-value" style="color:var(--accent);">' + (r.title || '训练计划') + '</span>' +
+            '<span class="rec-meta">' + (summary ? summary : '') + ' · ' + src + '</span>' +
+            '</div>' +
+            '<button class="rec-del" data-table="training_plans" data-id="' + r.id + '" title="删除">✕</button>' +
             '</div>';
         }).join('');
       }
@@ -241,10 +268,15 @@
       function loadRecords() {
         document.getElementById('jumpList').innerHTML = '<div class="loading">加载中...</div>';
         document.getElementById('barbellList').innerHTML = '<div class="loading">加载中...</div>';
+        document.getElementById('planList').innerHTML = '<div class="loading">加载中...</div>';
         Auth.fetchRecords().then(function (res) {
           if (res.error) showToast('加载失败: ' + (res.error.message || ''), 'err');
           renderJumps(res.jumps || []);
           renderBarbells(res.barbells || []);
+          return Auth.fetchTrainingPlans();
+        }).then(function (res2) {
+          if (res2 && res2.error) showToast('训练计划加载失败: ' + (res2.error.message || ''), 'err');
+          renderPlans(res2 ? res2.plans || [] : []);
           bindDelete();
         });
       }

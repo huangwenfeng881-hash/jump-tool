@@ -104,6 +104,12 @@
     /** 同步返回最近一次已知会话（可能为 null） */
     current: function () { return _session; },
 
+    /** 会员等级：读取用户 metadata 中 plan（默认 free；pro 走 LLM 训练师） */
+    getPlan: function () {
+      if (!_session || !_session.user || !_session.user.user_metadata) return 'free';
+      return _session.user.user_metadata.plan || 'free';
+    },
+
     /** 返回当前登录用户；未登录返回 null（不抛错） */
     getCurrentUser: async function () {
       var c = getClient();
@@ -240,6 +246,69 @@
       var c = getClient();
       if (!c) return Promise.resolve({ error: { message: 'Supabase 未配置，请先在 js/supabase-config.js 填入项目信息' } });
       return c.from(table).delete().eq('id', id);
+    },
+
+    /** 提交问题反馈（未登录也可匿名提交） */
+    submitFeedback: async function (data) {
+      var c = getClient();
+      if (!c) return { error: { message: 'Supabase 未配置，请先在 js/supabase-config.js 填入项目信息' } };
+      var user = await Auth.getCurrentUser();
+      var row = {
+        user_id: user ? user.id : null,
+        fb_type: data.fb_type || '问题反馈',
+        title: data.title || '',
+        content: data.content || '',
+        contact: data.contact || null
+      };
+      try {
+        // 注意：不能加 .select()，feedback 表无 SELECT 策略（仅后台可读），
+        // INSERT...RETURNING 回读会触发 RLS 报错；提交本身无需回读。
+        var res = await c.from('feedback').insert(row);
+        return res;
+      } catch (e) {
+        return { error: e };
+      }
+    },
+
+    /** 保存 AI 训练师生成的训练计划（绑定用户 ID） */
+    saveTrainingPlan: function (data) {
+      return Auth._insert('training_plans', {
+        title: data.title,
+        summary: data.summary,
+        plan_json: data.plan_json || {}
+      });
+    },
+
+    /** 读取本人保存的训练计划 */
+    fetchTrainingPlans: async function () {
+      var c = getClient();
+      if (!c) return { plans: [], error: { message: 'Supabase 未配置，请先在 js/supabase-config.js 填入项目信息' } };
+      var user = await Auth.getCurrentUser();
+      if (!user) return { plans: [], error: { message: '未登录，请先登录' } };
+      try {
+        var res = await c.from('training_plans').select('*').order('created_at', { ascending: false });
+        return { plans: res.data || [], error: res.error || null };
+      } catch (e) {
+        return { plans: [], error: e };
+      }
+    },
+
+    /** 会员版：调用 LLM 生成训练计划（请求发往 Cloudflare Worker 代理，key 在服务端） */
+    generatePlanWithLLM: async function (payload) {
+      var url = CONFIG.LLM_API_URL || '';
+      if (!url) return { ok: false, msg: 'LLM 代理未配置（LLM_API_URL），已使用免费模板生成' };
+      try {
+        var resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) return { ok: false, msg: 'LLM 请求失败: HTTP ' + resp.status };
+        var data = await resp.json();
+        return { ok: true, text: data.plan || data.text || JSON.stringify(data) };
+      } catch (e) {
+        return { ok: false, msg: 'LLM 请求异常: ' + e.message };
+      }
     },
 
     /** 各页面顶部导航用户区统一刷新 */

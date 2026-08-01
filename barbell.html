@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>杠铃速度追踪 - 力量训练分析工具</title>
+    <title>杠铃测速 · Vertrise跃升</title>
+    <link rel="icon" type="image/png" href="img/logo.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js">
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js">
@@ -12,24 +13,24 @@
     </script>
     <style>
         :root {
-            --bg-primary: #0d0f13;
-            --bg-secondary: #1a1d25;
-            --bg-tertiary: #21252f;
-            --bg-panel: #1a1d25;
-            --text-primary: #e0e3ea;
-            --text-secondary: #a0a5b0;
-            --text-muted: #6a7078;
+            --bg-primary: #07090d;
+            --bg-secondary: #131824;
+            --bg-tertiary: #1a2130;
+            --bg-panel: #131824;
+            --text-primary: #f2f5f9;
+            --text-secondary: #9aa3b2;
+            --text-muted: #6b7484;
             --accent: #00c6ff;
             --accent-bright: #3fd4ff;
             --accent-dim: #0090c4;
             --danger: #ff4d6a;
             --success: #3ddc84;
             --info: #5eb8ff;
-            --border: #2a2f3a;
-            --border-light: #3a3f4a;
-            --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-            --radius: 8px;
-            --radius-sm: 4px;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-light: rgba(255, 255, 255, 0.16);
+            --shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+            --radius: 14px;
+            --radius-sm: 10px;
             --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
             --font-sans: 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif;
             --transition: 0.2s ease;
@@ -109,14 +110,13 @@
             font-family: var(--font-sans);
         }
         .btn-accent {
-            background: var(--accent);
-            color: #0d0f13;
-            border-color: var(--accent);
+            background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+            color: #06080c;
+            border-color: transparent;
             font-weight: 600;
         }
         .btn-accent:hover {
-            background: var(--accent-bright);
-            box-shadow: 0 0 16px rgba(0, 198, 255, 0.35);
+            box-shadow: 0 0 16px rgba(0, 198, 255, 0.45);
         }
         .btn-accent:disabled {
             background: #21303a;
@@ -558,7 +558,7 @@
             z-index: 1001;
         }
         .app-header {
-            top: 62px;
+            top: 60px;
         }
     </style>
     <link rel="stylesheet" href="css/style.css">
@@ -566,13 +566,15 @@
 <body>
     <nav class="jt-nav">
         <a class="jt-nav-logo" href="index.html">
-            <span class="logo-badge">🏋️</span>
-            <span>Jump Tools</span>
+            <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+            <span>Vertrise跃升</span>
         </a>
         <div class="jt-nav-links">
             <a class="jt-nav-link" href="index.html">首页</a>
-            <a class="jt-nav-link active" href="barbell.html">杠铃速度追踪</a>
-            <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+            <a class="jt-nav-link active" href="barbell.html">杠铃测速</a>
+            <a class="jt-nav-link" href="jump.html">弹跳</a>
+            <a class="jt-nav-link" href="trainer.html">AI训练师</a>
+            <a class="jt-nav-link" href="feedback.html">问题反馈</a>
         </div>
         <div class="jt-nav-user">
             <span class="user-name" id="navUserName">未登录</span>
@@ -582,7 +584,7 @@
         </div>
     </nav>
     <header class="app-header">
-        <div class="app-logo"><div class="icon">🏋️</div><span>杠铃速度追踪</span><span class="header-badge">力量训练分析</span></div>
+        <div class="app-logo"><div class="icon">🏋️</div><span>杠铃测速</span><span class="header-badge">力量训练分析</span></div>
         <div class="header-actions">
             <button class="btn btn-accent btn-sm" id="btnSaveRecord" disabled>💾 保存曲线数据</button>
             <button class="btn btn-outline btn-sm" id="btnExportCSV" disabled>📊 导出CSV</button>
@@ -2093,7 +2095,7 @@
                 resizeOverlayCanvas();
                 initChart();
                 updateStatsPanel(null);
-                console.log('杠铃速度追踪工具 - 修复版 (可拖动ROI)');
+                console.log('杠铃测速工具 - 修复版 (可拖动ROI)');
             }
             init();
         })();

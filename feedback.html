@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>问题反馈 · Vertrise跃升</title>
+  <link rel="icon" type="image/png" href="img/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .jt-nav {
+      width: 100%;
+    }
+    .fb-wrap {
+      width: 100%;
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 40px 24px 64px;
+    }
+    .fb-head {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .fb-head h1 {
+      font-size: 1.6rem;
+      background: linear-gradient(135deg, var(--accent), #5eb8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .fb-head p {
+      color: var(--text2);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .jt-field textarea {
+      width: 100%;
+      min-height: 140px;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      resize: vertical;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .jt-field textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 198, 255, 0.15);
+    }
+    .jt-field select {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23a0a5b0' d='M6 8L0 0h12z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="jt-nav">
+    <a class="jt-nav-logo" href="index.html">
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
+    </a>
+    <div class="jt-nav-links">
+      <a class="jt-nav-link" href="index.html">首页</a>
+      <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+      <a class="jt-nav-link" href="jump.html">弹跳</a>
+      <a class="jt-nav-link" href="trainer.html">AI训练师</a>
+      <a class="jt-nav-link active" href="feedback.html">问题反馈</a>
+    </div>
+    <div class="jt-nav-user">
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html" style="display:none">登录</a>
+    </div>
+  </nav>
+
+  <div class="fb-wrap">
+    <div class="fb-head">
+      <h1>📮 问题反馈</h1>
+      <p>遇到 BUG 或有功能建议？告诉我们，我们会认真处理。<br>未登录也可以提交（联系方式选填）。</p>
+    </div>
+
+    <div class="jt-card">
+      <form id="fbForm" onsubmit="return submitFeedback(event)">
+        <div class="jt-field">
+          <label for="fbType">反馈类型</label>
+          <select class="jt-input" id="fbType">
+            <option value="问题反馈">问题反馈（BUG）</option>
+            <option value="功能建议">功能建议</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        <div class="jt-field">
+          <label for="fbTitle">标题</label>
+          <input class="jt-input" id="fbTitle" type="text" placeholder="一句话概括问题（必填）" maxlength="60">
+        </div>
+        <div class="jt-field">
+          <label for="fbContent">详细描述</label>
+          <textarea id="fbContent" placeholder="描述出现问题的步骤、现象、期望结果（必填，至少 10 字）"></textarea>
+        </div>
+        <div class="jt-field">
+          <label for="fbContact">联系方式（选填）</label>
+          <input class="jt-input" id="fbContact" type="text" placeholder="邮箱 / 微信 / 手机号，便于我们联系你">
+        </div>
+        <div class="jt-msg err" id="fbMsg"></div>
+        <button class="jt-btn jt-btn-accent" type="submit" style="width:100%">提交反馈</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="jt-toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var Auth = window.JTAuth;
+
+      function showToast(msg, type) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'jt-toast show ' + (type || '');
+        setTimeout(function () { t.className = 'jt-toast'; }, 2600);
+      }
+
+      function setMsg(msg, ok) {
+        var el = document.getElementById('fbMsg');
+        el.textContent = msg;
+        el.className = 'jt-msg ' + (ok ? 'ok' : 'err');
+      }
+
+      window.submitFeedback = function (e) {
+        e.preventDefault();
+        var title = document.getElementById('fbTitle').value.trim();
+        var content = document.getElementById('fbContent').value.trim();
+        if (!title) { setMsg('请填写标题', false); return false; }
+        if (content.length < 10) { setMsg('详细描述至少 10 个字', false); return false; }
+        var btn = e.target.querySelector('button');
+        btn.disabled = true;
+        Auth.submitFeedback({
+          fb_type: document.getElementById('fbType').value,
+          title: title,
+          content: content,
+          contact: document.getElementById('fbContact').value.trim()
+        }).then(function (res) {
+          btn.disabled = false;
+          if (res.error) { setMsg('提交失败: ' + (res.error.message || ''), false); return; }
+          setMsg('提交成功，感谢你的反馈！', true);
+          document.getElementById('fbForm').reset();
+          showToast('反馈已提交', 'ok');
+        });
+        return false;
+      };
+
+      Auth.init();
+    })();
+  </script>
+</body>
+</html>

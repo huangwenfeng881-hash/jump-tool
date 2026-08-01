@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jump Tools · 跳跃与力量训练分析平台</title>
+  <title>Vertrise跃升 · 丈量每一次起跳，奔赴篮筐</title>
+  <link rel="icon" type="image/png" href="img/logo.png">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -11,13 +12,15 @@
   <!-- 顶部导航 -->
   <nav class="jt-nav">
     <a class="jt-nav-logo" href="index.html">
-      <span class="logo-badge">⚡</span>
-      <span>Jump Tools</span>
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
     </a>
     <div class="jt-nav-links">
       <a class="jt-nav-link active" href="index.html">首页</a>
-      <a class="jt-nav-link" href="barbell.html">杠铃速度追踪</a>
-      <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+      <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+      <a class="jt-nav-link" href="jump.html">弹跳</a>
+      <a class="jt-nav-link" href="trainer.html">AI训练师</a>
+      <a class="jt-nav-link" href="feedback.html">问题反馈</a>
     </div>
     <div class="jt-nav-user" id="navUser">
       <span class="user-name" id="navUserName">未登录</span>
@@ -29,16 +32,22 @@
 
   <!-- Hero -->
   <header class="jt-hero">
-    <h1>Jump Tools</h1>
-    <p>基于视频的运动分析工具集：杠铃速度追踪、弹跳高度测量。无需注册即可免费使用全部工具，登录后可把训练记录保存到云端。</p>
+    <img class="hero-logo" src="img/logo.png" alt="Vertrise跃升">
+    <h1>Vertrise <span class="brand-cn">跃升</span></h1>
+    <p class="hero-slogan">丈量每一次起跳，奔赴篮筐</p>
+    <p class="hero-sub">基于视频的运动分析工具：弹跳高度测量 · 杠铃测速 · AI 弹跳训练师</p>
+    <div class="hero-cta">
+      <a class="jt-btn jt-btn-accent" href="jump.html">开始弹跳测量</a>
+      <a class="jt-btn jt-btn-outline" href="trainer.html">AI 训练师</a>
+    </div>
   </header>
 
   <!-- 未登录时显示登录提示（未登录也可免费使用工具，登录后可保存记录） -->
   <div class="jt-auth-wrap" id="authSection">
     <div class="jt-auth-card" style="text-align:center;">
-      <div class="auth-logo">⚡</div>
-      <h2>欢迎使用 Jump Tools</h2>
-      <div class="auth-sub">未登录也可免费使用全部工具；登录后可把弹跳、杠铃训练记录保存到云端。</div>
+      <img class="auth-logo" src="img/logo.png" alt="Vertrise跃升">
+      <h2>欢迎使用 Vertrise跃升</h2>
+      <div class="auth-sub">无需注册即可免费使用全部工具；登录后可把弹跳、杠铃训练记录保存到云端。</div>
       <a class="jt-btn jt-btn-accent" href="login.html" style="width:100%;margin-top:8px;">登录 / 注册</a>
       <div class="jt-auth-switch">
         <a href="login.html">前往登录页面</a>
@@ -58,7 +67,7 @@
     <div class="jt-tools">
       <a class="jt-tool-card" href="barbell.html">
         <div class="tool-icon">🏋️</div>
-        <div class="tool-name">杠铃速度追踪</div>
+        <div class="tool-name">杠铃测速</div>
         <div class="tool-desc">上传训练视频，自动追踪杠铃运动轨迹，计算速度、位移与功率数据，支持剪辑与分析曲线。</div>
         <span class="tool-status free">免费使用</span>
       </a>

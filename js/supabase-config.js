@@ -83,5 +83,15 @@ window.JTConfig = {
 
   // 忘记密码邮件中的跳转地址（可选）。需先在 Supabase 后台
   // Authentication → URL Configuration 中把该地址加入白名单。
-  AUTH_REDIRECT: ''
+  AUTH_REDIRECT: '',
+
+  // ============================================================
+  // AI 弹跳训练师 · LLM（会员版）配置
+  // - 免费用户：使用 js/trainer-engine.js 本地模板引擎生成计划，无需任何 key。
+  // - 会员(PRO)：设置登录用户 metadata 中 plan:"pro"
+  //   （Supabase 后台 → Authentication → Users → 编辑元数据），
+  //   并部署 Cloudflare Worker 后把其地址填入 LLM_API_URL。
+  //   真实 LLM API key（DeepSeek/OpenAI 等）存放在 Worker 端，前端不接触任何密钥。
+  // ============================================================
+  LLM_API_URL: ''
 };

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 弹跳训练师 · Vertrise跃升</title>
+  <link rel="icon" type="image/png" href="img/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .jt-nav {
+      width: 100%;
+    }
+    .tr-wrap {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 28px 64px;
+    }
+    .tr-head {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .tr-head h1 {
+      font-size: 1.7rem;
+      background: linear-gradient(135deg, var(--accent), #5eb8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .tr-head p {
+      color: var(--text2);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .tr-layout {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .tr-form {
+      flex: 0 0 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: sticky;
+      top: 84px;
+    }
+    .tr-result {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    @media (max-width: 900px) {
+      .tr-layout { flex-direction: column; }
+      .tr-form { flex: none; width: 100%; position: static; }
+    }
+    .jt-field select,
+    .jt-field input[type="number"] {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .jt-field select:focus,
+    .jt-field input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 198, 255, 0.15);
+    }
+    .eq-check {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .eq-check label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text2);
+    }
+    .eq-check input { accent-color: var(--accent); }
+    .eq-check label:has(input:checked) {
+      border-color: var(--accent);
+      color: var(--text);
+      box-shadow: var(--glow);
+    }
+    .plan-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .plan-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+    .plan-badge {
+      font-size: 0.75rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .plan-badge.free {
+      background: rgba(61, 220, 132, 0.2);
+      color: var(--success);
+      border: 1px solid rgba(61, 220, 132, 0.4);
+    }
+    .plan-badge.pro {
+      background: rgba(0, 198, 255, 0.2);
+      color: var(--accent);
+      border: 1px solid rgba(0, 198, 255, 0.4);
+    }
+    .plan-meta {
+      color: var(--text2);
+      font-size: 0.85rem;
+      line-height: 1.7;
+    }
+    .day-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+    }
+    .day-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--accent);
+      margin-bottom: 10px;
+      letter-spacing: 0.02em;
+    }
+    .ex-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--border);
+      font-size: 0.85rem;
+      flex-wrap: wrap;
+    }
+    .ex-row:last-child { border-bottom: none; }
+    .ex-name { font-weight: 600; min-width: 180px; }
+    .ex-param {
+      font-family: var(--font-mono);
+      color: var(--accent-bright);
+      min-width: 110px;
+    }
+    .ex-note { color: var(--text2); font-size: 0.78rem; flex: 1; min-width: 160px; }
+    .info-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: var(--text);
+    }
+    .info-box b { color: var(--accent); }
+    .info-box.warn { border-color: rgba(255, 179, 71, 0.4); }
+    .info-box.warn b { color: var(--warning); }
+    .llm-text {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.85rem;
+      line-height: 1.7;
+    }
+    .loading-tip { color: var(--text2); text-align: center; padding: 40px 0; }
+    .empty-tip { color: var(--text2); text-align: center; padding: 40px 0; border: 1px dashed var(--border); border-radius: var(--radius-sm); }
+  </style>
+</head>
+<body>
+
+  <nav class="jt-nav">
+    <a class="jt-nav-logo" href="index.html">
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
+    </a>
+    <div class="jt-nav-links">
+      <a class="jt-nav-link" href="index.html">首页</a>
+      <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+      <a class="jt-nav-link" href="jump.html">弹跳</a>
+      <a class="jt-nav-link active" href="trainer.html">AI训练师</a>
+      <a class="jt-nav-link" href="feedback.html">问题反馈</a>
+    </div>
+    <div class="jt-nav-user">
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html" style="display:none">登录</a>
+    </div>
+  </nav>
+
+  <div class="tr-wrap">
+    <div class="tr-head">
+      <h1>🧠 AI 弹跳训练师</h1>
+      <p>输入你的基础数据，生成个性化弹跳提升训练计划。<br>免费用户使用内置专业模板；PRO 会员由 AI 深度定制。</p>
+    </div>
+
+    <div class="tr-layout">
+      <!-- 表单 -->
+      <div class="tr-form">
+        <div class="jt-card">
+          <form id="trainerForm" onsubmit="return doGenerate(event)">
+            <div class="jt-field">
+              <label for="inCurHeight">当前弹跳高度（cm）*</label>
+              <input class="jt-input" id="inCurHeight" type="number" min="0" max="200" placeholder="如 55" required>
+            </div>
+            <div class="jt-field">
+              <label for="inGoalHeight">目标高度（cm，选填）</label>
+              <input class="jt-input" id="inGoalHeight" type="number" min="0" max="220" placeholder="如 70">
+            </div>
+            <div class="jt-field">
+              <label for="inAge">年龄</label>
+              <input class="jt-input" id="inAge" type="number" min="10" max="80" value="25">
+            </div>
+            <div class="jt-field">
+              <label for="inLevel">训练水平</label>
+              <select id="inLevel">
+                <option value="beginner">初级（刚开始训练）</option>
+                <option value="intermediate" selected>中级（有半年以上经验）</option>
+                <option value="advanced">高级（训练多年）</option>
+              </select>
+            </div>
+            <div class="jt-field">
+              <label for="inDays">每周训练天数</label>
+              <select id="inDays">
+                <option value="1">1 天</option>
+                <option value="2">2 天</option>
+                <option value="3" selected>3 天</option>
+                <option value="4">4 天</option>
+                <option value="5">5 天</option>
+                <option value="6">6 天</option>
+              </select>
+            </div>
+            <div class="jt-field">
+              <label>可用器械（可多选）</label>
+              <div class="eq-check">
+                <label><input type="checkbox" name="eq" value="none" checked> 徒手</label>
+                <label><input type="checkbox" name="eq" value="dumbbell"> 哑铃</label>
+                <label><input type="checkbox" name="eq" value="barbell"> 杠铃</label>
+                <label><input type="checkbox" name="eq" value="bands"> 弹力带</label>
+              </div>
+            </div>
+            <div class="jt-field">
+              <label for="inInjury">伤病情况</label>
+              <select id="inInjury">
+                <option value="none" selected>无伤病</option>
+                <option value="knee">膝盖不适</option>
+                <option value="ankle">脚踝不适</option>
+                <option value="back">腰部不适</option>
+              </select>
+            </div>
+            <div class="jt-msg err" id="trMsg"></div>
+            <button class="jt-btn jt-btn-accent" type="submit" style="width:100%" id="btnGenerate">⚡ 生成训练计划</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 结果 -->
+      <div class="tr-result" id="trResult">
+        <div class="empty-tip" id="trEmpty">填写左侧信息，点击「生成训练计划」</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="jt-toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/trainer-engine.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var Auth = window.JTAuth;
+      var currentPlan = null; // 最近一次生成的计划
+
+      function showToast(msg, type) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'jt-toast show ' + (type || '');
+        setTimeout(function () { t.className = 'jt-toast'; }, 2600);
+      }
+
+      function setMsg(msg, ok) {
+        var el = document.getElementById('trMsg');
+        el.textContent = msg;
+        el.className = 'jt-msg ' + (ok ? 'ok' : 'err');
+      }
+
+      function collectInput() {
+        var eqs = Array.prototype.slice.call(document.querySelectorAll('input[name="eq"]:checked'))
+          .map(function (c) { return c.value; });
+        if (!eqs.length) eqs = ['none'];
+        return {
+          currentHeight: parseFloat(document.getElementById('inCurHeight').value) || 0,
+          goalHeight: parseFloat(document.getElementById('inGoalHeight').value) || 0,
+          age: parseInt(document.getElementById('inAge').value, 10) || 25,
+          level: document.getElementById('inLevel').value,
+          days: parseInt(document.getElementById('inDays').value, 10) || 3,
+          equipment: eqs,
+          injury: document.getElementById('inInjury').value
+        };
+      }
+
+      function renderTemplate(plan) {
+        var box = document.getElementById('trResult');
+        var daysHtml = plan.schedule.map(function (d) {
+          var rows = d.exercises.map(function (x) {
+            return '<div class="ex-row">' +
+              '<span class="ex-name">' + x.name + '</span>' +
+              '<span class="ex-param">' + x.sets + '×' + x.reps + ' · ' + x.rest + '</span>' +
+              '<span class="ex-note">' + x.note + '</span>' +
+              '</div>';
+          }).join('');
+          return '<div class="day-card"><div class="day-title">第 ' + d.day + ' 天 · ' + d.title + '</div>' + rows + '</div>';
+        }).join('');
+        var cautionsHtml = plan.cautions.length
+          ? '<div class="info-box warn"><b>⚠️ 注意事项</b><br>' + plan.cautions.join('<br>') + '</div>' : '';
+        box.innerHTML =
+          '<div class="plan-head">' +
+            '<span class="plan-title">' + plan.title + '</span>' +
+            '<span class="plan-badge free">免费模板生成</span>' +
+          '</div>' +
+          '<div class="plan-meta">🎯 ' + plan.goal + '<br>📋 ' + plan.summary + '</div>' +
+          daysHtml +
+          '<div class="info-box"><b>📈 进阶规则</b><br>' + plan.progression + '</div>' +
+          cautionsHtml +
+          '<button class="btn jt-btn jt-btn-accent" style="width:100%;" id="btnSavePlan">💾 保存计划到云端</button>';
+        document.getElementById('btnSavePlan').addEventListener('click', savePlan);
+      }
+
+      function renderLLM(text) {
+        var box = document.getElementById('trResult');
+        box.innerHTML =
+          '<div class="plan-head">' +
+            '<span class="plan-title">AI 定制训练计划</span>' +
+            '<span class="plan-badge pro">PRO AI 生成</span>' +
+          '</div>' +
+          '<div class="llm-text">' + text.replace(/</g, '&lt;') + '</div>' +
+          '<button class="jt-btn jt-btn-accent" style="width:100%;" id="btnSavePlan">💾 保存计划到云端</button>';
+        document.getElementById('btnSavePlan').addEventListener('click', savePlan);
+      }
+
+      function savePlan() {
+        Auth.getCurrentUser().then(function (user) {
+          if (!user) {
+            showToast('未登录，无法保存计划，请先登录', 'err');
+            setTimeout(function () { location.href = 'login.html?next=trainer.html'; }, 900);
+            return;
+          }
+          var isLLM = currentPlan && currentPlan.type === 'llm';
+          var payload = isLLM
+            ? { title: 'AI 定制训练计划', summary: 'AI 深度定制', plan_json: currentPlan }
+            : {
+                title: currentPlan.title,
+                summary: currentPlan.summary,
+                plan_json: currentPlan
+              };
+          Auth.saveTrainingPlan(payload).then(function (res) {
+            if (res.error) { showToast('保存失败: ' + (res.error.message || ''), 'err'); return; }
+            showToast('计划已保存到云端', 'ok');
+            setTimeout(function () { location.href = 'history.html'; }, 900);
+          });
+        });
+      }
+
+      window.doGenerate = function (e) {
+        e.preventDefault();
+        var input = collectInput();
+        if (!input.currentHeight) { setMsg('请填写当前弹跳高度', false); return false; }
+        setMsg('', true);
+        var btn = document.getElementById('btnGenerate');
+        btn.disabled = true;
+        var box = document.getElementById('trResult');
+        box.innerHTML = '<div class="loading-tip">⏳ 正在生成训练计划...</div>';
+
+        var member = Auth.getPlan() === 'pro';
+        var llmReady = !!(window.JTConfig && window.JTConfig.LLM_API_URL);
+
+        var task = (member && llmReady)
+          ? Auth.generatePlanWithLLM({ type: 'jump-training-plan', data: input })
+          : Promise.resolve({ ok: false });
+
+        task.then(function (res) {
+          btn.disabled = false;
+          if (res.ok && res.text) {
+            currentPlan = { type: 'llm', text: res.text };
+            renderLLM(res.text);
+          } else {
+            if (res.msg) showToast(res.msg, 'err');
+            // 免费模板生成（会员但 LLM 未配置/失败时也会回退到这里）
+            var plan = window.JTRAINER.generate(input);
+            currentPlan = plan;
+            renderTemplate(plan);
+          }
+        });
+        return false;
+      };
+
+      Auth.init();
+    })();
+  </script>
+</body>
+</html>
