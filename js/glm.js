@@ -12,9 +12,20 @@ window.GLM = (function () {
   'use strict';
 
   var CONFIG = window.JTConfig || {};
+  var GLMKey = window.GLMKey || null;
 
+  // 兼容：密文加密（GLM_API_KEY_ENC）或旧版明文（GLM_API_KEY）均可
   function isConfigured() {
-    return !!(CONFIG.GLM_API_KEY && CONFIG.GLM_API_KEY.trim() && CONFIG.GLM_API_URL && CONFIG.GLM_API_URL.trim());
+    if (!CONFIG.GLM_API_URL || !CONFIG.GLM_API_URL.trim()) return false;
+    if (CONFIG.GLM_API_KEY_ENC && CONFIG.GLM_API_KEY_ENC.trim()) return true;
+    return !!(CONFIG.GLM_API_KEY && CONFIG.GLM_API_KEY.trim());
+  }
+
+  // 运行时获取明文 key（优先解密缓存，其次兼容旧明文），失败返回 ''
+  function getKey() {
+    if (GLMKey && GLMKey.isConfigured()) return GLMKey.get();
+    if (CONFIG.GLM_API_KEY && CONFIG.GLM_API_KEY.trim()) return Promise.resolve(CONFIG.GLM_API_KEY.trim());
+    return Promise.resolve('');
   }
 
   function modelName() {
@@ -47,38 +58,43 @@ window.GLM = (function () {
       max_tokens: (opts && opts.max_tokens) || 2000,
       stream: false
     };
-    return fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + CONFIG.GLM_API_KEY.trim()
-      },
-      body: JSON.stringify(body)
-    }).then(function (r) {
-      if (!r.ok) {
-        return r.json().then(function (d) {
-          var msg = (d && d.error && (d.error.message || d.error.msg)) || ('GLM HTTP ' + r.status);
-          return { ok: false, msg: msg };
-        }).catch(function () {
-          return { ok: false, msg: 'GLM HTTP ' + r.status };
-        });
+    return getKey().then(function (key) {
+      if (!key) {
+        return { ok: false, msg: 'GLM 密钥解密失败或未配置（js/supabase-config.js → GLM_API_KEY_ENC / GLM_CRYPTO_PASSPHRASE）' };
       }
-      return r.json();
-    }).then(function (d) {
-      if (d && d.ok === false) return d;
-      var msg = d && d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message : null;
-      var txt = msg ? msg.content : '';
-      if (txt && String(txt).trim()) return { ok: true, text: String(txt) };
-      // 空内容：推理类模型（glm-4.5/4.7 等）会把输出预算花在 reasoning_content 上，
-      // 导致正式 content 为空。标记可重试，自动切换到下一个模型（如 glm-4-flash）。
-      var reasoning = msg && msg.reasoning_content ? String(msg.reasoning_content).length : 0;
-      return { ok: false, msg: reasoning > 0 ? '该模型仍在思考未产出正式内容，自动切换模型' : '该模型未返回内容，自动切换模型', retry: true };
-    }).catch(function (e) {
-      var msg = (e && e.message) ? e.message : 'GLM 请求失败';
-      if (/Failed to fetch|NetworkError|CORS|load failed|fetch/i.test(msg)) {
-        msg = '网络/跨域错误：GLM 接口需可直连的环境，或用 Cloudflare Worker 代理';
-      }
-      return { ok: false, msg: msg };
+      return fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + key
+        },
+        body: JSON.stringify(body)
+      }).then(function (r) {
+        if (!r.ok) {
+          return r.json().then(function (d) {
+            var msg = (d && d.error && (d.error.message || d.error.msg)) || ('GLM HTTP ' + r.status);
+            return { ok: false, msg: msg };
+          }).catch(function () {
+            return { ok: false, msg: 'GLM HTTP ' + r.status };
+          });
+        }
+        return r.json();
+      }).then(function (d) {
+        if (d && d.ok === false) return d;
+        var msg = d && d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message : null;
+        var txt = msg ? msg.content : '';
+        if (txt && String(txt).trim()) return { ok: true, text: String(txt) };
+        // 空内容：推理类模型（glm-4.5/4.7 等）会把输出预算花在 reasoning_content 上，
+        // 导致正式 content 为空。标记可重试，自动切换到下一个模型（如 glm-4-flash）。
+        var reasoning = msg && msg.reasoning_content ? String(msg.reasoning_content).length : 0;
+        return { ok: false, msg: reasoning > 0 ? '该模型仍在思考未产出正式内容，自动切换模型' : '该模型未返回内容，自动切换模型', retry: true };
+      }).catch(function (e) {
+        var msg = (e && e.message) ? e.message : 'GLM 请求失败';
+        if (/Failed to fetch|NetworkError|CORS|load failed|fetch/i.test(msg)) {
+          msg = '网络/跨域错误：GLM 接口需可直连的环境，或用 Cloudflare Worker 代理';
+        }
+        return { ok: false, msg: msg };
+      });
     });
   }
 
@@ -110,7 +126,7 @@ window.GLM = (function () {
    */
   function chat(messages, opts) {
     if (!isConfigured()) {
-      return Promise.resolve({ ok: false, msg: 'GLM 未配置（js/supabase-config.js → GLM_API_KEY / GLM_MODEL）' });
+      return Promise.resolve({ ok: false, msg: 'GLM 未配置（js/supabase-config.js → GLM_API_KEY_ENC / GLM_MODEL）' });
     }
     return tryModels(messages, opts, modelList(), 0);
   }
@@ -118,6 +134,7 @@ window.GLM = (function () {
   return {
     chat: chat,
     isConfigured: isConfigured,
+    getKey: getKey,
     modelName: modelName,
     modelList: modelList,
     isOverload: isOverload

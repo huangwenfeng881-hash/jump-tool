@@ -125,6 +125,13 @@ window.JTConfig = {
   // 自动依次尝试后续可用模型。glm-4-flash 为非推理快速模型，稳定返回正式内容，
   // 故排在 glm-4.5-flash（推理模型，可能只返回 reasoning_content）之前。
   GLM_MODELS: ['glm-4.7-flash', 'glm-4-flash', 'glm-4.5-flash'],
+
+  // GLM API Key：不存明文，以 AES-256-GCM 密文保存（运行时由 js/glm-crypto.js 解密）。
+  // 密文 = base64(iv || ciphertext || tag)。如需更换 key，运行:
+  //   node tools/encrypt-glm-key.js "<明文key>" "<口令>"  → 粘贴结果到下方。
+  GLM_API_KEY_ENC: 'SQqZ4FfEdJ2z+XKOmho0uby8fmSWrYLPRsyKq0PB377Dr1nzY6xOPJtvpIdJ7Y0DDjWR7+9adez7GjHinQ1pK3B+2xfs3CGRhktESvE=',
+  GLM_CRYPTO_PASSPHRASE: 'V3rtr1se.GLm.K3y#2026',
+  // 兼容字段（已弃用）：如需旧版直连明文 key，请改用上方密文方式。
   GLM_API_KEY: '',
   GLM_API_URL: 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
 };

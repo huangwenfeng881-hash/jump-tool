@@ -309,8 +309,9 @@
   <div class="jt-toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="js/supabase-config.js"></script>
-  <script src="js/glm.js"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/glm-crypto.js"></script>
+<script src="js/glm.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/trainer-engine.js"></script>
@@ -393,28 +394,32 @@
           '');
       }
 
-      // 由 SW 在后台执行 GLM 请求
+      // 由 SW 在后台执行 GLM 请求（key 运行时解密后传入）
       function generateViaSW(id, messages, opts, cfg) {
-        return new Promise(function (resolve) {
-          var ch = new MessageChannel();
-          ch.port1.onmessage = function (e) {
-            var d = e.data;
-            if (d && d.type === 'glmChatDone' && d.id === id) {
-              ch.port1.close();
-              resolve(d.result);
-            }
-          };
-          navigator.serviceWorker.ready.then(function (reg) {
-            if (reg.active) {
-              reg.active.postMessage({
-                type: 'glmChat', id: id, messages: messages,
-                temperature: opts.temperature, url: cfg.GLM_API_URL, key: cfg.GLM_API_KEY,
-                model: cfg.GLM_MODEL, models: cfg.GLM_MODELS
-              }, [ch.port2]);
-            } else {
-              resolve({ ok: false, msg: 'Service Worker 未就绪' });
-            }
-          }).catch(function () { resolve({ ok: false, msg: 'Service Worker 不可用' }); });
+        var getKey = (window.GLM && window.GLM.getKey) ? window.GLM.getKey() : Promise.resolve('');
+        return getKey.then(function (key) {
+          if (!key) return { ok: false, msg: 'GLM 密钥解密失败或未配置' };
+          return new Promise(function (resolve) {
+            var ch = new MessageChannel();
+            ch.port1.onmessage = function (e) {
+              var d = e.data;
+              if (d && d.type === 'glmChatDone' && d.id === id) {
+                ch.port1.close();
+                resolve(d.result);
+              }
+            };
+            navigator.serviceWorker.ready.then(function (reg) {
+              if (reg.active) {
+                reg.active.postMessage({
+                  type: 'glmChat', id: id, messages: messages,
+                  temperature: opts.temperature, url: cfg.GLM_API_URL, key: key,
+                  model: cfg.GLM_MODEL, models: cfg.GLM_MODELS
+                }, [ch.port2]);
+              } else {
+                resolve({ ok: false, msg: 'Service Worker 未就绪' });
+              }
+            }).catch(function () { resolve({ ok: false, msg: 'Service Worker 不可用' }); });
+          });
         });
       }
 
