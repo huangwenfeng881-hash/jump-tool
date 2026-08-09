@@ -69,16 +69,26 @@ window.GLM = (function () {
       model: model,
       messages: messages,
       temperature: (opts && opts.temperature) || 0.6,
+      // 限制输出长度：模型到点即停，此值仅作上限防截断/防拖时间
+      max_tokens: (opts && opts.max_tokens) || 2000,
       stream: stream
     };
-    return fetch(url, {
+    // 60s 超时：网络/模型挂起时自动中断（流式已产出内容则按失败处理，不切换模型）
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 60000) : null;
+    var gotDelta = false;
+    function settle() { if (timer) { clearTimeout(timer); timer = null; } }
+    var fetchOpts = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + CONFIG.GLM_API_KEY.trim()
       },
       body: JSON.stringify(body)
-    }).then(function (r) {
+    };
+    if (ctrl) fetchOpts.signal = ctrl.signal;
+    return fetch(url, fetchOpts).then(function (r) {
+      settle();
       if (!r.ok) {
         return r.json().then(function (d) {
           var msg = (d && d.error && (d.error.message || d.error.msg)) || ('GLM HTTP ' + r.status);
@@ -89,24 +99,31 @@ window.GLM = (function () {
       }
       if (!stream) {
         return r.json().then(function (d) {
-          var txt = d && d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message.content : '';
-          return txt ? { ok: true, text: txt } : { ok: false, msg: 'GLM 返回内容为空' };
+          var m = d && d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message : null;
+          var txt = m ? m.content : '';
+          if (txt && String(txt).trim()) return { ok: true, text: String(txt) };
+          // 空内容：推理模型把预算花在 reasoning_content 上 → 标记可重试，自动切换模型
+          var rz = m && m.reasoning_content ? String(m.reasoning_content).length : 0;
+          return { ok: false, msg: rz > 0 ? '该模型仍在思考未产出正式内容，自动切换模型' : '该模型未返回内容，自动切换模型', retry: true };
         });
       }
       // 流式
       var full = '';
       return parseSSE(r, function (delta) {
+        gotDelta = true;
         full += delta;
         if (onChunk) onChunk(delta);
       }).then(function () {
-        return full ? { ok: true, text: full } : { ok: false, msg: 'GLM 返回内容为空' };
+        return (full && full.trim()) ? { ok: true, text: full } : { ok: false, msg: '该模型未返回内容，自动切换模型', retry: true };
       });
     }).catch(function (e) {
+      settle();
       var msg = (e && e.message) ? e.message : 'GLM 请求失败';
       if (/Failed to fetch|NetworkError|CORS|load failed|fetch/i.test(msg)) {
         msg = '网络/跨域错误：GLM 接口需可直连的环境，或用 Cloudflare Worker 代理';
       }
-      return { ok: false, msg: msg };
+      // 未产出任何内容（超时/429/断网）→ 可重试切下一模型；已产出内容则直接失败
+      return { ok: false, msg: msg, retry: !gotDelta };
     });
   }
 
@@ -119,7 +136,8 @@ window.GLM = (function () {
       if (res.ok) {
         return { ok: true, text: res.text, usedModel: models[idx], fallback: idx > 0 };
       }
-      if (isOverload(res.msg)) {
+      if (isOverload(res.msg) || res.retry) {
+        // 限流 / 超时 / 空内容（推理模型）：递归尝试下一个模型
         return tryModels(messages, opts, models, idx + 1).then(function (r2) {
           if (r2.ok) { r2.usedModel = r2.usedModel || models[idx + 1]; r2.fallback = true; }
           return r2;

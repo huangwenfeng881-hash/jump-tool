@@ -33,6 +33,13 @@ window.VTPose = (function () {
     '单脚起跳：起跳前要有足够的水平速度，起跳时，起跳腿要像一根钢筋一样（同时摆动腿和手臂快速上摆）0.15秒左右完成起跳';
 
   // ---------- 模型加载（懒加载，复用单例） ----------
+  function withTimeout(promise, ms, msg) {
+    return new Promise(function (resolve, reject) {
+      var t = setTimeout(function () { reject(new Error(msg || '操作超时')); }, ms);
+      promise.then(function (v) { clearTimeout(t); resolve(v); }, function (e) { clearTimeout(t); reject(e); });
+    });
+  }
+
   function loadModel(modelComplexity) {
     if (poseInstance) return Promise.resolve();
     if (!window.Pose) return Promise.reject(new Error('MediaPipe Pose 未加载（请检查网络/CDN）'));
@@ -49,7 +56,21 @@ window.VTPose = (function () {
     });
     poseInstance.onResults(function (r) { latestResults = r; });
     var init = poseInstance.initialize ? poseInstance.initialize() : Promise.resolve();
-    return init.then(function () { /* 模型就绪 */ });
+    // 30s 超时：模型加载（下载/编译 WASM）卡住时明确报错而非无限等待
+    return withTimeout(init, 30000, '模型加载超时，请检查网络后重试');
+  }
+
+  // 单帧推理：5s 超时，超时/异常不抛错，标记 timedOut 由调用方按丢失帧处理
+  function sendFrame(frame) {
+    return new Promise(function (resolve) {
+      var done = false;
+      var timer = setTimeout(function () { done = true; resolve({ timedOut: true }); }, 5000);
+      poseInstance.send({ image: frame }).then(function () {
+        if (!done) { done = true; clearTimeout(timer); resolve({ timedOut: false }); }
+      }, function (e) {
+        if (!done) { done = true; clearTimeout(timer); resolve({ timedOut: false, error: e }); }
+      });
+    });
   }
 
   // ---------- 几何 ----------
@@ -377,7 +398,9 @@ window.VTPose = (function () {
   // ---------- 逐帧分析（返回 { promise, cancel }） ----------
   function analyze(opts) {
     var cancelled = false;
+    if (opts.onPhase) opts.onPhase('loading-model');
     var promise = loadModel(opts.modelComplexity).then(function () {
+      if (opts.onPhase) opts.onPhase('analyzing');
       var video = opts.video;
       var sampleEvery = Math.max(1, opts.sampleEvery || 2);
       var fps = opts.fps || 30;
@@ -408,13 +431,26 @@ window.VTPose = (function () {
               if (!frame) {
                 var curT0 = Math.max(0, Math.min((video.currentTime || t) - cs, ce - cs));
                 data.push({ t: Math.round(curT0 * 1000) / 1000, kneeL: prev ? prev.kneeL : null, kneeR: prev ? prev.kneeR : null, comH: prev ? prev.comH : null, comX: prev ? prev.comX : null, lost: true });
-                if (opts.onProgress) opts.onProgress(i, total, curT0, ++lostStreak);
+                lostStreak++;
+                if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true }); return; }
+                if (opts.onProgress) opts.onProgress(i, total, curT0, lostStreak);
                 setTimeout(function () { step(i + 1); }, 0);
                 return;
               }
-              return poseInstance.send({ image: frame });
+              return sendFrame(frame);
             })
-            .then(function () {
+            .then(function (r) {
+              // 单帧推理超时/异常：按丢失帧处理并继续，避免卡死
+              if (r && (r.timedOut || r.error)) {
+                var curT1 = Math.max(0, Math.min((video.currentTime || t) - cs, ce - cs));
+                curT1 = Math.round(curT1 * 1000) / 1000;
+                lostStreak++;
+                data.push({ t: curT1, kneeL: prev ? prev.kneeL : null, kneeR: prev ? prev.kneeR : null, comH: prev ? prev.comH : null, comX: prev ? prev.comX : null, lost: true });
+                if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true }); return; }
+                if (opts.onProgress) opts.onProgress(i, total, curT1, lostStreak);
+                setTimeout(function () { step(i + 1); }, 0);
+                return;
+              }
               var res = latestResults;
               var lm = res && res.poseLandmarks ? res.poseLandmarks : null;
               // 框选裁剪时，把关键点从裁剪画布坐标映射回整帧视频坐标

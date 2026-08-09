@@ -97,15 +97,15 @@ window.JTConfig = {
 
   // ============================================================
   // 人体动作分析（MediaPipe Pose + AI 评估）配置
-  // - MEDIAPIPE_BASE：MediaPipe Pose 资源镜像地址。默认 jsdelivr，
-  //   国内加载慢时可换 npmmirror 等镜像（保持以 / 结尾）。
+  // - MEDIAPIPE_BASE：MediaPipe Pose 资源地址。已自托管到项目 mediapipe/ 目录
+  //   （随站部署，无 CDN 依赖，国内访问稳定）。
   // - POSE_API_URL：AI 动作评估后端地址（Cloudflare Workers 预留）。
   //   前端点击「AI动作评估」上传关键帧图片 + 姿态时序 JSON 到该地址，
   //   由服务端 AI 输出动作缺陷点评与训练建议（AI 不参与实时跟踪）。
   //   未配置时「AI动作评估」按钮保持禁用。
   // ============================================================
   POSE_API_URL: '',
-  MEDIAPIPE_BASE: 'https://cdn.jsdelivr.net/npm/@mediapipe/pose/',
+  MEDIAPIPE_BASE: './mediapipe/',
   // 动作分析抽帧分辨率（最长边 px）。越大对画面中较小的人物识别越好，但更慢。
   POSE_ANALYZE_MAXDIM: 640,
 
@@ -120,11 +120,11 @@ window.JTConfig = {
   // - GLM_API_URL：直连智谱接口；国内直连若被 CORS 拦截，
   //   可部署 Cloudflare Worker 代理后把此处换成 Worker 地址。
   // ============================================================
-  GLM_MODEL: 'glm-4.7-flash',
-  // 模型自动切换列表：当第一个模型「访问量过大」或「推理类模型未产出正式内容」时，
-  // 自动依次尝试后续可用模型。glm-4-flash 为非推理快速模型，稳定返回正式内容，
-  // 故排在 glm-4.5-flash（推理模型，可能只返回 reasoning_content）之前。
-  GLM_MODELS: ['glm-4.7-flash', 'glm-4-flash', 'glm-4.5-flash'],
+  GLM_MODEL: 'glm-4-flash',
+  // 模型自动切换列表：第一个模型「访问量过大/超时/推理模型未产出正式内容」时，
+  // 自动依次尝试后续模型。glm-4-flash 为非推理快速模型，稳定返回内容，
+  // 故排在最前（glm-4.7-flash 当前经常过载，作为后备）。
+  GLM_MODELS: ['glm-4-flash', 'glm-4.7-flash', 'glm-4.5-flash'],
 
   // GLM API Key：不存明文，以 AES-256-GCM 密文保存（运行时由 js/glm-crypto.js 解密）。
   // 密文 = base64(iv || ciphertext || tag)。如需更换 key，运行:

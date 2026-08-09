@@ -1,0 +1,13 @@
+# Android 构建产物（相对本 .gitignore 位置）
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+
+# 签名密钥库（机密，禁止提交）
+*.keystore
+
+# APK 成品按需手动放置
+dist/*.apk

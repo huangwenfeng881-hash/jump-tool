@@ -11,10 +11,10 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js">
     </script>
-    <!-- [新增] MediaPipe Pose（人体姿态分析，与杠铃追踪互斥） -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js">
+    <!-- MediaPipe Pose（本地自托管，无 CDN 依赖） -->
+    <script src="mediapipe/pose.js">
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose_solution_packed_assets_loader.js">
+    <script src="mediapipe/pose_solution_packed_assets_loader.js">
     </script>
     <style>
         * {
@@ -666,7 +666,7 @@
             <a class="jt-nav-link" href="jump.html">弹跳</a>
             <a class="jt-nav-link" href="pose.html">动作分析</a>
             <a class="jt-nav-link" href="trainer.html">AI训练师</a>
-            <a class="jt-nav-link" href="feedback.html">问题反馈</a>
+            <a class="jt-nav-link feedback-nav" href="feedback.html">问题反馈</a>
       <a class="jt-nav-link" href="membership.html">会员</a>
         </div>
         <div class="jt-nav-user">
@@ -695,6 +695,30 @@
         <button class="mode-btn active" id="modeBarbell">🏋️ 杠铃追踪</button>
         <button class="mode-btn" id="modePose">🧍 姿态分析</button>
         <span class="mode-tip" id="modeTip">当前：杠铃追踪</span>
+    </div>
+
+    <div class="jt-container">
+        <details class="jt-guide" open>
+            <summary>
+                <span class="jt-guide-title">📖 使用教程 · 杠铃测速</span>
+                <span class="jt-guide-caret">▾</span>
+            </summary>
+            <div class="jt-guide-steps">
+                <div class="jt-guide-step"><span class="g-num">1</span><div><b>拍摄视频</b><span>手机侧面拍，机位固定不要动，杠铃全程都在画面内，镜头别太斜（约正侧面最佳）。</span></div></div>
+                <div class="jt-guide-step"><span class="g-num">2</span><div><b>导入视频</b><span>拖拽或点「选择视频」上传，支持 MP4/WebM，视频里只录一组动作最好。</span></div></div>
+                <div class="jt-guide-step"><span class="g-num">3</span><div><b>剪辑动作段</b><span>导入后先设置开始/结束时间，切出有效动作段，点「✅ 确认剪辑」才会启用分析。</span></div></div>
+                <div class="jt-guide-step"><span class="g-num">4</span><div><b>距离校准</b><span>点「📏 距离校准」，在画面里点两个点（比如杠铃杆两端），再在参数栏输入它的实际长度（米）。</span></div></div>
+                <div class="jt-guide-step"><span class="g-num">5</span><div><b>框选杠铃</b><span>点「🎯 框选杠铃」，在视频里拖一个框框住杠铃区域，框的位置可以拖动微调。</span></div></div>
+                <div class="jt-guide-step"><span class="g-num">6</span><div><b>追踪 & 看数据</b><span>点「🚀 开始追踪」，右侧生成速度/位移曲线和统计：峰值速度、向心/离心平均速度、时长、总路径。</span></div></div>
+                <div class="jt-guide-step"><span class="g-num">7</span><div><b>导出保存</b><span>追踪完成后可「保存曲线数据」「导出 CSV」「截图曲线」，登录后保存的记录在「我的记录」里可查。</span></div></div>
+            </div>
+            <div class="jt-guide-tip"><b>⚠️ 提示</b><span>不校准距离的话，速度只是像素级的相对值，出不了真实 m/s；追踪跟丢了，可以调低「识别灵敏度」或调大「搜索窗口」重新追踪。</span></div>
+            <div class="jt-guide-video">
+                <div class="g-play">▶</div>
+                <b>🎬 视频教程（待上传）</b>
+                <span>教学视频之后会放在这里，先占个位。</span>
+            </div>
+        </details>
     </div>
 
     <div class="main-container" id="mainContainer">
@@ -2416,6 +2440,9 @@
                     clipEnd: clip.ce,
                     boxes: boxCtrl.getKeyframes(),
                     activity: 'strength-pose',
+                    onPhase: function (phase) {
+                        statusEl.textContent = phase === 'loading-model' ? '正在加载识别模型…' : '分析中 0%';
+                    },
                     onProgress: function (i, total) { statusEl.textContent = '分析中 ' + Math.round(i / total * 100) + '%'; },
                     onFrame: function (ev) { if (ev.lm) P.drawSkeleton(poseCtx, ev.lm, poseCanvas.width, poseCanvas.height); }
                 });
@@ -2438,6 +2465,11 @@
                     statsEl.style.display = 'flex';
                     if (P.isConfigured()) { evalBtn.disabled = false; evalHint.textContent = ''; }
                     toast('姿态分析完成');
+                }).catch(function (err) {
+                    cancelBtn.disabled = true;
+                    startBtn.disabled = false;
+                    statusEl.textContent = '分析失败';
+                    toast('分析失败: ' + (err && err.message ? err.message : err), true);
                 });
             }
 

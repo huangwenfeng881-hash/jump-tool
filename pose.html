@@ -8,9 +8,9 @@
   <link rel="stylesheet" href="css/style.css">
   <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-  <!-- [新增] MediaPipe Pose（本地姿态识别） -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose_solution_packed_assets_loader.js"></script>
+  <!-- MediaPipe Pose（本地自托管，无 CDN 依赖） -->
+  <script src="mediapipe/pose.js"></script>
+  <script src="mediapipe/pose_solution_packed_assets_loader.js"></script>
   <style>
     body {
       display: flex;
@@ -620,6 +620,9 @@
           clipEnd: ce,
           boxes: boxCtrl.getKeyframes(),
           activity: 'approach-jump',
+          onPhase: function (phase) {
+            statusEl.textContent = phase === 'loading-model' ? '正在加载识别模型…' : '分析中 0%';
+          },
           onProgress: function (i, total, t) {
             statusEl.textContent = '分析中 ' + Math.round((i / total) * 100) + '%';
           },
@@ -642,6 +645,11 @@
           if (P.isConfigured()) { evalBtn.disabled = false; evalHint.textContent = '将上传关键帧图片 + 姿态时序 JSON 到 AI 评估接口'; }
           else evalHint.textContent = 'AI评估接口未配置（js/supabase-config.js → POSE_API_URL），配置后此处可用';
           toast('姿态分析完成', 'ok');
+        }).catch(function (err) {
+          cancelBtn.disabled = true;
+          startBtn.disabled = false;
+          statusEl.textContent = '分析失败';
+          toast('分析失败: ' + (err && err.message ? err.message : err), 'err');
         });
       }
 
@@ -676,13 +684,17 @@
           activity: 'approach-jump',
           sampleEvery: parseInt(sampleSel.value, 10) || 2,
           clipStart: parseFloat(clipStartInput.value) || 0,
-          clipEnd: parseFloat(clipEndInput.value) || duration
+          clipEnd: parseFloat(clipEndInput.value) || duration,
+          onChunk: function (d) {
+            evalResult.style.display = 'block';
+            evalResult.textContent += d;
+          }
         }).then(function (res) {
           if (evalTimer) { clearInterval(evalTimer); evalTimer = null; }
           evalBtn.textContent = '🤖 AI动作评估';
           if (!res.ok) {
             evalResult.style.display = 'none';
-            evalHint.textContent = res.msg;
+            evalHint.textContent = res.msg + (res.needUpgrade ? ' → 可前往「会员」购买单次或升级 VIP 无限使用' : '');
             evalBtn.disabled = false;
             return;
           }
