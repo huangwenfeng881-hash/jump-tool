@@ -615,6 +615,7 @@
             <a class="jt-nav-link" href="pose.html">动作分析</a>
             <a class="jt-nav-link" href="trainer.html">AI训练师</a>
             <a class="jt-nav-link" href="feedback.html">问题反馈</a>
+      <a class="jt-nav-link" href="membership.html">会员</a>
         </div>
         <div class="jt-nav-user">
             <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
@@ -696,6 +697,18 @@
                 </div>
 
                 <div class="settings-inline">
+                    <span>📏 测试类型</span>
+                    <select id="jumpTestType" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:0.82rem;">
+                        <option value="助跑起跳">助跑起跳</option>
+                        <option value="原地起跳">原地起跳</option>
+                        <option value="无摆臂CMJ">无摆臂CMJ</option>
+                        <option value="有摆臂CMJ">有摆臂CMJ</option>
+                        <option value="无摆臂SJ">无摆臂SJ</option>
+                        <option value="DJ">DJ（跳深）</option>
+                    </select>
+                    <span id="boxHeightWrap" style="display:none;align-items:center;gap:6px;">箱高
+                        <input type="number" id="jumpBoxHeight" min="0" max="100" step="1" value="30" style="width:56px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:0.8rem;">cm
+                    </span>
                     <span>🔍 缩放</span>
                     <input type="range" id="zoomSlider" min="1" max="3" step="0.1" value="1">
                     <span id="zoomValue">1.0x</span>
@@ -723,6 +736,23 @@
                     <button class="btn success" id="btnSaveJump" style="display:none;">
                         <span class="btn-icon">💾</span> 保存本次分析
                     </button>
+                </div>
+
+                <!-- [新增] RSI 反应力量指数窗口（输入触地+腾空时间即可测量） -->
+                <div class="panel-card" id="rsiPanel">
+                    <h3>⚡ RSI 反应力量指数</h3>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                            <span style="font-size:0.8rem;color:var(--text2);">触地时间 (s)</span>
+                            <input type="number" id="rsiContact" step="0.001" min="0" placeholder="0.250" style="width:92px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:0.82rem;font-family:var(--font-mono);">
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                            <span style="font-size:0.8rem;color:var(--text2);">腾空时间 (s)</span>
+                            <input type="number" id="rsiFlight" step="0.001" min="0" placeholder="0.404" style="width:92px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:0.82rem;font-family:var(--font-mono);">
+                        </div>
+                        <button class="btn primary" id="rsiCalc" style="width:100%;">计算 RSI</button>
+                        <div id="rsiResult" style="display:none;font-family:var(--font-mono);font-size:0.85rem;text-align:center;line-height:1.7;"></div>
+                    </div>
                 </div>
 
                 <div class="kbd-hint">
@@ -789,6 +819,13 @@
                 zoomSlider: $('#zoomSlider'),
                 zoomValue: $('#zoomValue'),
                 btnResetView: $('#btnResetView'),
+                jumpTestType: $('#jumpTestType'),
+                jumpBoxHeight: $('#jumpBoxHeight'),
+                boxHeightWrap: $('#boxHeightWrap'),
+                rsiContact: $('#rsiContact'),
+                rsiFlight: $('#rsiFlight'),
+                rsiCalc: $('#rsiCalc'),
+                rsiResult: $('#rsiResult'),
             };
 
             let toastTimer;
@@ -814,6 +851,11 @@
                     if (t <= 0) return { heightCm: 0, flightTime: 0 };
                     const h = (this.g * t * t) / 8;
                     return { heightCm: Math.round(h * 10000) / 100, flightTime: Math.round(t * 1000) / 1000 };
+                }
+                // RSI = 跳跃高度(m) / 触地时间(s)（反应力量指数）
+                calcRsi(heightCm, contactTime) {
+                    if (!contactTime || contactTime <= 0) return null;
+                    return Math.round(((heightCm / 100) / contactTime) * 100) / 100;
                 }
             }
 
@@ -989,6 +1031,8 @@
 
                 autoPairMarkers() {
                     this.pairedJumps = [];
+                    const testType = dom.jumpTestType ? dom.jumpTestType.value : '助跑起跳';
+                    const boxHeight = (testType === 'DJ' && dom.jumpBoxHeight) ? (parseFloat(dom.jumpBoxHeight.value) || null) : null;
                     const liftoffs = this.markers.filter(m => m.type === 'liftoff').sort((a, b) => a.time - b.time);
                     const landings = this.markers.filter(m => m.type === 'landing').sort((a, b) => a.time - b.time);
                     const used = new Set();
@@ -1006,11 +1050,22 @@
                         if (best) {
                             used.add(best.id);
                             const result = new PhysicsCalculator().calcByFlightTime(best.time - lo.time);
+                            // 触地时间：本次离地(liftoff)前最近一条 landing（落地缓冲→离地）
+                            let touchdown = null;
+                            for (const la of landings) {
+                                if (la.time < lo.time && (!touchdown || la.time > touchdown.time)) touchdown = la;
+                            }
+                            const contactTime = touchdown ? Math.round((lo.time - touchdown.time) * 1000) / 1000 : null;
+                            const rsi = new PhysicsCalculator().calcRsi(result.heightCm, contactTime);
                             this.pairedJumps.push({
                                 liftoffTime: lo.time,
                                 landingTime: best.time,
                                 flightTime: best.time - lo.time,
                                 heightCm: result.heightCm,
+                                testType: testType,
+                                boxHeight: boxHeight,
+                                contactTime: contactTime,
+                                rsi: rsi,
                             });
                         }
                     }
@@ -1088,6 +1143,10 @@
                     dom.btnMarkLanding.addEventListener('click', () => this._markLanding());
                     dom.btnAutoPair.addEventListener('click', () => this._autoPair());
                     dom.btnSaveJump.addEventListener('click', () => this._saveJumps());
+                    dom.jumpTestType.addEventListener('change', () => {
+                        dom.boxHeightWrap.style.display = dom.jumpTestType.value === 'DJ' ? 'flex' : 'none';
+                    });
+                    dom.rsiCalc.addEventListener('click', () => this._calcRsi());
                     dom.btnFrameBack.addEventListener('click', () => this._frameBack());
                     dom.btnFrameFwd.addEventListener('click', () => this._frameForward());
                     dom.btnSlowPlay.addEventListener('click', () => this._slowPlay());
@@ -1384,11 +1443,15 @@
                     dom.btnSaveJump.style.display = 'flex';
                     const best = jumps[0];
                     dom.resultValue.textContent = best.heightCm.toFixed(1);
-                    dom.resultDetail.textContent = `飞行时间 ${best.flightTime.toFixed(3)}s · 公式 h = g·t²/8 (g=9.81)`;
+                    dom.resultDetail.textContent = `${best.testType || '助跑起跳'}${best.boxHeight != null ? `（箱高 ${best.boxHeight}cm）` : ''} · 飞行时间 ${best.flightTime.toFixed(3)}s · 公式 h = g·t²/8 (g=9.81)` +
+                        (best.rsi != null ? ` · RSI ${best.rsi.toFixed(2)}` : '');
                     dom.resultList.innerHTML = jumps.map((j, i) => `
                         <div class="result-row">
                             <span>#${i+1}</span>
+                            <span>${j.testType || '助跑起跳'}${j.boxHeight != null ? `（箱高${j.boxHeight}）` : ''}</span>
                             <span>⏱ ${j.flightTime.toFixed(3)}s</span>
+                            ${j.contactTime != null ? `<span>触地 ${j.contactTime.toFixed(3)}s</span>` : ''}
+                            ${j.rsi != null ? `<span class="r-height">RSI ${j.rsi.toFixed(2)}</span>` : ''}
                             <span class="r-height">${j.heightCm.toFixed(1)} cm</span>
                         </div>`).join('');
                 }
@@ -1410,7 +1473,9 @@
                         for (const j of jumps) {
                             const res = await window.JTAuth.saveJumpRecord({
                                 height_cm: j.heightCm,
-                                flight_time: j.flightTime
+                                flight_time: j.flightTime,
+                                test_type: j.testType || '助跑起跳',
+                                box_height: j.boxHeight || null
                             });
                             if (res.error) throw new Error(res.error.message);
                             saved++;
@@ -1419,6 +1484,18 @@
                     } catch (err) {
                         showToast('保存失败: ' + err.message, 'error');
                     }
+                }
+
+                // RSI 窗口：输入触地时间 + 腾空时间即可测量
+                _calcRsi() {
+                    const contact = parseFloat(dom.rsiContact.value);
+                    const flight = parseFloat(dom.rsiFlight.value);
+                    if (!contact || contact <= 0 || !flight || flight <= 0) return showToast('请输入有效的触地与腾空时间', 'error');
+                    const pc = new PhysicsCalculator();
+                    const h = pc.calcByFlightTime(flight).heightCm;
+                    const rsi = pc.calcRsi(h, contact);
+                    dom.rsiResult.style.display = 'block';
+                    dom.rsiResult.innerHTML = `腾空高度 <b style="color:var(--success);">${h.toFixed(1)} cm</b><br>RSI <b style="color:var(--accent);">${rsi.toFixed(2)}</b>`;
                 }
 
                 _applyView() {

@@ -1,0 +1,10 @@
+project_id = "iszxoejqhjpucczfsdfo"
+
+[functions.pay-create-order]
+verify_jwt = true
+
+[functions.pay-callback]
+verify_jwt = false
+
+[functions.pay-query]
+verify_jwt = true

@@ -667,6 +667,7 @@
             <a class="jt-nav-link" href="pose.html">动作分析</a>
             <a class="jt-nav-link" href="trainer.html">AI训练师</a>
             <a class="jt-nav-link" href="feedback.html">问题反馈</a>
+      <a class="jt-nav-link" href="membership.html">会员</a>
         </div>
         <div class="jt-nav-user">
             <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
@@ -755,6 +756,8 @@
         </div>
 
         <span style="font-weight:600;color:var(--text-primary);">⚙️ 参数设置</span>
+        <div class="setting-group"><label>重量(kg)</label><input type="number" id="barbellWeight" value="0" min="0" step="0.5" style="width:70px;"></div>
+        <div class="divider"></div>
         <div class="setting-group"><label>识别灵敏度</label><input type="range" id="sensitivitySlider" min="0.3" max="0.95" step="0.05" value="0.7"><span id="sensitivityVal" style="font-family:var(--font-mono);font-size:0.7rem;">0.7</span></div>
         <div class="divider"></div>
         <div class="setting-group"><label>搜索窗口(px)</label><input type="number" id="searchWindowSize" value="80" min="30" max="250" step="5"></div>
@@ -2043,6 +2046,7 @@
                     concentric_time: s.concentricTime,
                     eccentric_time: s.eccentricTime,
                     total_displacement: s.totalDisplacement,
+                    weight: parseFloat((document.getElementById('barbellWeight') || {}).value) || 0,
                     curve_data: curve
                 });
                 if (res.error) return showToast('保存失败: ' + (res.error.message || ''), true);
@@ -2460,12 +2464,20 @@
                     activity: 'strength-pose',
                     sampleEvery: parseInt(sampleSel.value, 10) || 2,
                     clipStart: clip.cs,
-                    clipEnd: clip.ce
+                    clipEnd: clip.ce,
+                    onChunk: function (d) {
+                        evalResult.style.display = 'block';
+                        evalResult.textContent += d;
+                    }
                 }).then(function (res) {
                     if (evalTimer) { clearInterval(evalTimer); evalTimer = null; }
                     evalBtn.textContent = '🤖 AI动作评估';
                     evalBtn.disabled = false;
-                    if (!res.ok) { evalResult.style.display = 'none'; evalHint.textContent = res.msg; return; }
+                    if (!res.ok) {
+                        evalResult.style.display = 'none';
+                        evalHint.textContent = res.msg + (res.needUpgrade ? ' → 可前往「会员」购买单次或升级 VIP 无限使用' : '');
+                        return;
+                    }
                     evalResult.textContent = res.text;
                     evalResult.style.display = 'block';
                     evalHint.textContent = '';

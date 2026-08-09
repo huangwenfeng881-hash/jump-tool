@@ -132,6 +132,6 @@ window.JTConfig = {
   GLM_API_KEY_ENC: 'SQqZ4FfEdJ2z+XKOmho0uby8fmSWrYLPRsyKq0PB377Dr1nzY6xOPJtvpIdJ7Y0DDjWR7+9adez7GjHinQ1pK3B+2xfs3CGRhktESvE=',
   GLM_CRYPTO_PASSPHRASE: 'V3rtr1se.GLm.K3y#2026',
   // 兼容字段（已弃用）：如需旧版直连明文 key，请改用上方密文方式。
-  GLM_API_KEY: '',
+  GLM_API_KEY: 'd56cac79e59e4296b3239370560041cf.jSD9s7lYXAIZmc4r',
   GLM_API_URL: 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
 };

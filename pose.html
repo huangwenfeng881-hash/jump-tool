@@ -1,14 +1,14 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>人体动作分析 · Vertrise跃升</title>
+  <title>浜轰綋鍔ㄤ綔鍒嗘瀽 路 Vertrise璺冨崌</title>
   <link rel="icon" type="image/png" href="img/logo.png">
   <link rel="stylesheet" href="css/style.css">
   <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-  <!-- [新增] MediaPipe Pose（本地姿态识别） -->
+  <!-- [鏂板] MediaPipe Pose锛堟湰鍦板Э鎬佽瘑鍒級 -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose_solution_packed_assets_loader.js"></script>
   <style>
@@ -256,40 +256,41 @@
 </head>
 <body>
 
-  <!-- [新增] 统一导航 -->
+  <!-- [鏂板] 缁熶竴瀵艰埅 -->
   <nav class="jt-nav">
     <a class="jt-nav-logo" href="index.html">
-      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
-      <span>Vertrise跃升</span>
+      <img class="logo-img" src="img/logo.png" alt="Vertrise璺冨崌">
+      <span>Vertrise璺冨崌</span>
     </a>
     <div class="jt-nav-links">
-      <a class="jt-nav-link" href="index.html">首页</a>
-      <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
-      <a class="jt-nav-link" href="jump.html">弹跳</a>
-      <a class="jt-nav-link active" href="pose.html">动作分析</a>
-      <a class="jt-nav-link" href="trainer.html">AI训练师</a>
-      <a class="jt-nav-link" href="feedback.html">问题反馈</a>
+      <a class="jt-nav-link" href="index.html">棣栭〉</a>
+      <a class="jt-nav-link" href="barbell.html">鏉犻搩娴嬮€?/a>
+      <a class="jt-nav-link" href="jump.html">寮硅烦</a>
+      <a class="jt-nav-link active" href="pose.html">鍔ㄤ綔鍒嗘瀽</a>
+      <a class="jt-nav-link" href="trainer.html">AI璁粌甯?/a>
+      <a class="jt-nav-link" href="feedback.html">闂鍙嶉</a>
+      <a class="jt-nav-link" href="membership.html">会员</a>
     </div>
     <div class="jt-nav-user">
-      <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
+      <button class="theme-toggle" id="themeToggle" aria-label="鍒囨崲娣辨祬鑹?>
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
       </button>
-      <span class="user-name" id="navUserName">未登录</span>
+      <span class="user-name" id="navUserName">鏈櫥褰?/span>
       <span class="plan-pill" id="navPlan">FREE</span>
-      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none">退出</button>
-      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html" style="display:none">登录</a>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none">閫€鍑?/button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html" style="display:none">鐧诲綍</a>
     </div>
   </nav>
 
-  <!-- [新增] 助跑起跳姿态分析区 -->
+  <!-- [鏂板] 鍔╄窇璧疯烦濮挎€佸垎鏋愬尯 -->
   <div class="ps-wrap">
     <header class="ps-head">
       <div>
-        <h1>🧍 人体动作分析 · 助跑起跳</h1>
-        <div class="ps-sub">MediaPipe 本地姿态识别 · 实时膝角 / 重心高度曲线 · AI 动作评估（AI 不参与实时跟踪）</div>
+        <h1>馃 浜轰綋鍔ㄤ綔鍒嗘瀽 路 鍔╄窇璧疯烦</h1>
+        <div class="ps-sub">MediaPipe 鏈湴濮挎€佽瘑鍒?路 瀹炴椂鑶濊 / 閲嶅績楂樺害鏇茬嚎 路 AI 鍔ㄤ綔璇勪及锛圓I 涓嶅弬涓庡疄鏃惰窡韪級</div>
       </div>
-      <span class="ps-status" id="psStatus">等待视频</span>
+      <span class="ps-status" id="psStatus">绛夊緟瑙嗛</span>
     </header>
 
     <div class="ps-layout">
@@ -298,14 +299,14 @@
           <video id="psVideo" playsinline></video>
           <canvas id="psPoseCanvas"></canvas>
           <div class="ps-placeholder" id="psPlaceholder">
-            <span class="ph-icon">📂</span>
-            <span>拖拽助跑起跳视频到此处，或点击下方「选择视频」</span>
-            <span style="font-size:0.75rem;opacity:0.7;">支持 MP4 / WebM</span>
+            <span class="ph-icon">馃搨</span>
+            <span>鎷栨嫿鍔╄窇璧疯烦瑙嗛鍒版澶勶紝鎴栫偣鍑讳笅鏂广€岄€夋嫨瑙嗛銆?/span>
+            <span style="font-size:0.75rem;opacity:0.7;">鏀寔 MP4 / WebM</span>
           </div>
         </div>
         <div class="ps-controls">
-          <button class="jt-btn jt-btn-outline jt-btn-sm" id="psSelect">📁 选择视频</button>
-          <button class="jt-btn jt-btn-ghost jt-btn-sm" id="psPlay">▶</button>
+          <button class="jt-btn jt-btn-outline jt-btn-sm" id="psSelect">馃搧 閫夋嫨瑙嗛</button>
+          <button class="jt-btn jt-btn-ghost jt-btn-sm" id="psPlay">鈻?/button>
           <input type="range" id="psSeek" min="0" max="100" value="0">
           <span class="ps-time" id="psTime">0.00s</span>
         </div>
@@ -313,63 +314,63 @@
 
       <div class="ps-panel">
         <div class="ps-card">
-          <label>✂️ 剪辑范围</label>
+          <label>鉁傦笍 鍓緫鑼冨洿</label>
           <div class="ps-clip" id="psClipEditor">
-            <span class="ps-clip-hint" id="psClipHint" style="display:none;">⚠️ 请先剪辑并确认导入</span>
+            <span class="ps-clip-hint" id="psClipHint" style="display:none;">鈿狅笍 璇峰厛鍓緫骞剁‘璁ゅ鍏?/span>
             <div class="clip-row">
-              <span style="min-width:34px;">开始</span>
+              <span style="min-width:34px;">寮€濮?/span>
               <input type="number" id="psClipStart" value="0" min="0" step="0.1" style="width:72px;">
-              <button class="jt-btn jt-btn-outline jt-btn-sm" id="psSetStart">当前</button>
+              <button class="jt-btn jt-btn-outline jt-btn-sm" id="psSetStart">褰撳墠</button>
             </div>
             <div class="clip-row">
-              <span style="min-width:34px;">结束</span>
+              <span style="min-width:34px;">缁撴潫</span>
               <input type="number" id="psClipEnd" value="0" min="0.1" step="0.1" style="width:72px;">
-              <button class="jt-btn jt-btn-outline jt-btn-sm" id="psSetEnd">当前</button>
+              <button class="jt-btn jt-btn-outline jt-btn-sm" id="psSetEnd">褰撳墠</button>
             </div>
             <div class="btn-row">
-              <button class="jt-btn jt-btn-accent jt-btn-sm" id="psConfirmClip">✅ 确认剪辑</button>
-              <button class="jt-btn jt-btn-ghost jt-btn-sm" id="psFull">全片</button>
+              <button class="jt-btn jt-btn-accent jt-btn-sm" id="psConfirmClip">鉁?纭鍓緫</button>
+              <button class="jt-btn jt-btn-ghost jt-btn-sm" id="psFull">鍏ㄧ墖</button>
             </div>
             <div class="ps-range-box"><div class="ps-range-visual" id="psRangeVisual"></div></div>
           </div>
         </div>
 
         <div class="ps-card">
-          <label for="psSample">跳帧采样（每 N 帧取 1 帧，越大越快但越粗）</label>
+          <label for="psSample">璺冲抚閲囨牱锛堟瘡 N 甯у彇 1 甯э紝瓒婂ぇ瓒婂揩浣嗚秺绮楋級</label>
           <select id="psSample">
-            <option value="1">1（最精细）</option>
-            <option value="2" selected>2（推荐）</option>
+            <option value="1">1锛堟渶绮剧粏锛?/option>
+            <option value="2" selected>2锛堟帹鑽愶級</option>
             <option value="3">3</option>
-            <option value="4">4（最快）</option>
+            <option value="4">4锛堟渶蹇級</option>
           </select>
           <div class="btn-row">
-            <button class="jt-btn jt-btn-accent" id="psStartBtn" disabled>🚀 开始姿态分析</button>
-            <button class="jt-btn jt-btn-ghost" id="psCancelBtn" disabled>⏹ 取消</button>
+            <button class="jt-btn jt-btn-accent" id="psStartBtn" disabled>馃殌 寮€濮嬪Э鎬佸垎鏋?/button>
+            <button class="jt-btn jt-btn-ghost" id="psCancelBtn" disabled>鈴?鍙栨秷</button>
           </div>
         </div>
 
         <div class="ps-card">
-          <label>🎯 框选人物（可选，小人物/复杂背景时更准）</label>
+          <label>馃幆 妗嗛€変汉鐗╋紙鍙€夛紝灏忎汉鐗?澶嶆潅鑳屾櫙鏃舵洿鍑嗭級</label>
           <div class="btn-row">
-            <button class="jt-btn jt-btn-outline jt-btn-sm" id="psBoxBtn">🎯 框选人物</button>
-            <button class="jt-btn jt-btn-outline jt-btn-sm" id="psBoxKf">💾 记录关键帧</button>
-            <button class="jt-btn jt-btn-ghost jt-btn-sm" id="psBoxClear">🗑 清除</button>
+            <button class="jt-btn jt-btn-outline jt-btn-sm" id="psBoxBtn">馃幆 妗嗛€変汉鐗?/button>
+            <button class="jt-btn jt-btn-outline jt-btn-sm" id="psBoxKf">馃捑 璁板綍鍏抽敭甯?/button>
+            <button class="jt-btn jt-btn-ghost jt-btn-sm" id="psBoxClear">馃棏 娓呴櫎</button>
           </div>
-          <div class="ps-hint" id="psBoxHint">点击「框选人物」后在画面上拖拽框住人物；框可拖动移动、右下角缩放。在不同时刻「记录关键帧」让框跟随人物，分析时骨骼将跟随框锁定人物。</div>
+          <div class="ps-hint" id="psBoxHint">鐐瑰嚮銆屾閫変汉鐗┿€嶅悗鍦ㄧ敾闈笂鎷栨嫿妗嗕綇浜虹墿锛涙鍙嫋鍔ㄧЩ鍔ㄣ€佸彸涓嬭缂╂斁銆傚湪涓嶅悓鏃跺埢銆岃褰曞叧閿抚銆嶈妗嗚窡闅忎汉鐗╋紝鍒嗘瀽鏃堕楠煎皢璺熼殢妗嗛攣瀹氫汉鐗┿€?/div>
         </div>
 
         <div class="ps-card">
-          <label>运动曲线</label>
+          <label>杩愬姩鏇茬嚎</label>
           <div class="ps-chart-wrap"><canvas id="psChart"></canvas></div>
         </div>
 
         <div class="ps-card" id="psStatsCard" style="display:none;">
-          <label>分析结果</label>
+          <label>鍒嗘瀽缁撴灉</label>
           <div class="ps-stats" id="psStats"></div>
         </div>
 
         <div class="ps-card">
-          <button class="jt-btn jt-btn-outline" id="psEvalBtn" disabled>🤖 AI动作评估</button>
+          <button class="jt-btn jt-btn-outline" id="psEvalBtn" disabled>馃 AI鍔ㄤ綔璇勪及</button>
           <div class="ps-result" id="psEvalResult"></div>
           <div class="ps-hint" id="psEvalHint"></div>
         </div>
@@ -388,8 +389,7 @@
   <script src="js/ui.js"></script>
   <script src="js/pose.js"></script>
   <script>
-    // [新增] pose.html 页面逻辑：视频加载 + 姿态分析接线
-    (function () {
+    // [鏂板] pose.html 椤甸潰閫昏緫锛氳棰戝姞杞?+ 濮挎€佸垎鏋愭帴绾?    (function () {
       'use strict';
       var Auth = window.JTAuth;
       var P = window.VTPose;
@@ -418,13 +418,13 @@
       var chartCanvas = document.getElementById('psChart');
       var videoUrl = null;
       var duration = 0;
-      var videoFps = 30; // 导入时自动识别的真实帧率
+      var videoFps = 30; // 瀵煎叆鏃惰嚜鍔ㄨ瘑鍒殑鐪熷疄甯х巼
       var task = null;
       var poseData = [];
       var clipConfirmed = false;
       var evalTimer = null;
-      var EVAL_ESTIMATE = 30; // AI 评估预计完成秒数
-      // 框选人物控制器（可调大小/位置 + 关键帧插值）
+      var EVAL_ESTIMATE = 30; // AI 璇勪及棰勮瀹屾垚绉掓暟
+      // 妗嗛€変汉鐗╂帶鍒跺櫒锛堝彲璋冨ぇ灏?浣嶇疆 + 鍏抽敭甯ф彃鍊硷級
       var boxCtrl = P.createBoxController(zone, poseCanvas, video);
       var boxHintEl = document.getElementById('psBoxHint');
       var boxBtn = document.getElementById('psBoxBtn');
@@ -432,21 +432,21 @@
       var boxClearBtn = document.getElementById('psBoxClear');
 
       boxBtn.addEventListener('click', function () {
-        boxHintEl.textContent = '请在画面上拖拽框住人物（框可移动 / 右下角缩放）';
+        boxHintEl.textContent = '璇峰湪鐢婚潰涓婃嫋鎷芥浣忎汉鐗╋紙妗嗗彲绉诲姩 / 鍙充笅瑙掔缉鏀撅級';
         boxCtrl.startDraw();
-        setTimeout(function () { boxHintEl.textContent = '点击「开始姿态分析」即可用框选锁定人物；多时刻记录关键帧可让框跟随人物。'; }, 2600);
+        setTimeout(function () { boxHintEl.textContent = '鐐瑰嚮銆屽紑濮嬪Э鎬佸垎鏋愩€嶅嵆鍙敤妗嗛€夐攣瀹氫汉鐗╋紱澶氭椂鍒昏褰曞叧閿抚鍙妗嗚窡闅忎汉鐗┿€?; }, 2600);
       });
       boxKfBtn.addEventListener('click', function () {
-        if (!boxCtrl.hasBox()) return toast('请先框选人物', 'err');
+        if (!boxCtrl.hasBox()) return toast('璇峰厛妗嗛€変汉鐗?, 'err');
         var ok = boxCtrl.saveKeyframe();
         var n = boxCtrl.getKeyframes().length;
-        toast(ok ? ('已记录关键帧（共 ' + n + ' 个），当前时刻：' + (video.currentTime || 0).toFixed(2) + 's') : '请先框选人物', ok ? 'ok' : 'err');
-        boxHintEl.textContent = '框选已跟随人物，共 ' + n + ' 个关键帧';
+        toast(ok ? ('宸茶褰曞叧閿抚锛堝叡 ' + n + ' 涓級锛屽綋鍓嶆椂鍒伙細' + (video.currentTime || 0).toFixed(2) + 's') : '璇峰厛妗嗛€変汉鐗?, ok ? 'ok' : 'err');
+        boxHintEl.textContent = '妗嗛€夊凡璺熼殢浜虹墿锛屽叡 ' + n + ' 涓叧閿抚';
       });
       boxClearBtn.addEventListener('click', function () {
         boxCtrl.clear();
-        boxHintEl.textContent = '点击「框选人物」后在画面上拖拽框住人物；框可拖动移动、右下角缩放。在不同时刻「记录关键帧」让框跟随人物，分析时骨骼将跟随框锁定人物。';
-        toast('已清除框选', 'ok');
+        boxHintEl.textContent = '鐐瑰嚮銆屾閫変汉鐗┿€嶅悗鍦ㄧ敾闈笂鎷栨嫿妗嗕綇浜虹墿锛涙鍙嫋鍔ㄧЩ鍔ㄣ€佸彸涓嬭缂╂斁銆傚湪涓嶅悓鏃跺埢銆岃褰曞叧閿抚銆嶈妗嗚窡闅忎汉鐗╋紝鍒嗘瀽鏃堕楠煎皢璺熼殢妗嗛攣瀹氫汉鐗┿€?;
+        toast('宸叉竻闄ゆ閫?, 'ok');
       });
 
       function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -474,7 +474,7 @@
       }
       window.addEventListener('resize', function () { if (video.videoWidth) fitCanvas(); });
 
-      // 自动识别视频真实帧率：优先 captureStream.getSettings()，回退默认 30
+      // 鑷姩璇嗗埆瑙嗛鐪熷疄甯х巼锛氫紭鍏?captureStream.getSettings()锛屽洖閫€榛樿 30
       function detectFps() {
         var f = 0;
         try {
@@ -491,7 +491,7 @@
       }
 
       function loadFile(file) {
-        if (!file || !file.type.startsWith('video/')) return toast('请选择视频文件', 'err');
+        if (!file || !file.type.startsWith('video/')) return toast('璇烽€夋嫨瑙嗛鏂囦欢', 'err');
         if (videoUrl) URL.revokeObjectURL(videoUrl);
         videoUrl = URL.createObjectURL(file);
         video.src = videoUrl;
@@ -503,28 +503,27 @@
           video.style.display = 'block';
           placeholder.style.display = 'none';
           detectFps();
-          // 播放区高度按视频实际宽高比自动适配（竖屏/横屏均可）
-          zone.style.aspectRatio = (video.videoWidth / video.videoHeight);
+          // 鎾斁鍖洪珮搴︽寜瑙嗛瀹為檯瀹介珮姣旇嚜鍔ㄩ€傞厤锛堢珫灞?妯睆鍧囧彲锛?          zone.style.aspectRatio = (video.videoWidth / video.videoHeight);
           fitCanvas();
           boxCtrl.clear();
           seekSlider.value = 0;
           updateTime();
-          // 重置剪辑状态：需先确认剪辑才能分析（与杠铃页一致）
+          // 閲嶇疆鍓緫鐘舵€侊細闇€鍏堢‘璁ゅ壀杈戞墠鑳藉垎鏋愶紙涓庢潬閾冮〉涓€鑷达級
           clipConfirmed = false;
           btnConfirmClip.disabled = false;
-          btnConfirmClip.textContent = '✅ 确认剪辑';
+          btnConfirmClip.textContent = '鉁?纭鍓緫';
           clipHintEl.style.display = 'inline-block';
           applySeekClip();
-          statusEl.textContent = '视频已加载';
+          statusEl.textContent = '瑙嗛宸插姞杞?;
           statusEl.classList.add('active');
           startBtn.disabled = false;
           evalBtn.disabled = true;
           evalResult.style.display = 'none';
           statsCard.style.display = 'none';
           poseCtx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
-          toast('视频已加载，请先剪辑并确认导入', 'ok');
+          toast('瑙嗛宸插姞杞斤紝璇峰厛鍓緫骞剁‘璁ゅ鍏?, 'ok');
         };
-        video.onerror = function () { toast('视频加载失败', 'err'); };
+        video.onerror = function () { toast('瑙嗛鍔犺浇澶辫触', 'err'); };
       }
 
       function updateTime() {
@@ -533,7 +532,7 @@
         boxCtrl.setPlayTime(video.currentTime || 0);
       }
 
-      // 与杠铃页一致：剪辑范围可视化 + 确认后锁定播放条
+      // 涓庢潬閾冮〉涓€鑷达細鍓緫鑼冨洿鍙鍖?+ 纭鍚庨攣瀹氭挱鏀炬潯
       function updateRangeVisual(cs, ce) {
         if (!duration) return;
         var pS = (cs / duration) * 100;
@@ -547,8 +546,7 @@
         var cs = clamp(parseFloat(clipStartInput.value) || 0, 0, duration);
         var ce = clamp(parseFloat(clipEndInput.value) || duration, cs, duration);
         if (clipConfirmed) {
-          // 已确认：播放条锁定在剪辑范围内
-          seekSlider.min = Math.round((cs / duration) * 100);
+          // 宸茬‘璁わ細鎾斁鏉￠攣瀹氬湪鍓緫鑼冨洿鍐?          seekSlider.min = Math.round((cs / duration) * 100);
           seekSlider.max = Math.round((ce / duration) * 100);
           if (video.currentTime < cs) video.currentTime = cs;
           else if (video.currentTime > ce) video.currentTime = ce;
@@ -566,50 +564,50 @@
       document.getElementById('psPlay').addEventListener('click', function () { if (video.paused) video.play(); else video.pause(); });
       seekSlider.addEventListener('input', function () { if (duration) video.currentTime = (seekSlider.value / 100) * duration; });
       video.addEventListener('timeupdate', updateTime);
-      video.addEventListener('play', function () { document.getElementById('psPlay').textContent = '⏸'; });
-      video.addEventListener('pause', function () { document.getElementById('psPlay').textContent = '▶'; });
+      video.addEventListener('play', function () { document.getElementById('psPlay').textContent = '鈴?; });
+      video.addEventListener('pause', function () { document.getElementById('psPlay').textContent = '鈻?; });
       document.getElementById('psFull').addEventListener('click', function () {
         clipStartInput.value = '0';
         clipEndInput.value = duration.toFixed(2);
         applySeekClip();
-        toast('已设为全片（未锁定，点击「确认剪辑」生效）', 'ok');
+        toast('宸茶涓哄叏鐗囷紙鏈攣瀹氾紝鐐瑰嚮銆岀‘璁ゅ壀杈戙€嶇敓鏁堬級', 'ok');
       });
       document.getElementById('psSetStart').addEventListener('click', function () {
         clipStartInput.value = video.currentTime.toFixed(2);
         applySeekClip();
-        toast('剪辑起点设为 ' + clipStartInput.value + 's', 'ok');
+        toast('鍓緫璧风偣璁句负 ' + clipStartInput.value + 's', 'ok');
       });
       document.getElementById('psSetEnd').addEventListener('click', function () {
         clipEndInput.value = video.currentTime.toFixed(2);
         applySeekClip();
-        toast('剪辑终点设为 ' + clipEndInput.value + 's', 'ok');
+        toast('鍓緫缁堢偣璁句负 ' + clipEndInput.value + 's', 'ok');
       });
       btnConfirmClip.addEventListener('click', function () {
         var cs = clamp(parseFloat(clipStartInput.value) || 0, 0, duration);
         var ce = clamp(parseFloat(clipEndInput.value) || duration, 0, duration);
-        if (ce - cs < 0.05) return toast('剪辑范围太短，请重新设置', 'err');
+        if (ce - cs < 0.05) return toast('鍓緫鑼冨洿澶煭锛岃閲嶆柊璁剧疆', 'err');
         clipStartInput.value = cs.toFixed(2);
         clipEndInput.value = ce.toFixed(2);
         clipConfirmed = true;
         btnConfirmClip.disabled = true;
-        btnConfirmClip.textContent = '✅ 剪辑已确认';
+        btnConfirmClip.textContent = '鉁?鍓緫宸茬‘璁?;
         clipHintEl.style.display = 'none';
         applySeekClip();
-        toast('剪辑已确认：' + cs.toFixed(2) + 's ~ ' + ce.toFixed(2) + 's', 'ok');
+        toast('鍓緫宸茬‘璁わ細' + cs.toFixed(2) + 's ~ ' + ce.toFixed(2) + 's', 'ok');
       });
       clipStartInput.addEventListener('input', applySeekClip);
       clipEndInput.addEventListener('input', applySeekClip);
 
       function startAnalysis() {
-        if (!clipConfirmed) return toast('请先剪辑并确认导入', 'err');
+        if (!clipConfirmed) return toast('璇峰厛鍓緫骞剁‘璁ゅ鍏?, 'err');
         var cs = parseFloat(clipStartInput.value) || 0;
         var ce = parseFloat(clipEndInput.value) || duration;
-        if (ce <= cs) return toast('剪辑结束需大于开始', 'err');
+        if (ce <= cs) return toast('鍓緫缁撴潫闇€澶т簬寮€濮?, 'err');
         startBtn.disabled = true;
         cancelBtn.disabled = false;
         evalBtn.disabled = true;
         poseData = [];
-        statusEl.textContent = '分析中...';
+        statusEl.textContent = '鍒嗘瀽涓?..';
         video.pause();
         task = P.analyze({
           video: video,
@@ -620,7 +618,7 @@
           boxes: boxCtrl.getKeyframes(),
           activity: 'approach-jump',
           onProgress: function (i, total, t) {
-            statusEl.textContent = '分析中 ' + Math.round((i / total) * 100) + '%';
+            statusEl.textContent = '鍒嗘瀽涓?' + Math.round((i / total) * 100) + '%';
           },
           onFrame: function (ev) {
             if (ev.lm) P.drawSkeleton(poseCtx, ev.lm, poseCanvas.width, poseCanvas.height);
@@ -629,18 +627,18 @@
         task.promise.then(function (res) {
           cancelBtn.disabled = true;
           startBtn.disabled = false;
-          if (res.error) { statusEl.textContent = '分析失败'; toast('分析失败: ' + res.error.message, 'err'); return; }
-          if (res.cancelled) { statusEl.textContent = '已取消'; return; }
+          if (res.error) { statusEl.textContent = '鍒嗘瀽澶辫触'; toast('鍒嗘瀽澶辫触: ' + res.error.message, 'err'); return; }
+          if (res.cancelled) { statusEl.textContent = '宸插彇娑?; return; }
           poseData = res.data || [];
-          statusEl.textContent = res.aborted ? '分析中断（人物长时间离开画面）' : '分析完成';
-          if (res.aborted) toast('人物离开画面/遮挡过多，已自动停止', 'err');
-          if (!poseData.length) { toast('未识别到人体姿态，请检查视频与剪辑范围', 'err'); return; }
+          statusEl.textContent = res.aborted ? '鍒嗘瀽涓柇锛堜汉鐗╅暱鏃堕棿绂诲紑鐢婚潰锛? : '鍒嗘瀽瀹屾垚';
+          if (res.aborted) toast('浜虹墿绂诲紑鐢婚潰/閬尅杩囧锛屽凡鑷姩鍋滄', 'err');
+          if (!poseData.length) { toast('鏈瘑鍒埌浜轰綋濮挎€侊紝璇锋鏌ヨ棰戜笌鍓緫鑼冨洿', 'err'); return; }
           P.buildChart(chartCanvas, poseData);
           renderStats(poseData);
           statsCard.style.display = 'block';
-          if (P.isConfigured()) { evalBtn.disabled = false; evalHint.textContent = '将上传关键帧图片 + 姿态时序 JSON 到 AI 评估接口'; }
-          else evalHint.textContent = 'AI评估接口未配置（js/supabase-config.js → POSE_API_URL），配置后此处可用';
-          toast('姿态分析完成', 'ok');
+          if (P.isConfigured()) { evalBtn.disabled = false; evalHint.textContent = '灏嗕笂浼犲叧閿抚鍥剧墖 + 濮挎€佹椂搴?JSON 鍒?AI 璇勪及鎺ュ彛'; }
+          else evalHint.textContent = 'AI璇勪及鎺ュ彛鏈厤缃紙js/supabase-config.js 鈫?POSE_API_URL锛夛紝閰嶇疆鍚庢澶勫彲鐢?;
+          toast('濮挎€佸垎鏋愬畬鎴?, 'ok');
         });
       }
 
@@ -649,23 +647,23 @@
         var lostPct = s.total ? Math.round((s.lost / s.total) * 100) : 0;
         var v = function (x, unit) { return x === null ? '--' : (x + (unit || '')); };
         statsEl.innerHTML =
-          '<div class="ps-stat"><div class="v">' + v(s.minKnee, '°') + '</div><div class="k">最深处膝角</div></div>' +
-          '<div class="ps-stat"><div class="v">' + v(s.avgKnee, '°') + '</div><div class="k">平均膝角</div></div>' +
-          '<div class="ps-stat"><div class="v">' + v(s.maxCom, '%') + '</div><div class="k">重心最高</div></div>' +
-          '<div class="ps-stat"><div class="v">' + s.valid + '/' + s.total + '</div><div class="k">有效帧/总数</div></div>' +
-          '<div class="ps-stat"><div class="v">' + lostPct + '%</div><div class="k">丢失率</div></div>';
+          '<div class="ps-stat"><div class="v">' + v(s.minKnee, '掳') + '</div><div class="k">鏈€娣卞鑶濊</div></div>' +
+          '<div class="ps-stat"><div class="v">' + v(s.avgKnee, '掳') + '</div><div class="k">骞冲潎鑶濊</div></div>' +
+          '<div class="ps-stat"><div class="v">' + v(s.maxCom, '%') + '</div><div class="k">閲嶅績鏈€楂?/div></div>' +
+          '<div class="ps-stat"><div class="v">' + s.valid + '/' + s.total + '</div><div class="k">鏈夋晥甯?鎬绘暟</div></div>' +
+          '<div class="ps-stat"><div class="v">' + lostPct + '%</div><div class="k">涓㈠け鐜?/div></div>';
       }
 
       function startEval() {
         evalBtn.disabled = true;
-        evalBtn.textContent = '评估中...';
+        evalBtn.textContent = '璇勪及涓?..';
         evalResult.style.display = 'none';
         var startAt = Date.now();
         var tick = function () {
           var elapsed = Math.floor((Date.now() - startAt) / 1000);
           var remain = Math.max(0, EVAL_ESTIMATE - elapsed);
-          evalHint.textContent = '⏳ AI 评估中 · 预计约 ' + EVAL_ESTIMATE + 's 完成 · 已用 ' + elapsed +
-            's' + (remain <= 0 ? '（可能超时，请稍候）' : '');
+          evalHint.textContent = '鈴?AI 璇勪及涓?路 棰勮绾?' + EVAL_ESTIMATE + 's 瀹屾垚 路 宸茬敤 ' + elapsed +
+            's' + (remain <= 0 ? '锛堝彲鑳借秴鏃讹紝璇风◢鍊欙級' : '');
         };
         tick();
         evalTimer = setInterval(tick, 1000);
@@ -675,13 +673,17 @@
           activity: 'approach-jump',
           sampleEvery: parseInt(sampleSel.value, 10) || 2,
           clipStart: parseFloat(clipStartInput.value) || 0,
-          clipEnd: parseFloat(clipEndInput.value) || duration
+          clipEnd: parseFloat(clipEndInput.value) || duration,
+          onChunk: function (d) {
+            evalResult.style.display = 'block';
+            evalResult.textContent += d;
+          }
         }).then(function (res) {
           if (evalTimer) { clearInterval(evalTimer); evalTimer = null; }
-          evalBtn.textContent = '🤖 AI动作评估';
+          evalBtn.textContent = '馃 AI鍔ㄤ綔璇勪及';
           if (!res.ok) {
             evalResult.style.display = 'none';
-            evalHint.textContent = res.msg;
+            evalHint.textContent = res.msg + (res.needUpgrade ? ' → 可前往「会员」购买单次或升级 VIP 无限使用' : '');
             evalBtn.disabled = false;
             return;
           }
@@ -693,7 +695,7 @@
       }
 
       startBtn.addEventListener('click', startAnalysis);
-      cancelBtn.addEventListener('click', function () { if (task) task.cancel(); statusEl.textContent = '正在取消...'; });
+      cancelBtn.addEventListener('click', function () { if (task) task.cancel(); statusEl.textContent = '姝ｅ湪鍙栨秷...'; });
       evalBtn.addEventListener('click', startEval);
 
       Auth.init();

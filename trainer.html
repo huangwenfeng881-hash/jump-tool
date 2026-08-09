@@ -218,6 +218,7 @@
       <a class="jt-nav-link" href="pose.html">动作分析</a>
       <a class="jt-nav-link active" href="trainer.html">AI训练师</a>
       <a class="jt-nav-link" href="feedback.html">问题反馈</a>
+      <a class="jt-nav-link" href="membership.html">会员</a>
     </div>
     <div class="jt-nav-user">
       <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
@@ -329,6 +330,7 @@
       var swReady = false;
       var lastInput = null;
       var aiAttempted = false; // 本次是否真的调用了 AI
+      var usedKind = '';       // 本次消耗的计次类型（free/credit/vip），失败时退回
 
       function showToast(msg, type) {
         var t = document.getElementById('toast');
@@ -403,7 +405,10 @@
             var ch = new MessageChannel();
             ch.port1.onmessage = function (e) {
               var d = e.data;
-              if (d && d.type === 'glmChatDone' && d.id === id) {
+              if (!d) return;
+              if (d.type === 'glmChunk' && d.id === id) {
+                if (opts.onChunk) opts.onChunk(d.chunk);
+              } else if (d.type === 'glmChatDone' && d.id === id) {
                 ch.port1.close();
                 resolve(d.result);
               }
@@ -413,7 +418,7 @@
                 reg.active.postMessage({
                   type: 'glmChat', id: id, messages: messages,
                   temperature: opts.temperature, url: cfg.GLM_API_URL, key: key,
-                  model: cfg.GLM_MODEL, models: cfg.GLM_MODELS
+                  model: cfg.GLM_MODEL, models: cfg.GLM_MODELS, stream: true
                 }, [ch.port2]);
               } else {
                 resolve({ ok: false, msg: 'Service Worker 未就绪' });
@@ -554,21 +559,61 @@
       }
 
       // 组装 GLM 训练计划提示词
-      function buildPlanPrompt(input) {
+      function buildPlanPrompt(input, ctx) {
         var eqMap = { none: '徒手', dumbbell: '哑铃', barbell: '杠铃', bands: '弹力带' };
         var lvMap = { beginner: '初级', intermediate: '中级', advanced: '高级' };
         var injMap = { none: '无', knee: '膝盖', ankle: '脚踝', back: '腰部' };
         var eqs = input.equipment.map(function (e) { return eqMap[e] || e; }).join('、');
-        return '请为一名篮球运动员制定四周弹跳提升训练计划。\n' +
+        var s = '请为一名篮球运动员制定四周弹跳提升训练计划。\n' +
           '基础数据：当前弹跳高度 ' + input.currentHeight + 'cm，' +
           (input.goalHeight ? '目标高度 ' + input.goalHeight + 'cm，' : '') +
           '年龄 ' + input.age + '，水平：' + (lvMap[input.level] || input.level) +
-          '，每周训练 ' + input.days + ' 天，可用器械：' + eqs + '，伤病：' + (injMap[input.injury] || input.injury) + '。\n' +
-          '要求：\n' +
+          '，每周训练 ' + input.days + ' 天，可用器械：' + eqs + '，伤病：' + (injMap[input.injury] || input.injury) + '。\n';
+        if (ctx) s += '\n【该用户的训练记录，供个性化参考】\n' + ctx + '\n';
+        s += '要求：\n' +
           '1. 按天输出每周训练安排，每天给出动作名称、组数×次数、休息时间、动作要点；\n' +
           '2. 包含进阶规则与恢复/休息建议；\n' +
           '3. 若有伤病，给出规避与替代动作；\n' +
           '4. 只输出 JSON，不要任何多余文字，格式：{"title":"...","goal":"...","summary":"...","schedule":[{"day":1,"title":"力量日","exercises":[{"name":"杠铃深蹲","sets":4,"reps":"6-10","rest":"120s","note":"..."}]}],"progression":"...","cautions":["..."]}';
+        return s;
+      }
+
+      // 汇总该用户全部训练记录，作为 AI 个性化上下文
+      async function buildContextText() {
+        try {
+          var user = await Auth.getCurrentUser();
+          if (!user) return '';
+          var recs = await Auth.fetchRecords();
+          var pl = await Auth.fetchTrainingPlans();
+          var lines = [];
+          if (recs.jumps && recs.jumps.length) {
+            lines.push('该用户近期弹跳记录（' + recs.jumps.length + '条，最新在前）：');
+            recs.jumps.slice(0, 10).forEach(function (r) {
+              lines.push('  · ' + (r.test_type || '助跑起跳') + ' ' + r.height_cm + 'cm' +
+                (r.box_height != null ? '（箱高' + r.box_height + 'cm）' : '') +
+                ' 腾空' + r.flight_time + 's' +
+                (r.created_at ? '（' + new Date(r.created_at).toLocaleDateString() + '）' : ''));
+            });
+          }
+          if (recs.barbells && recs.barbells.length) {
+            lines.push('该用户近期杠铃测速（' + recs.barbells.length + '条）：');
+            recs.barbells.slice(0, 10).forEach(function (r) {
+              lines.push('  · 峰值速度 ' + r.peak_speed + 'm/s' + (r.weight != null ? ' 重量' + r.weight + 'kg' : ''));
+            });
+          }
+          if (pl.plans && pl.plans.length) {
+            lines.push('历史训练计划 ' + pl.plans.length + ' 个（参考已有安排，避免重复）。');
+          }
+          return lines.length ? lines.join('\n') : '';
+        } catch (e) { return ''; }
+      }
+
+      async function buildMessages(input) {
+        var ctx = await buildContextText();
+        return [
+          { role: 'system', content: '你是资深弹跳/力量训练教练，输出简洁专业的训练计划。' },
+          { role: 'user', content: buildPlanPrompt(input, ctx) }
+        ];
       }
 
       // GLM 返回：优先解析 JSON 结构化渲染，失败则文本渲染
@@ -622,42 +667,85 @@
         var btn = document.getElementById('btnGenerate');
         btn.disabled = true;
         var box = document.getElementById('trResult');
-        box.innerHTML = '<div class="loading-tip">⏳ 正在生成训练计划...</div>';
 
         var member = Auth.getPlan() === 'pro';
         var llmWorker = !!(window.JTConfig && window.JTConfig.LLM_API_URL);
         var glmReady = !!(window.GLM && window.GLM.isConfigured());
 
-        var task;
         aiAttempted = false;
         if (glmReady) {
           aiAttempted = true;
-          // 优先走 GLM-4.7-Flash（支持后台生成）
-          var messages = [
-            { role: 'system', content: '你是资深弹跳/力量训练教练，输出简洁专业的训练计划。' },
-            { role: 'user', content: buildPlanPrompt(input) }
-          ];
-          genId = 'glm' + Date.now();
-          genStart = Date.now();
-          genPending = true;
-          sessionStorage.removeItem('vt_result');
-          sessionStorage.setItem('vt_gen', JSON.stringify({ id: genId, startedAt: genStart, estimate: ESTIMATE }));
-          startCountdown();
-          task = swReady
-            ? generateViaSW(genId, messages, { temperature: 0.5 }, window.JTConfig)
-            : window.GLM.chat(messages, { temperature: 0.5 });
+          // [计费] 消耗一次 AI 分析额度（免费每日2次 → 余额 → VIP 无限）
+          var consume = (window.JTAuth && window.JTAuth.consumeAI)
+            ? window.JTAuth.consumeAI('trainer')
+            : Promise.resolve({ ok: true, used_kind: 'free' });
+          consume.then(function (r) {
+            if (!r.ok) {
+              btn.disabled = false;
+              setMsg(r.msg || '今日 AI 分析次数已用完', false);
+              // 提示升级入口
+              var tip = document.createElement('div');
+              tip.className = 'info-box';
+              tip.innerHTML = '可<a href="membership.html" style="color:var(--accent);font-weight:700;">购买会员 / 兑换邀请码</a>解锁无限 AI 分析，或使用下方内置模板生成免费计划。';
+              box.innerHTML = '';
+              box.appendChild(tip);
+              return;
+            }
+            usedKind = r.used_kind || 'free';
+            runGLMGenerate(input);
+          });
+          return false;
         } else if (member && llmWorker) {
           aiAttempted = true;
-          task = Auth.generatePlanWithLLM({ type: 'jump-training-plan', data: input });
+          Auth.generatePlanWithLLM({ type: 'jump-training-plan', data: input }).then(function (res) {
+            finishGeneration(res);
+          });
         } else {
-          task = Promise.resolve({ ok: false, msg: '' });
+          var plan = window.JTRAINER.generate(input);
+          currentPlan = plan;
+          btn.disabled = false;
+          renderTemplate(plan);
         }
-
-        task.then(function (res) {
-          finishGeneration(res);
-        });
         return false;
       };
+
+      // 真正执行 GLM 生成（计费已通过）
+      function runGLMGenerate(input) {
+        var btn = document.getElementById('btnGenerate');
+        var box = document.getElementById('trResult');
+        var streamBox = document.createElement('div');
+        streamBox.className = 'llm-text';
+        streamBox.style.whiteSpace = 'pre-wrap';
+        box.innerHTML = '';
+        box.appendChild(streamBox);
+        function appendChunk(d) { streamBox.textContent += d; box.scrollTop = box.scrollHeight; }
+
+        genId = 'glm' + Date.now();
+        genStart = Date.now();
+        genPending = true;
+        sessionStorage.removeItem('vt_result');
+        sessionStorage.setItem('vt_gen', JSON.stringify({ id: genId, startedAt: genStart, estimate: ESTIMATE }));
+        startCountdown();
+
+        buildMessages(input).then(function (messages) {
+          var task = swReady
+            ? generateViaSW(genId, messages, { temperature: 0.5, onChunk: appendChunk }, window.JTConfig)
+            : window.GLM.chat(messages, { temperature: 0.5, stream: true, onChunk: appendChunk });
+          task.then(function (res) {
+            // GLM 失败（网络/超时）退回本次消耗
+            if (!res.ok && usedKind) {
+              window.JTAuth && window.JTAuth.refundAI(usedKind);
+            }
+            finishGeneration(res);
+          });
+        }).catch(function () {
+          if (usedKind) window.JTAuth && window.JTAuth.refundAI(usedKind);
+          btn.disabled = false;
+          var plan = window.JTRAINER.generate(input);
+          currentPlan = plan;
+          renderTemplate(plan);
+        });
+      }
 
       Auth.init();
       initSW();

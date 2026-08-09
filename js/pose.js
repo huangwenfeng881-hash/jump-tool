@@ -27,6 +27,11 @@ window.VTPose = (function () {
     [25, 27], [26, 28], [27, 29], [29, 31], [28, 30], [30, 32], [25, 26]
   ];
 
+  // [新增] 助跑起跳动作的 AI 内置知识（来源：jump knowledge.txt，AI 天然具备，无需问时现发）
+  var APPROACH_JUMP_KNOWLEDGE =
+    '双脚起跳：助跑阶段重心自然前倾，速度逐渐加快，倒数第二步全力蹬地，另一条腿前伸（尽量伸直）手臂同时后摆，同时已经屈髋（想象胸口压住膝盖）还可以防止膝盖前伸，最后一步前脚掌刺向地面（0.1到0.2秒内必须完成起跳）同时手臂前摆（最后一步刚触地，手臂已经在身体前面）\n' +
+    '单脚起跳：起跳前要有足够的水平速度，起跳时，起跳腿要像一根钢筋一样（同时摆动腿和手臂快速上摆）0.15秒左右完成起跳';
+
   // ---------- 模型加载（懒加载，复用单例） ----------
   function loadModel(modelComplexity) {
     if (poseInstance) return Promise.resolve();
@@ -521,6 +526,29 @@ window.VTPose = (function () {
     if (!url && !glmReady) {
       return Promise.resolve({ ok: false, msg: 'AI评估接口未配置（js/supabase-config.js → POSE_API_URL 或 GLM_API_KEY）' });
     }
+
+    // [计费] 消耗一次 AI 分析额度（免费每日2次 → 余额 → VIP 无限）
+    var usedKind = '';
+    var consume = (window.JTAuth && window.JTAuth.consumeAI)
+      ? window.JTAuth.consumeAI('evaluation')
+      : Promise.resolve({ ok: true, used_kind: 'free' });
+    return consume.then(function (r) {
+      if (!r.ok) {
+        if (r.needLogin) location.href = 'login.html?next=' + location.pathname.split('/').pop();
+        return { ok: false, msg: r.msg || '今日 AI 分析次数已用完', needUpgrade: true };
+      }
+      usedKind = r.used_kind || 'free';
+      return runEvaluate(url, glmReady, opts, data);
+    }).then(function (res) {
+      // GLM 请求失败（网络/超时等）退回本次消耗
+      if (!res.ok && usedKind) {
+        window.JTAuth && window.JTAuth.refundAI(usedKind);
+      }
+      return res;
+    });
+  }
+
+  function runEvaluate(url, glmReady, opts, data) {
     // 时序降采样 ≤ 500 点，控制上传体积
     var step = Math.max(1, Math.ceil(data.length / 500));
     var series = [];
@@ -548,10 +576,17 @@ window.VTPose = (function () {
             ',' + (d.comH === null ? '-' : d.comH) + ',' + (d.lost ? 1 : 0);
         }).join('\n') +
         '\n请分两部分输出：1) 动作缺陷点评（膝关节角度变化、重心轨迹、丢失段可能问题）；2) 具体训练建议。';
+      var sys = '你是运动科学专家，点评简洁专业、可执行。';
+      if (opts.activity === 'approach-jump') {
+        // 助跑起跳：注入内置技术要点知识
+        sys += '\n【助跑起跳动作要点·内置知识】\n' + APPROACH_JUMP_KNOWLEDGE;
+      }
+      var chatOpts = { temperature: 0.4, stream: true };
+      if (opts.onChunk) chatOpts.onChunk = opts.onChunk;
       return window.GLM.chat([
-        { role: 'system', content: '你是运动科学专家，点评简洁专业、可执行。' },
+        { role: 'system', content: sys },
         { role: 'user', content: prompt }
-      ], { temperature: 0.4 }).then(function (res) {
+      ], chatOpts).then(function (res) {
         if (!res.ok) return res;
         if (res.fallback && res.usedModel) {
           res.text = res.text + '\n\n（模型繁忙，已自动切换至 ' + res.usedModel + '）';

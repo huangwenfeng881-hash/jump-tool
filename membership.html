@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>会员中心 · Vertrise跃升</title>
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; }
+    .jt-nav { width: 100%; }
+    .ms-wrap { width: 100%; max-width: 760px; padding: 24px 16px 60px; }
+    .ms-title { text-align: center; margin: 8px 0 4px; }
+    .ms-sub { text-align: center; color: var(--text2); font-size: 0.9rem; margin-bottom: 24px; }
+    .ms-status {
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+      margin-bottom: 24px;
+    }
+    .ms-badge {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 8px 14px; font-size: 0.85rem;
+    }
+    .ms-badge b { color: var(--accent); }
+    .ms-section-title { font-size: 1.05rem; font-weight: 700; margin: 26px 0 12px; }
+    .ms-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .ms-plan {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px; cursor: pointer; transition: all .15s; text-align: center;
+    }
+    .ms-plan:hover { border-color: var(--accent); }
+    .ms-plan.sel { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,198,255,.25); }
+    .ms-plan.featured { border-color: var(--accent); }
+    .ms-plan-name { font-weight: 700; font-size: 1.05rem; }
+    .ms-plan-price { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin: 6px 0; }
+    .ms-plan-price small { font-size: .75rem; color: var(--text2); font-weight: 500; }
+    .ms-plan-desc { font-size: .8rem; color: var(--text2); line-height: 1.6; min-height: 58px; }
+    .ms-pay-row { display: flex; gap: 10px; margin-top: 18px; }
+    .ms-pay-row .jt-btn { flex: 1; }
+    .ms-qr-box {
+      display: none; margin-top: 16px; padding: 20px; text-align: center;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    }
+    .ms-qr-box canvas, .ms-qr-box img { max-width: 220px; width: 100%; height: auto; }
+    .ms-invite { margin-top: 8px; }
+    .ms-invite-row { display: flex; gap: 10px; }
+    .ms-invite-row .jt-input { flex: 1; }
+    .ms-orders { margin-top: 8px; }
+    .ms-order {
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 10px 14px; margin-bottom: 8px; font-size: .85rem;
+    }
+    .ms-order .st { font-weight: 700; }
+    .st-paid { color: #22c55e; }
+    .st-pending { color: var(--warning); }
+    .st-closed { color: var(--text2); }
+    .ms-note { font-size: .78rem; color: var(--text2); margin-top: 8px; line-height: 1.7; }
+    .ms-login-tip { text-align: center; padding: 48px 16px; }
+    .ms-login-tip .jt-btn { min-width: 200px; }
+    .pay-methods { display: flex; gap: 10px; margin-top: 12px; }
+    .pay-method {
+      flex: 1; text-align: center; padding: 10px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer; background: var(--surface2); font-size: .9rem;
+    }
+    .pay-method.sel { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <nav class="jt-nav">
+    <a class="jt-nav-logo" href="index.html">
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="jt-nav-links">
+      <a class="jt-nav-link" href="index.html">首页</a>
+      <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+      <a class="jt-nav-link" href="jump.html">弹跳</a>
+      <a class="jt-nav-link" href="pose.html">动作分析</a>
+      <a class="jt-nav-link" href="trainer.html">AI训练师</a>
+      <a class="jt-nav-link" href="feedback.html">问题反馈</a>
+    </div>
+    <div class="jt-nav-user">
+      <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html?next=membership.html" style="display:none">登录</a>
+    </div>
+  </nav>
+
+  <div class="ms-wrap">
+    <h1 class="ms-title">会员中心</h1>
+    <p class="ms-sub">AI 动作评估 / AI 训练师 · 免费每日 2 次，会员无限使用</p>
+
+    <div class="ms-status" id="statusBox" style="display:none"></div>
+
+    <!-- 未登录 -->
+    <div class="ms-login-tip" id="loginTip" style="display:none">
+      <h2>请先登录</h2>
+      <p>登录后可购买会员、兑换邀请码、使用 AI 分析额度。</p>
+      <a class="jt-btn jt-btn-accent" href="login.html?next=membership.html">登录 / 注册</a>
+    </div>
+
+    <!-- 已登录 -->
+    <div id="memberBox" style="display:none">
+      <div class="ms-section-title">💰 购买套餐</div>
+      <div class="ms-plans" id="planList"></div>
+
+      <div class="pay-methods" id="payMethods">
+        <div class="pay-method sel" data-pay="wxpay">微信支付</div>
+        <div class="pay-method" data-pay="alipay">支付宝</div>
+      </div>
+
+      <div class="ms-pay-row">
+        <button class="jt-btn jt-btn-accent" id="btnPay">立即支付</button>
+      </div>
+      <div class="ms-qr-box" id="qrBox">
+        <div id="qrWrap"></div>
+        <div class="ms-note" id="qrHint">请使用手机扫码完成支付，支付成功将自动到账</div>
+      </div>
+
+      <div class="ms-section-title">🎟️ 邀请码兑换</div>
+      <div class="ms-invite">
+        <div class="ms-invite-row">
+          <input class="jt-input" id="inviteInput" placeholder="请输入邀请码，例如 VTRS-XXXX" autocomplete="off">
+          <button class="jt-btn jt-btn-outline" id="btnRedeem">兑换</button>
+        </div>
+        <div class="jt-msg err" id="inviteMsg"></div>
+        <div class="ms-note">兑换成功可获得 30 天 VIP（可叠加顺延）。邀请码由官方发放。</div>
+      </div>
+
+      <div class="ms-section-title">📋 我的订单</div>
+      <div class="ms-orders" id="orderList"></div>
+    </div>
+  </div>
+
+  <div class="jt-toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var Auth = window.JTAuth;
+      var CONFIG = window.JTConfig || {};
+      var selectedPlan = null;
+      var payMethod = 'wxpay';
+      var qrTimer = null;
+
+      function $(id) { return document.getElementById(id); }
+      function toast(msg, type) {
+        var t = $('toast');
+        t.textContent = msg;
+        t.className = 'jt-toast show ' + (type || '');
+        setTimeout(function () { t.className = 'jt-toast'; }, 2600);
+      }
+
+      function fmtDate(d) {
+        if (!d) return '';
+        var x = new Date(d);
+        return (x.getMonth() + 1) + '月' + x.getDate() + '日';
+      }
+
+      function renderStatus(st) {
+        var box = $('statusBox');
+        box.style.display = 'flex';
+        var html = '';
+        if (st.is_vip) {
+          html += '<div class="ms-badge">👑 <b>VIP 会员</b> · 到期 ' + fmtDate(st.vip_until) + '</div>';
+        } else {
+          html += '<div class="ms-badge">免费版 · 今日剩余 <b>' + st.remaining_free + '</b> 次</div>';
+        }
+        if (st.credits > 0) html += '<div class="ms-badge">单次余额 ×<b>' + st.credits + '</b></div>';
+        box.innerHTML = html;
+      }
+
+      function renderPlans(plans) {
+        var list = $('planList');
+        list.innerHTML = '';
+        plans.forEach(function (p, i) {
+          var el = document.createElement('div');
+          el.className = 'ms-plan' + (i === 1 ? ' featured' : '');
+          var name = p.name;
+          var price = '¥' + p.price_yuan;
+          var unit = p.type === 'credit' ? ' / 1次' : ' / ' + (p.days >= 365 ? '1年' : p.days >= 90 ? '3个月' : p.days >= 30 ? '1个月' : p.days + '天');
+          var desc = p.type === 'credit'
+            ? 'AI 分析次数 ×' + p.credits + '<br>不限时，不设有效期'
+            : 'VIP 会员 ' + (p.days >= 365 ? '1年' : p.days >= 90 ? '3个月' : p.days + '天') + '<br>AI 分析无限使用';
+          el.innerHTML =
+            '<div class="ms-plan-name">' + name + '</div>' +
+            '<div class="ms-plan-price">' + price + '<small>' + unit + '</small></div>' +
+            '<div class="ms-plan-desc">' + desc + '</div>';
+          el.addEventListener('click', function () {
+            var nodes = list.querySelectorAll('.ms-plan');
+            for (var j = 0; j < nodes.length; j++) nodes[j].classList.remove('sel');
+            el.classList.add('sel');
+            selectedPlan = p;
+          });
+          list.appendChild(el);
+        });
+        // 默认选中第 2 个（月度会员）
+        if (plans.length > 1) { list.children[1].click(); }
+        else if (plans.length) list.children[0].click();
+      }
+
+      function renderOrders(orders) {
+        var box = $('orderList');
+        box.innerHTML = '';
+        if (!orders || !orders.length) { box.innerHTML = '<div class="ms-note">暂无订单</div>'; return; }
+        orders.forEach(function (o) {
+          var stText = { paid: '已到账', pending: '待支付', closed: '已关闭', refunded: '已退款' }[o.status] || o.status;
+          var stCls = { paid: 'st-paid', pending: 'st-pending', closed: 'st-closed', refunded: 'st-closed' }[o.status] || '';
+          var codeHtml = o.status === 'paid' && o.pay_code ? ' · 凭证码 <b>' + o.pay_code + '</b>' : '';
+          var el = document.createElement('div');
+          el.className = 'ms-order';
+          el.innerHTML =
+            '<span>' + o.order_no + codeHtml + '</span>' +
+            '<span>¥' + (o.amount_cents / 100).toFixed(2) + ' · ' + fmtDate(o.created_at) + '</span>' +
+            '<span class="st ' + stCls + '">' + stText + '</span>';
+          box.appendChild(el);
+        });
+      }
+
+      function renderQR(qr) {
+        var wrap = $('qrWrap');
+        wrap.innerHTML = '';
+        if (qr.qrcode) {
+          // 用外部服务渲染二维码
+          var img = document.createElement('img');
+          img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(qr.qrcode);
+          img.alt = '支付二维码';
+          wrap.appendChild(img);
+        } else if (qr.payurl) {
+          var a = document.createElement('a');
+          a.className = 'jt-btn jt-btn-accent';
+          a.href = qr.payurl;
+          a.target = '_blank';
+          a.textContent = '点击跳转支付';
+          wrap.appendChild(a);
+        } else {
+          wrap.innerHTML = '<div class="ms-note">支付发起失败，请重试</div>';
+        }
+        $('qrBox').style.display = 'block';
+      }
+
+      function startOrder(plan) {
+        if (!plan) { toast('请先选择套餐', 'err'); return; }
+        Auth.getCurrentUser().then(function (user) {
+          if (!user) { location.href = 'login.html?next=membership.html'; return; }
+          var btn = $('btnPay');
+          btn.disabled = true;
+          btn.textContent = '下单中...';
+          var url = (CONFIG.PROXY_URL || CONFIG.SUPABASE_URL || '').replace(/\/$/, '') +
+            '/functions/v1/pay-create-order';
+          fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + user.access_token
+            },
+            body: JSON.stringify({ plan_id: plan.id, provider: payMethod })
+          }).then(function (r) { return r.json(); }).then(function (res) {
+            btn.disabled = false;
+            btn.textContent = '立即支付';
+            if (res.code !== 1) { toast(res.msg || '下单失败', 'err'); return; }
+            toast('订单已创建，请完成支付', 'ok');
+            renderQR(res);
+            pollOrder(res.order_no);
+          }).catch(function (e) {
+            btn.disabled = false;
+            btn.textContent = '立即支付';
+            toast('下单失败: ' + e.message, 'err');
+          });
+        });
+      }
+
+      function pollOrder(orderNo) {
+        if (qrTimer) clearInterval(qrTimer);
+        qrTimer = setInterval(function () {
+          Auth.getCurrentUser().then(function (user) {
+            if (!user) return;
+            var url = (CONFIG.PROXY_URL || CONFIG.SUPABASE_URL || '').replace(/\/$/, '') +
+              '/functions/v1/pay-query';
+            fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + user.access_token
+              },
+              body: JSON.stringify({ order_no: orderNo })
+            }).then(function (r) { return r.json(); }).then(function (res) {
+              if (res.code === 1 && res.status === 'paid') {
+                clearInterval(qrTimer);
+                qrTimer = null;
+                $('qrBox').style.display = 'none';
+                toast('支付成功，已自动到账', 'ok');
+                refreshAll();
+              }
+            }).catch(function () {});
+          });
+        }, 3000);
+      }
+
+      function refreshAll() {
+        Promise.all([Auth.getAiStatus(), Auth.fetchOrders()]).then(function (r) {
+          if (r[0]) renderStatus(r[0]);
+          renderOrders(r[1]);
+        });
+      }
+
+      function redeem() {
+        var code = $('inviteInput').value.trim();
+        if (!code) { setInviteMsg('请输入邀请码', false); return; }
+        Auth.redeemInvite(code).then(function (r) {
+          setInviteMsg(r.msg, r.ok);
+          if (r.ok) { $('inviteInput').value = ''; refreshAll(); }
+        });
+      }
+      function setInviteMsg(msg, ok) {
+        var el = $('inviteMsg');
+        el.textContent = msg;
+        el.className = 'jt-msg ' + (ok ? 'ok' : 'err');
+      }
+
+      $('btnPay').addEventListener('click', function () { startOrder(selectedPlan); });
+      $('btnRedeem').addEventListener('click', redeem);
+      $('inviteInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') redeem(); });
+      var methods = document.querySelectorAll('.pay-method');
+      for (var i = 0; i < methods.length; i++) {
+        methods[i].addEventListener('click', function () {
+          for (var j = 0; j < methods.length; j++) methods[j].classList.remove('sel');
+          this.classList.add('sel');
+          payMethod = this.getAttribute('data-pay');
+        });
+      }
+
+      Auth.init(function (session) {
+        var logged = !!session;
+        $('loginTip').style.display = logged ? 'none' : 'block';
+        $('memberBox').style.display = logged ? 'block' : 'none';
+        if (logged) {
+          Auth.fetchPlans().then(function (plans) { renderPlans(plans); });
+          refreshAll();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

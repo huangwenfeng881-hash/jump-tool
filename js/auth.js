@@ -193,15 +193,17 @@
 
     // ---------- 训练数据（绑定用户 ID，RLS 保证只读写本人数据） ----------
 
-    /** 保存一条弹跳记录（高度 cm / 腾空时间 s） */
+    /** 保存一条弹跳记录（高度 cm / 腾空时间 s / 测试类型 / 箱高 cm） */
     saveJumpRecord: function (data) {
       return Auth._insert('jump_records', {
         height_cm: data.height_cm,
-        flight_time: data.flight_time
+        flight_time: data.flight_time,
+        test_type: data.test_type || '助跑起跳',
+        box_height: data.box_height || null
       });
     },
 
-    /** 保存一条杠铃速度记录（统计指标 + 完整速度曲线 jsonb） */
+    /** 保存一条杠铃速度记录（统计指标 + 完整速度曲线 jsonb + 重量 kg） */
     saveBarbellRecord: function (data) {
       return Auth._insert('barbell_records', {
         peak_speed: data.peak_speed,
@@ -210,6 +212,7 @@
         concentric_time: data.concentric_time,
         eccentric_time: data.eccentric_time,
         total_displacement: data.total_displacement,
+        weight: data.weight || null,
         curve_data: data.curve_data || []
       });
     },
@@ -320,9 +323,88 @@
       var b = document.getElementById('btnLogout');
       var l = document.getElementById('btnLogin');
       if (u) u.textContent = logged ? email : '未登录';
-      if (p) p.textContent = 'FREE';
       if (b) b.style.display = logged ? 'inline-flex' : 'none';
       if (l) l.style.display = logged ? 'none' : 'inline-flex';
+      // 徽章：优先显示会员/额度状态（异步拉取）
+      if (p) {
+        if (!logged) { p.textContent = 'FREE'; return; }
+        Auth.getAiStatus().then(function (st) {
+          if (!st) { p.textContent = 'FREE'; return; }
+          if (st.is_vip) {
+            var d = st.vip_until ? new Date(st.vip_until) : null;
+            p.textContent = 'VIP' + (d ? '·' + (d.getMonth() + 1) + '/' + d.getDate() : '');
+          } else if (st.credits > 0) {
+            p.textContent = '余额×' + st.credits;
+          } else if (st.remaining_free > 0) {
+            p.textContent = '免费剩' + st.remaining_free + '次';
+          } else {
+            p.textContent = '0次';
+          }
+        });
+      }
+    },
+
+    // ---------- 付费系统：权益状态 / AI 计次 / 邀请码 ----------
+
+    /** 查询用户 AI 权益状态（VIP 到期日 / 余额 / 今日剩余免费次数） */
+    getAiStatus: async function () {
+      var c = getClient();
+      if (!c) return null;
+      try {
+        var res = await c.rpc('get_ai_status');
+        if (res.error || !res.data || !res.data.length) return null;
+        return res.data[0];
+      } catch (e) { return null; }
+    },
+
+    /** 消耗一次 AI 分析。返回 {ok, msg, used_kind}；GLM 失败时用 refundAI 退回 */
+    consumeAI: function (aiType) {
+      var c = getClient();
+      if (!c) return Promise.resolve({ ok: false, msg: 'Supabase 未配置' });
+      return c.rpc('consume_ai', { p_type: aiType }).then(function (res) {
+        if (res.error) return { ok: false, msg: res.error.message || '计次失败' };
+        return (res.data && res.data[0]) ? res.data[0] : { ok: false, msg: '计次失败' };
+      }).catch(function (e) { return { ok: false, msg: e.message || '计次失败' }; });
+    },
+
+    /** GLM 调用失败时退回本次消耗 */
+    refundAI: function (usedKind) {
+      var c = getClient();
+      if (!c) return Promise.resolve();
+      return c.rpc('refund_ai', { p_kind: usedKind }).catch(function () {});
+    },
+
+    /** 兑换邀请码（纯发码制，得 N 天 VIP）。返回 {ok, msg, vip_until} */
+    redeemInvite: function (code) {
+      var c = getClient();
+      if (!c) return Promise.resolve({ ok: false, msg: 'Supabase 未配置' });
+      return c.rpc('redeem_invite', { p_code: code }).then(function (res) {
+        if (res.error) return { ok: false, msg: res.error.message || '兑换失败' };
+        return (res.data && res.data[0]) ? res.data[0] : { ok: false, msg: '兑换失败' };
+      }).catch(function (e) { return { ok: false, msg: e.message || '兑换失败' }; });
+    },
+
+    /** 读取已上架套餐（定价以分为单位） */
+    fetchPlans: async function () {
+      var c = getClient();
+      if (!c) return [];
+      try {
+        var res = await c.from('plans').select('*').eq('active', true).order('sort_order');
+        return (res.data || []).map(function (p) {
+          p.price_yuan = (p.price_cents / 100).toFixed(2);
+          return p;
+        });
+      } catch (e) { return []; }
+    },
+
+    /** 拉取本人订单（按时间倒序） */
+    fetchOrders: async function () {
+      var c = getClient();
+      if (!c) return [];
+      try {
+        var res = await c.from('orders').select('*').order('created_at', { ascending: false }).limit(20);
+        return res.data || [];
+      } catch (e) { return []; }
     }
   };
 
