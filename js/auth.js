@@ -121,6 +121,16 @@
       } catch (e) { return null; }
     },
 
+    /** 返回当前登录会话的 access_token；未登录返回空字符串 */
+    getToken: async function () {
+      var c = getClient();
+      if (!c) return '';
+      try {
+        var res = await c.auth.getSession();
+        return (res && res.data && res.data.session) ? res.data.session.access_token : '';
+      } catch (e) { return ''; }
+    },
+
     // ---------- 认证 ----------
 
     /** 邮箱+密码注册；基础表单校验（邮箱格式、密码长度）。 */

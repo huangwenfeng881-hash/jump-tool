@@ -257,30 +257,33 @@
         if (!plan) { toast('请先选择套餐', 'err'); return; }
         Auth.getCurrentUser().then(function (user) {
           if (!user) { location.href = 'login.html?next=membership.html'; return; }
-          var btn = $('btnPay');
-          btn.disabled = true;
-          btn.textContent = '下单中...';
-          var url = (CONFIG.PROXY_URL || CONFIG.SUPABASE_URL || '').replace(/\/$/, '') +
-            '/functions/v1/pay-create-order';
-          fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + user.access_token
-            },
-            body: JSON.stringify({ plan_id: plan.id, provider: payMethod })
-          }).then(function (r) { return r.json(); }).then(function (res) {
-            btn.disabled = false;
-            btn.textContent = '立即支付';
-            if (res.code !== 1) { toast(res.msg || '下单失败', 'err'); return; }
-            toast('订单已创建，正在跳转支付...', 'ok');
-            // 表单直发易支付 submit.php：请求来源为本站域名，符合白名单
-            submitPayForm(res.action, res.params);
-            pollOrder(res.order_no);
-          }).catch(function (e) {
-            btn.disabled = false;
-            btn.textContent = '立即支付';
-            toast('下单失败: ' + e.message, 'err');
+          return Auth.getToken().then(function (token) {
+            if (!token) { location.href = 'login.html?next=membership.html'; return; }
+            var btn = $('btnPay');
+            btn.disabled = true;
+            btn.textContent = '下单中...';
+            var url = (CONFIG.PROXY_URL || CONFIG.SUPABASE_URL || '').replace(/\/$/, '') +
+              '/functions/v1/pay-create-order';
+            fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+              },
+              body: JSON.stringify({ plan_id: plan.id, provider: payMethod })
+            }).then(function (r) { return r.json(); }).then(function (res) {
+              btn.disabled = false;
+              btn.textContent = '立即支付';
+              if (res.code !== 1) { toast(res.msg || '下单失败', 'err'); return; }
+              toast('订单已创建，正在跳转支付...', 'ok');
+              // 表单直发易支付 submit.php：请求来源为本站域名，符合白名单
+              submitPayForm(res.action, res.params);
+              pollOrder(res.order_no);
+            }).catch(function (e) {
+              btn.disabled = false;
+              btn.textContent = '立即支付';
+              toast('下单失败: ' + e.message, 'err');
+            });
           });
         });
       }
@@ -307,15 +310,15 @@
       function pollOrder(orderNo) {
         if (qrTimer) clearInterval(qrTimer);
         qrTimer = setInterval(function () {
-          Auth.getCurrentUser().then(function (user) {
-            if (!user) return;
+          Auth.getToken().then(function (token) {
+            if (!token) return;
             var url = (CONFIG.PROXY_URL || CONFIG.SUPABASE_URL || '').replace(/\/$/, '') +
               '/functions/v1/pay-query';
             fetch(url, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + user.access_token
+                'Authorization': 'Bearer ' + token
               },
               body: JSON.stringify({ order_no: orderNo })
             }).then(function (r) { return r.json(); }).then(function (res) {
