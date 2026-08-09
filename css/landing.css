@@ -537,3 +537,22 @@
     padding: 40px 22px;
   }
 }
+
+/* ---- 安卓 App 下载按钮 ---- */
+.app-download-btn {
+  background: linear-gradient(135deg, #16a34a, #0d9488);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.35);
+}
+.app-download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(22, 163, 74, 0.45);
+}
+.app-download-hint {
+  width: 100%;
+  text-align: center;
+  color: var(--text3);
+  font-size: 0.78rem;
+  margin-top: -18px;
+}
+

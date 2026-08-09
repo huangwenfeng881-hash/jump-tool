@@ -15,10 +15,14 @@ window.VTPose = (function () {
   'use strict';
 
   var CONFIG = window.JTConfig || {};
-  var MEDIAPIPE_BASE = CONFIG.MEDIAPIPE_BASE || 'https://cdn.jsdelivr.net/npm/@mediapipe/pose/';
+  var MEDIAPIPE_BASE = CONFIG.MEDIAPIPE_BASE || './mediapipe/';
+  // CDN 兜底资源（本机 file:// 打开时浏览器禁止 fetch 本地 .data/.wasm，
+  // 自动回退到 CDN；线上部署 CDN 被墙时本地优先正常加载）
+  var CDN_MEDIAPIPE_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/pose/';
 
   var poseInstance = null;
   var latestResults = null;
+  var usedCdnFallback = false;
 
   // MediaPipe Pose 33 关键点骨架连接表（上身/躯干/下肢）
   var CONNECTIONS = [
@@ -40,11 +44,9 @@ window.VTPose = (function () {
     });
   }
 
-  function loadModel(modelComplexity) {
-    if (poseInstance) return Promise.resolve();
-    if (!window.Pose) return Promise.reject(new Error('MediaPipe Pose 未加载（请检查网络/CDN）'));
+  function initPose(modelComplexity, base) {
     poseInstance = new window.Pose({
-      locateFile: function (file) { return MEDIAPIPE_BASE + file; }
+      locateFile: function (file) { return base + file; }
     });
     poseInstance.setOptions({
       modelComplexity: modelComplexity || 1,
@@ -60,11 +62,24 @@ window.VTPose = (function () {
     return withTimeout(init, 30000, '模型加载超时，请检查网络后重试');
   }
 
-  // 单帧推理：5s 超时，超时/异常不抛错，标记 timedOut 由调用方按丢失帧处理
+  function loadModel(modelComplexity) {
+    if (poseInstance) return Promise.resolve();
+    if (!window.Pose) return Promise.reject(new Error('MediaPipe Pose 未加载（请检查网络/CDN）'));
+    // 先尝试本地自托管资源（线上部署秒加载）；失败（本机 file:// 禁止 fetch 本地文件等）自动回退 CDN
+    return initPose(modelComplexity, MEDIAPIPE_BASE).catch(function (err) {
+      if (usedCdnFallback) throw err;
+      usedCdnFallback = true;
+      console.log('[Pose] 本地模型资源加载失败，已自动回退 CDN: ' + err.message);
+      return initPose(modelComplexity, CDN_MEDIAPIPE_BASE);
+    });
+  }
+
+  // 单帧推理：15s 超时（普通设备 640px 推理约 1-5s，留足余量）。
+  // 超时/异常不抛错，标记 timedOut 由调用方按丢失帧处理
   function sendFrame(frame) {
     return new Promise(function (resolve) {
       var done = false;
-      var timer = setTimeout(function () { done = true; resolve({ timedOut: true }); }, 5000);
+      var timer = setTimeout(function () { done = true; resolve({ timedOut: true }); }, 15000);
       poseInstance.send({ image: frame }).then(function () {
         if (!done) { done = true; clearTimeout(timer); resolve({ timedOut: false }); }
       }, function (e) {
@@ -113,13 +128,14 @@ window.VTPose = (function () {
     });
   }
 
-  // 分析帧最长边分辨率（JTConfig.POSE_ANALYZE_MAXDIM 可调，默认 640）
+  // 分析帧最长边分辨率（JTConfig.POSE_ANALYZE_MAXDIM 可调，默认 480）
   function analysisDim() {
-    return CONFIG.POSE_ANALYZE_MAXDIM || 640;
+    return CONFIG.POSE_ANALYZE_MAXDIM || 480;
   }
 
   // 抽帧缩小（maxDim 最大边长），降低 MediaPipe 计算量。
-  // 默认分析分辨率 640（高于旧版 480），人物在画面中较小时也能被模型检出。
+  // 分辨率默认 480（JTConfig.POSE_ANALYZE_MAXDIM 可调）：
+  // 人物较小时建议用「框选人物」裁剪放大，识别更稳且不拖慢整体。
   function makeFrameCanvas(video, maxDim) {
     var w = video.videoWidth || 320, h = video.videoHeight || 240;
     var scale = Math.min(1, (maxDim || analysisDim()) / Math.max(w, h));
@@ -365,7 +381,11 @@ window.VTPose = (function () {
     }
 
     function onUp() {
-      if (drawing && currentBox) { commitBox(currentBox, true); }
+      // 过小（纯点击/误拖）不产生框，避免 8px 小框影响后续分析
+      if (drawing && currentBox) {
+        if (currentBox.w >= 40 && currentBox.h >= 40) commitBox(currentBox, true);
+        else currentBox = null;
+      }
       drawing = moving = resizing = false;
       startClient = null; startBox = null;
       renderBox(currentBox || (keyframes.length ? boxAtTime(keyframes, video.currentTime || 0) : null));
@@ -410,6 +430,7 @@ window.VTPose = (function () {
       var total = Math.floor((ce - cs) / (frameInterval * sampleEvery));
       var data = [];
       var lostStreak = 0;
+      var timeoutLost = 0;   // 连续丢失中由推理超时导致的帧数
       var maxLost = Math.max(10, Math.round(total * 0.3));
       var prev = null;
 
@@ -425,14 +446,16 @@ window.VTPose = (function () {
             .then(nextFrame)
             .then(function () {
               if (cancelled) { resolve({ cancelled: true, data: data }); return; }
-              // 有框选时按框裁剪放大人物（含外扩），否则整帧分析
+              // 有框选时按框裁剪放大人物（含外扩），否则整帧分析。
+              // 过小的框（误点产生的 8px 小框）视为无效，回退整帧分析，避免裁剪到无人物区域导致全帧丢失
               var box = boxes ? boxAtTime(boxes, t) : null;
+              if (box && (box.w < 40 || box.h < 40)) box = null;
               frame = box ? makeBoxFrame(video, box, analysisDim()) : makeFrameCanvas(video, analysisDim());
               if (!frame) {
                 var curT0 = Math.max(0, Math.min((video.currentTime || t) - cs, ce - cs));
                 data.push({ t: Math.round(curT0 * 1000) / 1000, kneeL: prev ? prev.kneeL : null, kneeR: prev ? prev.kneeR : null, comH: prev ? prev.comH : null, comX: prev ? prev.comX : null, lost: true });
                 lostStreak++;
-                if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true }); return; }
+                if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true, abortedReason: 'lost' }); return; }
                 if (opts.onProgress) opts.onProgress(i, total, curT0, lostStreak);
                 setTimeout(function () { step(i + 1); }, 0);
                 return;
@@ -444,9 +467,10 @@ window.VTPose = (function () {
               if (r && (r.timedOut || r.error)) {
                 var curT1 = Math.max(0, Math.min((video.currentTime || t) - cs, ce - cs));
                 curT1 = Math.round(curT1 * 1000) / 1000;
+                timeoutLost++;
                 lostStreak++;
                 data.push({ t: curT1, kneeL: prev ? prev.kneeL : null, kneeR: prev ? prev.kneeR : null, comH: prev ? prev.comH : null, comX: prev ? prev.comX : null, lost: true });
-                if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true }); return; }
+                if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true, abortedReason: 'timeout' }); return; }
                 if (opts.onProgress) opts.onProgress(i, total, curT1, lostStreak);
                 setTimeout(function () { step(i + 1); }, 0);
                 return;
@@ -475,7 +499,7 @@ window.VTPose = (function () {
                   lost: true
                 });
                 if (lostStreak >= maxLost) {
-                  resolve({ cancelled: false, data: data, aborted: true });
+                  resolve({ cancelled: false, data: data, aborted: true, abortedReason: timeoutLost > 0 ? 'timeout' : 'lost' });
                   return;
                 }
               }

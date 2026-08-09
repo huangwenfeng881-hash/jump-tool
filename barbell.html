@@ -2357,23 +2357,34 @@
             }
 
             // 姿态画布对齐视频显示区域（分层绘制：视频底图 + 骨架层）
+            // 以视频元素实际显示矩形为准（含 object-fit 留白计算），
+            // 保证骨架/框选与画面内容严格对齐
             function fitPoseCanvas() {
                 if (!video.videoWidth) return;
+                var vr = video.getBoundingClientRect();
+                if (!vr.width || !vr.height) return;
+                var vw = video.videoWidth, vh = video.videoHeight;
+                var va = vw / vh, ba = vr.width / vr.height;
+                var dw = vr.width, dh = vr.height;
+                if (ba > va) { dh = vr.height; dw = dh * va; } else { dw = vr.width; dh = dw / va; }
                 var cr = videoContainer.getBoundingClientRect();
-                var ca = cr.width / cr.height;
-                var va = video.videoWidth / video.videoHeight;
-                var dw, dh;
-                if (ca > va) { dh = cr.height; dw = dh * va; } else { dw = cr.width; dh = dw / va; }
+                poseCanvas.style.left = (vr.left + (vr.width - dw) / 2 - cr.left) + 'px';
+                poseCanvas.style.top = (vr.top + (vr.height - dh) / 2 - cr.top) + 'px';
                 poseCanvas.style.width = dw + 'px';
                 poseCanvas.style.height = dh + 'px';
-                poseCanvas.style.left = ((cr.width - dw) / 2) + 'px';
-                poseCanvas.style.top = ((cr.height - dh) / 2) + 'px';
-                poseCanvas.width = video.videoWidth;
-                poseCanvas.height = video.videoHeight;
+                poseCanvas.width = vw;
+                poseCanvas.height = vh;
             }
             window.addEventListener('resize', function () {
                 if (poseCanvas.style.display !== 'none' && video.videoWidth) fitPoseCanvas();
             });
+            // [修复] 已处于姿态模式时加载视频：视频就绪后重新对齐画布，避免画布残留在左上角；
+            // 新视频的几何尺寸不同，同时清除旧视频的框选关键帧
+            video.addEventListener('loadedmetadata', function () {
+                boxCtrl.clear();
+                if (poseCanvas.style.display !== 'none') fitPoseCanvas();
+            });
+            video.addEventListener('loadeddata', function () { if (poseCanvas.style.display !== 'none') fitPoseCanvas(); });
 
             function barbellBtns(visible) {
                 ['btnCalibrate', 'btnSelectROI', 'btnStartTracking', 'btnSaveRecord', 'btnExportCSV', 'btnScreenshot'].forEach(function (id) {
@@ -2452,7 +2463,11 @@
                     if (res.error) { statusEl.textContent = '分析失败'; toast('分析失败: ' + res.error.message, true); return; }
                     if (res.cancelled) { statusEl.textContent = '已取消'; return; }
                     poseData = res.data || [];
-                    statusEl.textContent = res.aborted ? '分析中断（人物长时间离开画面）' : '分析完成';
+                    var abortMsg = res.abortedReason === 'timeout'
+                        ? '分析中断（模型处理超时，设备较慢或资源异常，可降低采样后重试）'
+                        : '分析中断（人物长时间离开画面）';
+                    statusEl.textContent = res.aborted ? abortMsg : '分析完成';
+                    if (res.aborted) toast(abortMsg, true);
                     if (!poseData.length) { toast('未识别到人体姿态，请检查视频与剪辑范围', true); return; }
                     P.buildChart(chartCanvas, poseData);
                     var s = P.computeStats(poseData);

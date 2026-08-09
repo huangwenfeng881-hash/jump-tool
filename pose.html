@@ -636,8 +636,11 @@
           if (res.error) { statusEl.textContent = '分析失败'; toast('分析失败: ' + res.error.message, 'err'); return; }
           if (res.cancelled) { statusEl.textContent = '已取消'; return; }
           poseData = res.data || [];
-          statusEl.textContent = res.aborted ? '分析中断（人物长时间离开画面）' : '分析完成';
-          if (res.aborted) toast('人物离开画面/遮挡过多，已自动停止', 'err');
+          var abortMsg = res.abortedReason === 'timeout'
+            ? '分析中断（模型处理超时，设备较慢或资源异常，可降低采样后重试）'
+            : '分析中断（人物长时间离开画面）';
+          statusEl.textContent = res.aborted ? abortMsg : '分析完成';
+          if (res.aborted) toast(abortMsg, 'err');
           if (!poseData.length) { toast('未识别到人体姿态，请检查视频与剪辑范围', 'err'); return; }
           P.buildChart(chartCanvas, poseData);
           renderStats(poseData);
