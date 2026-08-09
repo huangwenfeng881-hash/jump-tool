@@ -1,8 +1,12 @@
-// pay-create-order：前端下单入口（需登录 JWT）
-// 鉴权：Authorization: Bearer <JWT> 或 Supabase anon key
+// pay-create-order：生成下单签名参数（前端浏览器直发 submit.php）
+// 原因：易支付校验"域名白名单"看请求来源 Host；若由本 Edge 直发 mapi.php，
+//       Host 是 *.functions.supabase.co，会被拒。改为本函数生成签名参数，
+//       前端在 jumptool.netlify.app 上以表单 POST 到 submit.php，来源域名匹配白名单。
+// 安全：EZFP_KEY 只在本函数（服务端）内参与签名，前端拿到的仅签名参数（sign 已算好）。
+// 鉴权：Authorization: Bearer <JWT>
 // 入参：{ plan_id, provider }   provider: alipay | wxpay | qqpay
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { createPayment } from '../_shared/ezfp.js';
+import { buildSubmitParams } from '../_shared/ezfp.js';
 import { corsHeaders } from '../_shared/cors.js';
 
 const PID = Deno.env.get('EZFP_PID') || '';
@@ -10,6 +14,7 @@ const KEY = Deno.env.get('EZFP_KEY') || '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const FUNC_BASE = Deno.env.get('FUNC_BASE') || '';
+const SUBMIT_URL = 'https://www.ezfp.cn/submit.php';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -45,16 +50,10 @@ Deno.serve(async (req) => {
   if (orderErr) return json({ code: -1, msg: '下单失败: ' + orderErr.message }, 500);
 
   const notifyUrl = `${FUNC_BASE}/pay-callback`;
-  const returnUrl = (body.return_url || `${FUNC_BASE.replace(/\/functions.*$/, '')}`) || '';
+  const returnUrl = body.return_url || 'https://jumptool.netlify.app/membership.html';
 
-  const clientip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
-  const ua = req.headers.get('user-agent') || '';
-  let device = 'pc';
-  if (/Mobile|Android|iPhone/i.test(ua)) device = 'mobile';
-  if (/MicroMessenger/i.test(ua)) device = 'wechat';
-  if (/AlipayClient/i.test(ua)) device = 'alipay';
-
-  const params = {
+  // 签名参数集（submit.php 用）：KEY 在服务端参与签名，前端不可篡改金额
+  const params = buildSubmitParams({
     pid: PID,
     type: provider,
     out_trade_no: orderNo,
@@ -62,25 +61,15 @@ Deno.serve(async (req) => {
     return_url: returnUrl,
     name: plan.name,
     money: (plan.price_cents / 100).toFixed(2),
-    clientip,
-    device,
     param: user.user.id
-  };
-
-  const r = await createPayment(params, KEY);
-  if (r.code !== 1) {
-    // 下单失败：关闭订单
-    await supabase.from('orders').update({ status: 'closed' }).eq('order_no', orderNo);
-    return json({ code: -1, msg: r.msg || '支付平台下单失败，请稍后再试' }, 502);
-  }
+  }, KEY);
 
   return json({
     code: 1,
     order_no: orderNo,
     provider,
-    payurl: r.payurl || '',
-    qrcode: r.qrcode || '',
-    urlscheme: r.urlscheme || ''
+    action: SUBMIT_URL,
+    params: params
   });
 });
 

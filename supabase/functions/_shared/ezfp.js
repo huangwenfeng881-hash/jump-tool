@@ -119,6 +119,17 @@ export async function createPayment(params, key) {
   catch { return { http: res.status, code: -1, msg: text }; }
 }
 
+// 生成页面跳转支付（submit.php）的签名参数集，返回带 sign 的完整 params
+export function buildSubmitParams(params, key) {
+  const out = {};
+  Object.keys(params).forEach((k) => {
+    if (params[k] !== '' && params[k] != null) out[k] = params[k];
+  });
+  out.sign = sign(out, key);
+  out.sign_type = 'MD5';
+  return out;
+}
+
 // 订单查询（api.php?act=order）
 export async function queryOrder(outTradeNo, pid, key) {
   const url = `${EZFP_QUERY}?act=order&pid=${pid}&key=${key}&out_trade_no=${encodeURIComponent(outTradeNo)}`;

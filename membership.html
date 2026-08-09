@@ -273,8 +273,9 @@
             btn.disabled = false;
             btn.textContent = '立即支付';
             if (res.code !== 1) { toast(res.msg || '下单失败', 'err'); return; }
-            toast('订单已创建，请完成支付', 'ok');
-            renderQR(res);
+            toast('订单已创建，正在跳转支付...', 'ok');
+            // 表单直发易支付 submit.php：请求来源为本站域名，符合白名单
+            submitPayForm(res.action, res.params);
             pollOrder(res.order_no);
           }).catch(function (e) {
             btn.disabled = false;
@@ -282,6 +283,25 @@
             toast('下单失败: ' + e.message, 'err');
           });
         });
+      }
+
+      function submitPayForm(action, params) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = action;
+        form.target = '_blank';
+        form.style.display = 'none';
+        var keys = Object.keys(params);
+        for (var i = 0; i < keys.length; i++) {
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = keys[i];
+          input.value = params[keys[i]];
+          form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
+        setTimeout(function () { document.body.removeChild(form); }, 3000);
       }
 
       function pollOrder(orderNo) {
