@@ -17,7 +17,7 @@ create table if not exists public.plans (
   active      boolean not null default true
 );
 insert into public.plans (id, code, name, type, price_cents, credits, days, sort_order) values
-  (1, 'credit_1', 'AI分析 ×1',    'credit',     99,  1, 0,   1),
+  (1, 'credit_1', 'AI分析 ×1',    'credit',     199, 1, 0,   1),
   (2, 'vip_1m',   'VIP 会员 1个月', 'membership', 990, 0, 30,  2),
   (3, 'vip_3m',   'VIP 会员 3个月', 'membership', 1990,0, 90,  3),
   (4, 'vip_1y',   'VIP 会员 1年',  'membership', 7990,0, 365, 4)
@@ -47,7 +47,7 @@ alter table public.orders enable row level security;
 drop policy if exists "orders select own" on public.orders;
 create policy "orders select own" on public.orders for select using (auth.uid() = user_id);
 
--- ---------- 3. 用户 AI 余额（0.99 充值制） ----------
+-- ---------- 3. 用户 AI 余额（1.99 充值制） ----------
 create table if not exists public.user_credits (
   user_id    uuid primary key references auth.users(id) on delete cascade,
   credits    int not null default 0 check (credits >= 0),
@@ -184,7 +184,7 @@ begin
         v_kind := 'credit';
       else
         return query select false,
-          '今日免费次数(2次)已用完，可购买 ¥0.99 单次或升级 VIP 无限使用', null::text;
+          '今日免费次数(2次)已用完，可购买 ¥1.99 单次或升级 VIP 无限使用', null::text;
         return;
       end if;
     end if;
