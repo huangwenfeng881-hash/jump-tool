@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>弹跳进步曲线 · Vertrise跃升</title>
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; }
+    .jt-nav { width: 100%; }
+    .pg-wrap { width: 100%; max-width: 900px; margin: 0 auto; padding: 24px 28px 56px; display: flex; flex-direction: column; gap: 16px; }
+    .pg-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .pg-head h1 { font-size: 1.5rem; font-weight: 800; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pg-sub { color: var(--text2); font-size: 0.85rem; }
+    .pg-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pg-tab { padding: 8px 18px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); font-size: 0.85rem; cursor: pointer; transition: var(--transition); }
+    .pg-tab.active { background: var(--gradient); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+    .pg-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; }
+    .pg-chart { position: relative; height: 320px; }
+    .pg-empty { color: var(--text2); text-align: center; padding: 60px 16px; border: 1px dashed var(--border); border-radius: var(--radius-sm); font-size: 0.95rem; line-height: 1.8; }
+    .pg-hint { font-size: 0.78rem; color: var(--text3); line-height: 1.6; }
+    @media (max-width: 600px) { .pg-chart { height: 260px; } }
+  </style>
+  <link rel="stylesheet" href="css/ux.css?v=15">
+</head>
+<body>
+
+  <nav class="jt-nav">
+    <a class="jt-nav-logo" href="index.html">
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="jt-nav-links">
+    <a class="jt-nav-link" href="index.html">首页</a>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+        <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+        <a class="jt-nav-link" href="pose.html">动作分析</a>
+        <a class="jt-nav-link" href="trainer.html">AI教练</a>
+      </div>
+    </div>
+    <div class="jt-nav-group active">
+      <button class="jt-nav-link jt-nav-trigger" type="button">数据<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link active" href="progress.html">进步曲线</a>
+        <a class="jt-nav-link" href="barbell-chart.html">杠铃图表</a>
+        <a class="jt-nav-link" href="leaderboard.html">排行榜</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">训练<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="checkin.html">训练打卡</a>
+        <a class="jt-nav-link" href="plans.html">训练计划</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">我的<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="profile.html">我的资料</a>
+        <a class="jt-nav-link" href="history.html">训练记录</a>
+        <a class="jt-nav-link feedback-nav" href="feedback.html">问题反馈</a>
+        <a class="jt-nav-link" href="membership.html">会员</a>
+        <a class="jt-nav-link" href="login.html">登录 / 注册</a>
+      </div>
+    </div>
+    </div>
+    <div class="jt-nav-user">
+      <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
+<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+<svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.signOut()">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html?next=progress.html" style="display:none">登录</a>
+    </div>
+  </nav>
+
+  <div class="pg-wrap">
+    <header class="pg-head">
+      <div>
+        <h1>📈 弹跳进步曲线</h1>
+        <div class="pg-sub">每次记录后自动更新，看看你的弹跳有没有一天天变高。</div>
+      </div>
+      <button class="jt-btn jt-btn-outline jt-btn-sm" id="btnRefresh">↻ 刷新</button>
+    </header>
+
+    <div class="pg-tabs" id="tabs">
+      <button class="pg-tab active" data-cat="原地弹跳">原地弹跳</button>
+      <button class="pg-tab" data-cat="助跑弹跳">助跑弹跳</button>
+      <button class="pg-tab" data-cat="摸高">摸高</button>
+    </div>
+
+    <div class="pg-card" id="chartCard">
+      <div class="pg-chart"><canvas id="chart"></canvas></div>
+    </div>
+    <div class="pg-empty" id="emptyTip" style="display:none;">快去<a class="jt-link" href="jump.html">记录你的弹跳数据</a>，查看进步曲线</div>
+
+    <div class="pg-hint">💡 说明：原地弹跳=原地起跳/CMJ/SJ/DJ 记录 · 助跑弹跳=助跑起跳记录 · 摸高=在「我的」页记录的摸高成绩。图表按保存时间排序，删除记录后刷新即同步。</div>
+  </div>
+
+  <div class="jt-toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js?v=15"></script>
+  <script>
+    (function () {
+      'use strict';
+      var Auth = window.JTAuth;
+      // 图表类型 → 弹跳记录 test_type 映射
+      var CATS = {
+        '原地弹跳': ['原地起跳', '无摆臂CMJ', '有摆臂CMJ', '无摆臂SJ', 'DJ'],
+        '助跑弹跳': ['助跑起跳'],
+        '摸高': ['摸高']
+      };
+      var cat = '原地弹跳';
+      var chart = null;
+
+      function toast(msg, type) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'jt-toast show ' + (type || '');
+        setTimeout(function () { t.className = 'jt-toast'; }, 2600);
+      }
+
+      function fmtDay(s) {
+        var d = new Date(s);
+        if (isNaN(d.getTime())) return s;
+        return (d.getMonth() + 1) + '/' + d.getDate();
+      }
+
+      function renderChart(list) {
+        var empty = document.getElementById('emptyTip');
+        var card = document.getElementById('chartCard');
+        if (!list.length) {
+          card.style.display = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+        card.style.display = 'block';
+        empty.style.display = 'none';
+        // 按时间升序
+        list.sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); });
+        var labels = list.map(function (r) { return fmtDay(r.created_at); });
+        var data = list.map(function (r) { return Number(r.height_cm); });
+        if (chart) {
+          // 复用实例平滑更新，禁止销毁重建（避免闪烁）
+          chart.data.labels = labels;
+          chart.data.datasets[0].data = data;
+          chart.update();
+          return;
+        }
+        chart = new Chart(document.getElementById('chart'), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: '高度 (cm)',
+              data: data,
+              borderColor: '#00c6ff',
+              backgroundColor: 'rgba(0,198,255,0.12)',
+              pointBackgroundColor: '#00c6ff',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 900, easing: 'easeOutQuart' }, // 线条平滑绘制
+            // 悬浮数据点放大弹起 + tooltip 平滑淡入
+            transitions: { active: { animation: { duration: 250, easing: 'easeOutQuart' } } },
+            elements: { point: { radius: 3, hoverRadius: 8, hoverBorderWidth: 2, hoverBackgroundColor: '#00c6ff', hoverBorderColor: '#fff' } },
+            plugins: {
+              legend: { display: false },
+              tooltip: { backgroundColor: 'rgba(15,23,42,.88)', padding: 10, cornerRadius: 8, displayColors: false, titleColor: '#cbd5e1', bodyColor: '#fff', borderColor: 'rgba(0,198,255,.35)', borderWidth: 1 }
+            },
+            scales: {
+              x: { title: { display: true, text: '训练日期', color: '#6b7484' }, ticks: { color: '#6b7484' } },
+              y: { title: { display: true, text: '高度 (cm)', color: '#6b7484' }, ticks: { color: '#6b7484' }, beginAtZero: false }
+            }
+          }
+        });
+      }
+
+      function load() {
+        Auth.fetchRecords().then(function (res) {
+          if (res.error) { toast('加载失败: ' + (res.error.message || ''), 'err'); return; }
+          var types = CATS[cat] || [];
+          var list = (res.jumps || []).filter(function (r) { return types.indexOf(r.test_type) >= 0; });
+          renderChart(list);
+        });
+      }
+
+      document.getElementById('btnRefresh').addEventListener('click', load);
+      document.getElementById('tabs').addEventListener('click', function (e) {
+        var btn = e.target.closest('.pg-tab');
+        if (!btn) return;
+        cat = btn.dataset.cat;
+        document.querySelectorAll('.pg-tab').forEach(function (b) { b.classList.toggle('active', b === btn); });
+        load();
+      });
+
+      // 弹跳页保存记录后自动刷新（跨标签页靠 storage 事件，同页靠切回可见）
+      window.addEventListener('storage', function (e) {
+        if (e.key === 'vertrise-jump-saved') load();
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) load();
+      });
+
+      Auth.init(function (session) {
+        if (!session) { location.href = 'login.html?next=progress.html'; return; }
+        load();
+      });
+    })();
+  </script>
+</body>
+</html>

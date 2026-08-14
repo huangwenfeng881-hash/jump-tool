@@ -1,0 +1,289 @@
+/* ============================================================
+   Vertrise跃升 · 全局微交互与动效层（最后加载，覆盖各页内联样式）
+   原则：动画只用 transform / opacity；追求效果（用户已取消减弱动画限制）。
+   ============================================================ */
+
+/* ---------- 按钮微交互：hover 放大 + 柔和阴影，active 回弹 ---------- */
+.jt-btn, .btn {
+  transition: transform .25s cubic-bezier(.34, 1.56, .64, 1),
+              box-shadow .25s ease,
+              background-color .2s ease,
+              border-color .2s ease,
+              color .2s ease,
+              opacity .2s ease;
+}
+.jt-btn:not(:disabled):hover, .btn:not(:disabled):hover {
+  transform: scale(1.03);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .16);
+}
+/* 主按钮（渐变/成功色）hover 保留原发光 + 柔和抬高阴影 */
+.jt-btn-accent:not(:disabled):hover, .btn.primary:not(:disabled):hover, .btn.success:not(:disabled):hover {
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .2), var(--glow);
+}
+.jt-btn:not(:disabled):active, .btn:not(:disabled):active {
+  transform: scale(.97);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+}
+
+/* ---------- 数据卡片 hover：上浮 4px + 阴影放大 + 边框微亮 ---------- */
+.jt-card, .record-card, .pl-card, .pg-card, .pf-card, .ck-card,
+.gap-card, .ld-tool-card, .ld-price-card {
+  transition: transform .28s cubic-bezier(.34, 1.56, .64, 1),
+              box-shadow .3s ease,
+              border-color .3s ease;
+}
+.jt-card:hover, .record-card:hover, .pl-card:hover, .pg-card:hover,
+.pf-card:hover, .ck-card:hover, .gap-card:hover, .ld-tool-card:hover,
+.ld-price-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .14);
+  border-color: var(--accent);
+}
+
+/* ---------- 输入框聚焦：柔和边框发光 ---------- */
+input, select, textarea { transition: box-shadow .25s ease, border-color .25s ease; }
+input:not([type="range"]):focus, select:focus, textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(0, 198, 255, .16) !important;
+  outline: none;
+}
+
+/* ---------- Toast：上滑淡入（弹簧）出场，淡出关闭 ---------- */
+.jt-toast {
+  animation: none; /* 覆盖 style.css 的旧 keyframes 动画，改用 transition */
+  opacity: 0;
+  transform: translateY(14px) scale(.97);
+  transition: opacity .3s ease, transform .32s cubic-bezier(.34, 1.56, .64, 1);
+  pointer-events: none;
+}
+.jt-toast.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* ---------- 模块交错入场：JS 加 .ux-enter，进入视口后加 .ux-in（滑出感） ---------- */
+.ux-enter { opacity: 0; transform: translateY(36px) scale(.98); }
+.ux-enter.ux-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity .6s ease, transform .65s cubic-bezier(.22, 1, .36, 1);
+  transition-delay: var(--ux-delay, 0ms);
+}
+
+/* ---------- 折叠面板（details）展开淡入 ---------- */
+.jt-guide[open] > *:not(summary), details[open] > *:not(summary) {
+  animation: ux-fade .3s ease;
+}
+@keyframes ux-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- 折叠面板高度平滑展开/收起：JS 把内容包成 .ux-dcontent，
+   用 CSS grid 0fr→1fr 原生驱动（浏览器内部优化，优于手动 height） ---------- */
+details > .ux-dcontent {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .4s cubic-bezier(.22, 1, .36, 1);
+}
+details[open] > .ux-dcontent { grid-template-rows: 1fr; }
+details > .ux-dcontent > * { min-height: 0; overflow: hidden; }
+
+/* ---------- 导航栏滚动动态：顶部透明，向下滚动开启毛玻璃 + 柔和阴影 ---------- */
+.jt-nav {
+  background-color: transparent;
+  transition: background-color .3s ease, box-shadow .3s ease, border-color .3s ease;
+}
+.jt-nav.ux-scrolled {
+  background-color: var(--nav-bg);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, .1);
+}
+
+/* ---------- 分组导航（工具/数据/训练/我的 下拉菜单） ---------- */
+.jt-nav-group { position: relative; }
+.jt-nav-trigger {
+  display: flex; align-items: center; gap: 4px;
+  background: none; border: none; font: inherit; color: inherit; cursor: pointer;
+}
+.jt-nav-caret { font-size: 0.68rem; opacity: .7; transition: transform .2s ease; }
+.jt-nav-group:hover > .jt-nav-trigger .jt-nav-caret,
+.jt-nav-group.open > .jt-nav-trigger .jt-nav-caret,
+.jt-nav-group.active > .jt-nav-trigger .jt-nav-caret { transform: rotate(180deg); }
+.jt-nav-drop {
+  position: absolute; top: calc(100% + 8px); left: 0; min-width: 190px;
+  background: var(--nav-bg); backdrop-filter: blur(16px);
+  border: 1px solid var(--border); border-radius: 14px;
+  padding: 8px; box-shadow: 0 14px 36px rgba(0, 0, 0, .16);
+  display: flex; flex-direction: column; gap: 2px;
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 120;
+}
+.jt-nav-group:hover .jt-nav-drop,
+.jt-nav-group:focus-within .jt-nav-drop,
+.jt-nav-group.open .jt-nav-drop {
+  opacity: 1; transform: translateY(0); pointer-events: auto;
+}
+.jt-nav-drop .jt-nav-link { white-space: nowrap; }
+/* 所在分组有当前页时，触发项高亮 */
+.jt-nav-group.active > .jt-nav-trigger {
+  color: var(--accent-ink);
+  background: var(--gradient);
+  font-weight: 600;
+}
+
+/* 移动端：分组在汉堡菜单内平铺，点击展开 */
+@media (max-width: 1000px) {
+  .jt-nav-group { width: 100%; }
+  .jt-nav-trigger { width: 100%; justify-content: space-between; }
+  .jt-nav-drop {
+    position: static; min-width: 0;
+    opacity: 1; transform: none; pointer-events: auto;
+    box-shadow: none; border: none; background: transparent;
+    backdrop-filter: none; padding: 2px 0 2px 14px; display: none;
+  }
+  .jt-nav-group.open .jt-nav-drop { display: flex; }
+}
+
+/* ---------- 打卡日历：点击弹跳反馈（贴合弹跳主题） ---------- */
+.ck-day.ux-pop { animation: ux-pop .5s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes ux-pop {
+  0% { transform: scale(.7); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* ============ 阶段三：空间感背景 + 卡牌质感 + 按钮水波 ============ */
+
+/* 基础底色移到 html，body 透明并建立层叠上下文，让渐变与光晕层可靠可见 */
+html { background: var(--bg); }
+body { background: transparent; position: relative; z-index: 0; }
+
+/* 固定渐变背景（空间感，纯 CSS 径向渐变，无滤镜开销，零重排） */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(52% 42% at 12% 0%, rgba(0, 198, 255, .14), transparent 65%),
+    radial-gradient(44% 36% at 88% 8%, rgba(94, 184, 255, .16), transparent 65%),
+    radial-gradient(50% 45% at 50% 105%, rgba(13, 148, 136, .12), transparent 70%);
+  pointer-events: none;
+}
+
+/* 漂浮光晕：由 JS 注入 4 个圆（radial-gradient 柔边，不用 filter:blur 省性能），transform 平移 */
+:root {
+  --ux-orb1: rgba(0, 198, 255, .30);
+  --ux-orb2: rgba(94, 184, 255, .26);
+  --ux-orb3: rgba(13, 148, 136, .22);
+}
+[data-theme="dark"] {
+  --ux-orb1: rgba(0, 198, 255, .20);
+  --ux-orb2: rgba(56, 130, 246, .16);
+  --ux-orb3: rgba(45, 212, 191, .14);
+}
+.ux-orb {
+  position: fixed;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+.ux-orb-1 { width: 540px; height: 540px; top: -160px; left: -140px; background: radial-gradient(circle at center, var(--ux-orb1), transparent 65%); }
+.ux-orb-3 { width: 460px; height: 460px; bottom: -140px; left: 30%; background: radial-gradient(circle at center, var(--ux-orb3), transparent 65%); }
+
+/* 卡牌统一质感：更大圆角 + 微妙渐变 + 柔和分层阴影 */
+.ld-tool-card, .ld-price-card, .pl-card, .pg-card, .pf-card, .ck-card,
+.record-card, .jt-card, .gap-card {
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--surface), var(--surface2));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .03), 0 4px 16px rgba(0, 0, 0, .05);
+}
+
+/* 按钮点击水波（白亮核心 + 彩边，任何底色清晰） */
+.ux-ripple-btn { position: relative; overflow: hidden; }
+.ux-ripple {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  /* 白亮核心 + 彩边（青色描边环 + 青光辉光） */
+  border: 2px solid rgba(0, 198, 255, .9);
+  background: radial-gradient(circle, rgba(255, 255, 255, .95) 0%, rgba(255, 255, 255, .45) 30%, rgba(255, 255, 255, 0) 55%);
+  box-shadow: 0 0 16px rgba(0, 198, 255, .7);
+  opacity: .55;
+  transform: scale(0);
+  animation: ux-ripple .6s ease-out forwards;
+}
+@keyframes ux-ripple { to { transform: scale(1); opacity: 0; } }
+
+/* 全页面任意点击水波层（fixed 铺满视口，pointer-events 穿透） */
+.ux-ripple-layer {
+  position: fixed; inset: 0; z-index: 9000;
+  pointer-events: none; overflow: hidden;
+}
+.ux-ripple-layer .ux-ripple { position: absolute; left: 0; top: 0; }
+
+/* ============ 阶段四：追求极致效果（不计约束） ============ */
+
+/* 滚动进度条（顶部渐变细条） */
+.ux-progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 100%;
+  z-index: 3000; pointer-events: none;
+  background: linear-gradient(90deg, #0d9488, #00c6ff, #5eb8ff);
+  transform: scaleX(0); transform-origin: 0 50%;
+}
+
+/* 扣篮差距卡片：固定深青色渐变 + 白字，深浅主题都清晰可读 */
+.gap-card {
+  background: linear-gradient(135deg, #0d9488, #0891b2);
+  color: #fff !important;
+}
+.gap-card .small { color: #fff; opacity: .92; }
+.gap-card .big, .gap-card b { color: #fff; }
+
+/* 卡牌：渐变描边（padding-box 底 + border-box 渐变） */
+.ld-tool-card, .ld-price-card, .pl-card, .pg-card, .pf-card, .ck-card, .gap-card {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(180deg, var(--surface), var(--surface2)) padding-box,
+    linear-gradient(135deg, rgba(0, 198, 255, .45), rgba(13, 148, 136, .3), rgba(94, 184, 255, .45)) border-box;
+}
+.ld-tool-card:hover, .ld-price-card:hover, .pl-card:hover, .pg-card:hover,
+.pf-card:hover, .ck-card:hover, .gap-card:hover {
+  border-color: transparent; /* 保留渐变描边 */
+  box-shadow: 0 16px 40px rgba(0, 198, 255, .12), 0 14px 30px rgba(0, 0, 0, .14);
+}
+
+/* 卡牌 3D 倾斜（倾斜跟随鼠标由 JS 驱动；不再叠加白光斑，避免双光圈） */
+.ux-tilt { position: relative; }
+
+/* 按钮扫光（hover 一道高光划过） */
+.ux-shine { position: relative; overflow: hidden; }
+.ux-shine::before {
+  content: ''; position: absolute; top: 0; left: -80%; width: 50%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .65), transparent);
+  transform: skewX(-18deg); pointer-events: none;
+}
+.ux-shine:hover::before { animation: ux-shine .7s ease; }
+@keyframes ux-shine { to { transform: translateX(380%) skewX(-18deg); } }
+
+/* 区块标题流光下划线 */
+.ld-section-head h2::after {
+  content: ''; display: block; width: 72px; height: 4px; margin: 14px auto 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0d9488, #00c6ff, #5eb8ff);
+  background-size: 200%; animation: ux-shimmer 4s linear infinite;
+}
+@keyframes ux-shimmer { to { background-position: 200% center; } }
+
+/* Hero：大标题 + 品牌字流光 */
+.ld-hero h1 { font-size: clamp(2.6rem, 6vw, 4.2rem); line-height: 1.1; }
+.ld-hero h1 .brand-cn {
+  background-size: 200% auto;
+  animation: ux-shimmer 5s linear infinite;
+}
+
+/* Hero 粒子画布：绝对铺满、置于内容之下 */
+.ld-hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.ld-hero > *:not(canvas) { z-index: 1; }

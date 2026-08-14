@@ -1,208 +1,40 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI 弹跳训练师 · Vertrise跃升</title>
+  <title>AI 弹跳教练 · Vertrise跃升</title>
   <link rel="icon" type="image/png" href="img/favicon.png">
   <link rel="stylesheet" href="css/style.css">
   <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
   <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .jt-nav {
-      width: 100%;
-    }
-    .tr-wrap {
-      width: 100%;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 28px 28px 64px;
-    }
-    .tr-head {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-    .tr-head h1 {
-      font-size: 1.7rem;
-      background: linear-gradient(135deg, var(--accent), #5eb8ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 8px;
-    }
-    .tr-head p {
-      color: var(--text2);
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-    .tr-layout {
-      display: flex;
-      gap: 20px;
-      align-items: flex-start;
-    }
-    .tr-form {
-      flex: 0 0 360px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      position: sticky;
-      top: 84px;
-    }
-    .tr-result {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    @media (max-width: 900px) {
-      .tr-layout { flex-direction: column; }
-      .tr-form { flex: none; width: 100%; position: static; }
-    }
-    .jt-field select,
-    .jt-field input[type="number"] {
-      width: 100%;
-      padding: 12px 16px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      font-size: 0.95rem;
-      font-family: inherit;
-      outline: none;
-      transition: border-color var(--transition), box-shadow var(--transition);
-    }
-    .jt-field select:focus,
-    .jt-field input[type="number"]:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(0, 198, 255, 0.15);
-    }
-    .eq-check {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .eq-check label {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 14px;
-      border-radius: 24px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      font-size: 0.82rem;
-      cursor: pointer;
-      transition: var(--transition);
-      color: var(--text2);
-    }
-    .eq-check input { accent-color: var(--accent); }
-    .eq-check label:has(input:checked) {
-      border-color: var(--accent);
-      color: var(--text);
-      box-shadow: var(--glow);
-    }
-    .plan-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .plan-title {
-      font-size: 1.3rem;
-      font-weight: 700;
-    }
-    .plan-badge {
-      font-size: 0.75rem;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-weight: 600;
-    }
-    .plan-badge.free {
-      background: rgba(61, 220, 132, 0.2);
-      color: var(--success);
-      border: 1px solid rgba(61, 220, 132, 0.4);
-    }
-    .plan-badge.pro {
-      background: rgba(0, 198, 255, 0.2);
-      color: var(--accent);
-      border: 1px solid rgba(0, 198, 255, 0.4);
-    }
-    .plan-meta {
-      color: var(--text2);
-      font-size: 0.85rem;
-      line-height: 1.7;
-    }
-    .day-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 16px 18px;
-    }
-    .day-title {
-      font-weight: 700;
-      font-size: 0.95rem;
-      color: var(--accent);
-      margin-bottom: 10px;
-      letter-spacing: 0.02em;
-    }
-    .ex-row {
-      display: flex;
-      align-items: baseline;
-      gap: 12px;
-      padding: 6px 0;
-      border-bottom: 1px dashed var(--border);
-      font-size: 0.85rem;
-      flex-wrap: wrap;
-    }
-    .ex-row:last-child { border-bottom: none; }
-    .ex-name { font-weight: 600; min-width: 180px; }
-    .ex-param {
-      font-family: var(--font-mono);
-      color: var(--accent-bright);
-      min-width: 110px;
-    }
-    .ex-note { color: var(--text2); font-size: 0.78rem; flex: 1; min-width: 160px; }
-    .info-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 14px 18px;
-      font-size: 0.85rem;
-      line-height: 1.7;
-      color: var(--text);
-    }
-    .info-box b { color: var(--accent); }
-    .info-box.warn { border-color: rgba(255, 179, 71, 0.4); }
-    .info-box.warn b { color: var(--warning); }
-    .llm-text {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 16px 18px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-size: 0.85rem;
-      line-height: 1.7;
-    }
-    .loading-tip { color: var(--text2); text-align: center; padding: 40px 0; }
-    .gen-status {
-      margin-top: 12px;
-      font-size: 0.82rem;
-      color: var(--text2);
-      text-align: center;
-      line-height: 1.7;
-      font-family: var(--font-mono);
-    }
-    .gen-status.done { color: var(--success); font-weight: 600; }
-    .gen-status.err { color: var(--danger); }
-    .gen-status.bg { color: var(--warning); }
-    .empty-tip { color: var(--text2); text-align: center; padding: 40px 0; border: 1px dashed var(--border); border-radius: var(--radius-sm); }
+    body { display: flex; flex-direction: column; align-items: center; }
+    .jt-nav { width: 100%; }
+    .tr-wrap { width: 100%; max-width: 860px; margin: 0 auto; padding: 24px 20px 48px; display: flex; flex-direction: column; gap: 14px; }
+    .tr-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .tr-head h1 { font-size: 1.5rem; font-weight: 800; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .tr-sub { color: var(--text2); font-size: 0.85rem; }
+    .tr-quota { font-size: 0.78rem; padding: 5px 12px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); white-space: nowrap; }
+    .chat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 240px); min-height: 460px; }
+    .chat-msgs { flex: 1; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { max-width: 82%; padding: 12px 16px; border-radius: 16px; font-size: 0.92rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; opacity: 0; transform: translateY(14px); animation: msg-in .35s cubic-bezier(.22,1,.36,1) forwards; }
+    .msg.ai { align-self: flex-start; background: var(--surface2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .msg.user { align-self: flex-end; background: var(--gradient); color: var(--accent-ink); border-bottom-right-radius: 4px; }
+    .msg.err { align-self: flex-start; border-color: rgba(255,77,106,.4); color: var(--danger); background: rgba(255,77,106,.06); }
+    @keyframes msg-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    .typing { display: inline-flex; gap: 5px; }
+    .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); animation: blink 1.2s infinite; }
+    .typing i:nth-child(2) { animation-delay: .2s; }
+    .typing i:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
+    .chat-quick { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--border); }
+    .chat-input { display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--border); }
+    .chat-input textarea { flex: 1; resize: none; min-height: 46px; max-height: 130px; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 0.92rem; font-family: inherit; outline: none; }
+    .chat-input textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,198,255,.15); }
+    .chat-hint { font-size: 0.74rem; color: var(--text3); padding: 0 16px 10px; }
+    @media (max-width: 600px) { .msg { max-width: 92%; } .chat-card { height: calc(100vh - 200px); } }
   </style>
+  <link rel="stylesheet" href="css/ux.css?v=15">
 </head>
 <body>
 
@@ -211,566 +43,315 @@
       <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
       <span>Vertrise跃升</span>
     </a>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
     <div class="jt-nav-links">
-      <a class="jt-nav-link" href="index.html">首页</a>
-      <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
-      <a class="jt-nav-link" href="jump.html">弹跳</a>
-      <a class="jt-nav-link" href="pose.html">动作分析</a>
-      <a class="jt-nav-link active" href="trainer.html">AI训练师</a>
-      <a class="jt-nav-link feedback-nav" href="feedback.html">问题反馈</a>
-      <a class="jt-nav-link" href="membership.html">会员</a>
+    <a class="jt-nav-link" href="index.html">首页</a>
+    <div class="jt-nav-group active">
+      <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+        <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+        <a class="jt-nav-link" href="pose.html">动作分析</a>
+        <a class="jt-nav-link active" href="trainer.html">AI教练</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">数据<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="progress.html">进步曲线</a>
+        <a class="jt-nav-link" href="barbell-chart.html">杠铃图表</a>
+        <a class="jt-nav-link" href="leaderboard.html">排行榜</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">训练<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="checkin.html">训练打卡</a>
+        <a class="jt-nav-link" href="plans.html">训练计划</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">我的<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="profile.html">我的资料</a>
+        <a class="jt-nav-link" href="history.html">训练记录</a>
+        <a class="jt-nav-link feedback-nav" href="feedback.html">问题反馈</a>
+        <a class="jt-nav-link" href="membership.html">会员</a>
+        <a class="jt-nav-link" href="login.html">登录 / 注册</a>
+      </div>
+    </div>
     </div>
     <div class="jt-nav-user">
       <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
-        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+<svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
       </button>
       <span class="user-name" id="navUserName">未登录</span>
       <span class="plan-pill" id="navPlan">FREE</span>
-      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none">退出</button>
-      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html" style="display:none">登录</a>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.signOut()">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html?next=trainer.html" style="display:none">登录</a>
     </div>
   </nav>
 
   <div class="tr-wrap">
-    <div class="tr-head">
-      <h1>🧠 AI 弹跳训练师</h1>
-      <p>输入你的基础数据，生成个性化弹跳提升训练计划。<br>免费用户使用内置专业模板；PRO 会员由 AI 深度定制。</p>
-    </div>
+    <header class="tr-head">
+      <div>
+        <h1>🤖 AI 弹跳教练</h1>
+        <div class="tr-sub">多轮对话 · 已自动读取你的身高/摸高/弹跳记录/杠铃数据/打卡情况</div>
+      </div>
+      <span class="tr-quota" id="chatQuota">加载中…</span>
+    </header>
 
-    <details class="jt-guide" open>
-      <summary>
-        <span class="jt-guide-title">📖 使用教程 · AI 弹跳训练师</span>
-        <span class="jt-guide-caret">▾</span>
-      </summary>
-      <div class="jt-guide-steps">
-        <div class="jt-guide-step"><span class="g-num">1</span><div><b>填基础数据</b><span>当前弹跳高度必填，其余按实际情况填：目标高度、年龄、训练水平、每周练几天。</span></div></div>
-        <div class="jt-guide-step"><span class="g-num">2</span><div><b>选可用器械</b><span>徒手 / 哑铃 / 杠铃 / 弹力带可多选，勾上你家里或健身房有的，没有就只勾徒手。</span></div></div>
-        <div class="jt-guide-step"><span class="g-num">3</span><div><b>伤病如实填</b><span>膝盖、脚踝或腰部有不适就选上，计划会自动避开跳跃、爆发类高风险动作，换成安全的替代动作。</span></div></div>
-        <div class="jt-guide-step"><span class="g-num">4</span><div><b>生成计划</b><span>点「⚡ 生成训练计划」：免费用户用内置专业模板（力量 + 爆发 + 技术），PRO 会员由 AI 深度定制。</span></div></div>
-        <div class="jt-guide-step"><span class="g-num">5</span><div><b>照着练</b><span>每天的动作、组数×次数、组间休息、动作提示都在卡片里，按「进阶规则」逐步加量。</span></div></div>
-        <div class="jt-guide-step"><span class="g-num">6</span><div><b>保存到云端</b><span>登录后点「保存计划到云端」，之后随时在「我的记录」里翻看，不用重新生成。</span></div></div>
+    <div class="chat-card">
+      <div class="chat-msgs" id="chatMsgs"></div>
+      <div class="chat-quick" id="chatQuick"></div>
+      <div class="chat-input">
+        <textarea id="chatInput" placeholder="问教练：我的弹跳瓶颈是什么？&#10;（Enter 发送，Shift+Enter 换行）"></textarea>
+        <button class="jt-btn jt-btn-accent" id="chatSend">发送</button>
       </div>
-      <div class="jt-guide-tip"><b>⚠️ 提示</b><span>计划按周执行，每 1–2 周给力量动作加一点重量（2.5–5kg）；每周用「弹跳测量」记一次高度，才能看出计划有没有效。</span></div>
-      <div class="jt-guide-video">
-        <div class="g-play">▶</div>
-        <b>🎬 视频教程（待上传）</b>
-        <span>教学视频之后会放在这里，先占个位。</span>
-      </div>
-    </details>
-
-    <div class="tr-layout">
-      <!-- 表单 -->
-      <div class="tr-form">
-        <div class="jt-card">
-          <form id="trainerForm" onsubmit="return doGenerate(event)">
-            <div class="jt-field">
-              <label for="inCurHeight">当前弹跳高度（cm）*</label>
-              <input class="jt-input" id="inCurHeight" type="number" min="0" max="200" placeholder="如 55" required>
-            </div>
-            <div class="jt-field">
-              <label for="inGoalHeight">目标高度（cm，选填）</label>
-              <input class="jt-input" id="inGoalHeight" type="number" min="0" max="220" placeholder="如 70">
-            </div>
-            <div class="jt-field">
-              <label for="inAge">年龄</label>
-              <input class="jt-input" id="inAge" type="number" min="10" max="80" value="25">
-            </div>
-            <div class="jt-field">
-              <label for="inLevel">训练水平</label>
-              <select id="inLevel">
-                <option value="beginner">初级（刚开始训练）</option>
-                <option value="intermediate" selected>中级（有半年以上经验）</option>
-                <option value="advanced">高级（训练多年）</option>
-              </select>
-            </div>
-            <div class="jt-field">
-              <label for="inDays">每周训练天数</label>
-              <select id="inDays">
-                <option value="1">1 天</option>
-                <option value="2">2 天</option>
-                <option value="3" selected>3 天</option>
-                <option value="4">4 天</option>
-                <option value="5">5 天</option>
-                <option value="6">6 天</option>
-              </select>
-            </div>
-            <div class="jt-field">
-              <label>可用器械（可多选）</label>
-              <div class="eq-check">
-                <label><input type="checkbox" name="eq" value="none" checked> 徒手</label>
-                <label><input type="checkbox" name="eq" value="dumbbell"> 哑铃</label>
-                <label><input type="checkbox" name="eq" value="barbell"> 杠铃</label>
-                <label><input type="checkbox" name="eq" value="bands"> 弹力带</label>
-              </div>
-            </div>
-            <div class="jt-field">
-              <label for="inInjury">伤病情况</label>
-              <select id="inInjury">
-                <option value="none" selected>无伤病</option>
-                <option value="knee">膝盖不适</option>
-                <option value="ankle">脚踝不适</option>
-                <option value="back">腰部不适</option>
-              </select>
-            </div>
-            <div class="jt-msg err" id="trMsg"></div>
-            <button class="jt-btn jt-btn-accent" type="submit" style="width:100%" id="btnGenerate">⚡ 生成训练计划</button>
-            <!-- [新增] AI 生成状态：预计完成时间 / 完成 / 后台生成中 -->
-            <div class="gen-status" id="genStatus" style="display:none;"></div>
-          </form>
-        </div>
-      </div>
-
-      <!-- 结果 -->
-      <div class="tr-result" id="trResult">
-        <div class="empty-tip" id="trEmpty">填写左侧信息，点击「生成训练计划」</div>
-      </div>
+      <div class="chat-hint">🔒 隐私说明：对话只提交你的文字与训练数据，不上传视频/图片。免费用户每日有限次数，会员无限。</div>
     </div>
   </div>
 
   <div class="jt-toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/supabase-config.js"></script>
-<script src="js/glm-crypto.js"></script>
-<script src="js/glm.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/glm-crypto.js"></script>
+  <script src="js/glm.js"></script>
   <script src="js/auth.js"></script>
-  <script src="js/ui.js"></script>
+  <script src="js/ui.js?v=15"></script>
   <script src="js/trainer-engine.js"></script>
   <script>
     (function () {
       'use strict';
       var Auth = window.JTAuth;
-      var currentPlan = null; // 最近一次生成的计划
-      // [新增] 后台生成状态
-      var genPending = false;
-      var genStart = 0;
-      var genTimer = null;
-      var genId = '';
-      var ESTIMATE = 30; // 预计完成秒数
-      var swReady = false;
-      var lastInput = null;
-      var aiAttempted = false; // 本次是否真的调用了 AI
-      var usedKind = '';       // 本次消耗的计次类型（free/credit/vip），失败时退回
+      var FREE_DAILY = 5;                 // 免费用户每日对话次数（前端限制，后端付费后续再补）
+      var QUOTA_KEY = 'vt-chat-quota';
+      var history = [];                   // 发给 API 的多轮消息
+      var userCtx = '';                   // 用户真实数据上下文
+      var isVip = false;
+      var busy = false;
+      var maxJumpH = 0;
+      var msgsEl = document.getElementById('chatMsgs');
+      var inputEl = document.getElementById('chatInput');
+      var sendBtn = document.getElementById('chatSend');
+      var quotaEl = document.getElementById('chatQuota');
 
-      function showToast(msg, type) {
+      function toast(msg, type) {
         var t = document.getElementById('toast');
         t.textContent = msg;
         t.className = 'jt-toast show ' + (type || '');
         setTimeout(function () { t.className = 'jt-toast'; }, 2600);
       }
 
-      function setMsg(msg, ok) {
-        var el = document.getElementById('trMsg');
-        el.textContent = msg;
-        el.className = 'jt-msg ' + (ok ? 'ok' : 'err');
+      // ---------- 每日次数（前端限制；VIP 无限） ----------
+      function quotaInfo() {
+        if (isVip) return { unlimited: true, used: 0 };
+        var now = new Date();
+        var day = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+        var q = null;
+        try { q = JSON.parse(localStorage.getItem(QUOTA_KEY) || 'null'); } catch (e) {}
+        if (!q || q.d !== day) q = { d: day, used: 0 };
+        return { unlimited: false, used: q.used, day: day };
+      }
+      function saveQuota(used) {
+        var q = quotaInfo();
+        q.used = used;
+        try { localStorage.setItem(QUOTA_KEY, JSON.stringify(q)); } catch (e) {}
+      }
+      function renderQuota() {
+        var q = quotaInfo();
+        quotaEl.textContent = q.unlimited ? '💎 会员无限对话' : ('今日剩余 ' + Math.max(0, FREE_DAILY - q.used) + ' 次');
       }
 
-      function collectInput() {
-        var eqs = Array.prototype.slice.call(document.querySelectorAll('input[name="eq"]:checked'))
-          .map(function (c) { return c.value; });
-        if (!eqs.length) eqs = ['none'];
-        return {
-          currentHeight: parseFloat(document.getElementById('inCurHeight').value) || 0,
-          goalHeight: parseFloat(document.getElementById('inGoalHeight').value) || 0,
-          age: parseInt(document.getElementById('inAge').value, 10) || 25,
-          level: document.getElementById('inLevel').value,
-          days: parseInt(document.getElementById('inDays').value, 10) || 3,
-          equipment: eqs,
-          injury: document.getElementById('inInjury').value
-        };
-      }
-
-      // [新增] Service Worker 后台生成支持
-      function initSW() {
-        if (!('serviceWorker' in navigator)) return;
-        if (location.protocol === 'file:') return; // file:// 无法注册 SW，回退页内生成
-        navigator.serviceWorker.register('sw.js').then(function () {
-          swReady = true;
-        }).catch(function () { swReady = false; });
-      }
-
-      function setGenStatus(text, cls) {
-        var el = document.getElementById('genStatus');
-        el.textContent = text;
-        el.className = 'gen-status' + (cls ? ' ' + cls : '');
-        el.style.display = text ? 'block' : 'none';
-      }
-
-      // 预计完成时间倒计时
-      function startCountdown() {
-        stopCountdown();
-        updateGenTimer();
-        genTimer = setInterval(updateGenTimer, 1000);
-      }
-      function stopCountdown() {
-        if (genTimer) { clearInterval(genTimer); genTimer = null; }
-      }
-      function updateGenTimer() {
-        var elapsed = Math.floor((Date.now() - genStart) / 1000);
-        var remain = Math.max(0, ESTIMATE - elapsed);
-        var f = new Date(genStart + ESTIMATE * 1000);
-        var pad = function (n) { return (n < 10 ? '0' : '') + n; };
-        setGenStatus(
-          '⏳ AI 生成中 · 预计约 ' + ESTIMATE + 's 完成（' + pad(f.getHours()) + ':' + pad(f.getMinutes()) + ':' + pad(f.getSeconds()) +
-          '）· 已用 ' + elapsed + 's' + (remain <= 0 ? '（已超时，请稍候）' : ''),
-          '');
-      }
-
-      // 由 SW 在后台执行 GLM 请求（key 运行时解密后传入）
-      function generateViaSW(id, messages, opts, cfg) {
-        var getKey = (window.GLM && window.GLM.getKey) ? window.GLM.getKey() : Promise.resolve('');
-        return getKey.then(function (key) {
-          if (!key) return { ok: false, msg: 'GLM 密钥解密失败或未配置' };
-          return new Promise(function (resolve) {
-            var ch = new MessageChannel();
-            ch.port1.onmessage = function (e) {
-              var d = e.data;
-              if (!d) return;
-              if (d.type === 'glmChunk' && d.id === id) {
-                if (opts.onChunk) opts.onChunk(d.chunk);
-              } else if (d.type === 'glmChatDone' && d.id === id) {
-                ch.port1.close();
-                resolve(d.result);
-              }
-            };
-            navigator.serviceWorker.ready.then(function (reg) {
-              if (reg.active) {
-                reg.active.postMessage({
-                  type: 'glmChat', id: id, messages: messages,
-                  temperature: opts.temperature, url: cfg.GLM_API_URL, key: key,
-                  model: cfg.GLM_MODEL, models: cfg.GLM_MODELS, stream: true
-                }, [ch.port2]);
-              } else {
-                resolve({ ok: false, msg: 'Service Worker 未就绪' });
-              }
-            }).catch(function () { resolve({ ok: false, msg: 'Service Worker 不可用' }); });
-          });
-        });
-      }
-
-      // 从 SW 取回后台生成结果
-      function getFromSW(id) {
-        return new Promise(function (resolve) {
-          if (!swReady) { resolve(null); return; }
-          var ch = new MessageChannel();
-          ch.port1.onmessage = function (e) {
-            var d = e.data;
-            if (d && d.type === 'glmChatResult' && d.id === id) {
-              ch.port1.close();
-              resolve(d.result);
-            }
-          };
-          navigator.serviceWorker.ready.then(function (reg) {
-            if (reg.active) reg.active.postMessage({ type: 'glmGet', id: id }, [ch.port2]);
-            else resolve(null);
-          }).catch(function () { resolve(null); });
-        });
-      }
-
-      function finishGeneration(res, fromBackground) {
-        genPending = false;
-        stopCountdown();
-        sessionStorage.removeItem('vt_gen');
-        var btn = document.getElementById('btnGenerate');
-        if (btn) btn.disabled = false;
-        if (res && res.ok && res.text) {
-          sessionStorage.setItem('vt_result', JSON.stringify({ text: res.text, doneAt: Date.now() }));
-          setGenStatus(
-            (res.fallback && res.usedModel)
-              ? ('✅ 生成完成（模型繁忙，已自动切换至 ' + res.usedModel + '）')
-              : '✅ 生成完成，计划可保存',
-            'done');
-          if (fromBackground) showToast('后台生成完成', 'ok');
-          renderGLMPlan(res.text);
-        } else {
-          if (res && res.msg) showToast(res.msg, 'err');
-          if (aiAttempted) setGenStatus('⚠️ AI 生成失败，已回退到本地模板', 'err');
-          else setGenStatus('');
-          var plan = window.JTRAINER.generate(lastInput || {});
-          currentPlan = plan;
-          renderTemplate(plan);
-        }
-      }
-
-      function showBackgroundPending(startedAt, id) {
-        var elapsed = Math.floor((Date.now() - startedAt) / 1000);
-        setGenStatus('⏳ 上次生成仍在后台进行中（已 ' + elapsed + 's），完成后会自动显示', 'bg');
-        var poll = setInterval(function () {
-          getFromSW(id).then(function (res) {
-            if (res) { clearInterval(poll); finishGeneration(res, true); }
-          });
-        }, 3000);
-      }
-
-      // 返回页面时恢复上次生成状态
-      function recoverState() {
-        var st = null;
-        try { st = JSON.parse(sessionStorage.getItem('vt_gen') || 'null'); } catch (e) { st = null; }
-        if (st && st.id) {
-          if (!swReady) {
-            sessionStorage.removeItem('vt_gen');
-            setGenStatus('⚠️ 上次生成未完成（当前环境不支持后台生成），请重新生成', 'err');
-            return;
+      // ---------- 汇总用户真实数据作为 AI 上下文 ----------
+      function buildContext() {
+        return Promise.all([
+          Auth.getProfile(),
+          Auth.fetchRecords(),
+          Auth.fetchCheckins(),
+          Auth.getAiStatus()
+        ]).then(function (r) {
+          var p = r[0], recs = r[1] || {}, checkins = r[2] || [], st = r[3] || null;
+          isVip = !!(st && st.is_vip) || Auth.getPlan() === 'pro';
+          var lines = [];
+          if (p) {
+            var parts = [];
+            if (p.height_cm) parts.push('身高' + p.height_cm + 'cm');
+            if (p.reach_cm) parts.push('站立摸高' + p.reach_cm + 'cm');
+            if (p.weight_kg) parts.push('体重' + p.weight_kg + 'kg');
+            if (p.wingspan_cm) parts.push('臂展' + p.wingspan_cm + 'cm');
+            if (parts.length) lines.push('个人资料：' + parts.join('，'));
           }
-          getFromSW(st.id).then(function (res) {
-            if (res && res.ok && res.text) {
-              setGenStatus('✅ 后台生成已完成', 'done');
-              renderGLMPlan(res.text);
-            } else if (res && res.ok === false) {
-              sessionStorage.removeItem('vt_gen');
-              setGenStatus('⚠️ 后台生成失败：' + (res.msg || ''), 'err');
-            } else {
-              showBackgroundPending(st.startedAt, st.id);
-            }
-          });
-          return;
-        }
-        var rs = null;
-        try { rs = JSON.parse(sessionStorage.getItem('vt_result') || 'null'); } catch (e) { rs = null; }
-        if (rs && rs.text) {
-          setGenStatus('✅ 上次生成已完成（可保存或重新生成）', 'done');
-          renderGLMPlan(rs.text);
-        }
+          var jumps = recs.jumps || [];
+          if (jumps.length) {
+            lines.push('近期弹跳记录（最新' + Math.min(10, jumps.length) + '条）：');
+            jumps.slice(0, 10).forEach(function (j) {
+              var h = Number(j.height_cm) || 0;
+              if (h > maxJumpH) maxJumpH = h;
+              lines.push('  · ' + (j.test_type || '助跑起跳') + ' ' + j.height_cm + 'cm 腾空' + j.flight_time + 's' + (j.created_at ? '（' + new Date(j.created_at).toLocaleDateString() + '）' : ''));
+            });
+          }
+          var bars = recs.barbells || [];
+          if (bars.length) {
+            lines.push('杠铃测速（最新' + Math.min(10, bars.length) + '条）：');
+            bars.slice(0, 10).forEach(function (b) {
+              lines.push('  · 峰值速度 ' + b.peak_speed + 'm/s' + (b.weight != null ? ' @' + b.weight + 'kg' : '') + (b.created_at ? '（' + new Date(b.created_at).toLocaleDateString() + '）' : ''));
+            });
+          }
+          if (checkins.length) lines.push('训练打卡：累计 ' + checkins.length + ' 天');
+          userCtx = lines.length ? lines.join('\n') : '（用户暂未填写资料或记录）';
+          renderQuota();
+        });
       }
 
-      // 生成未完成时，退出/关闭前弹出确认
-      window.addEventListener('beforeunload', function (e) {
-        if (!(genPending || sessionStorage.getItem('vt_gen'))) return;
-        e.preventDefault();
-        e.returnValue = '训练计划生成尚未完成，确定要离开吗？后台仍会继续生成。';
+      function systemPrompt() {
+        return '你是 Vertrise跃升 的 AI 弹跳教练（资深弹跳/力量/体能训练专家）。结合用户真实训练数据，用中文给出专业、简洁、可执行的回答。\n' +
+          '【用户真实数据】\n' + userCtx + '\n' +
+          '规则：\n' +
+          '1. 只基于上面的数据作答，不虚构用户没有的记录；数据不足时明确说明；\n' +
+          '2. 涉及训练计划时，按天列出动作名称、组数×次数、休息时间、动作要点；\n' +
+          '3. 注意安全，有伤病风险的动作给出替代方案；\n' +
+          '4. 回答精炼，避免冗长空话。';
+      }
+
+      // ---------- 消息渲染（滑入淡入） ----------
+      function addMsg(role, text, cls) {
+        var d = document.createElement('div');
+        d.className = 'msg ' + role + (cls ? ' ' + cls : '');
+        d.textContent = text;
+        msgsEl.appendChild(d);
+        msgsEl.scrollTop = msgsEl.scrollHeight;
+        return d;
+      }
+      function addTyping() {
+        var d = document.createElement('div');
+        d.className = 'msg ai';
+        d.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
+        msgsEl.appendChild(d);
+        msgsEl.scrollTop = msgsEl.scrollHeight;
+        return d;
+      }
+
+      function friendlyErr(r) {
+        var m = (r && r.msg) || '请求失败，请稍后重试';
+        if (/网络|CORS|fetch|Failed/i.test(m)) m = '网络异常，无法连接 AI 服务，请检查网络后重试';
+        if (/未配置/i.test(m)) m = 'AI 服务未配置，请先在 js/supabase-config.js 配置 GLM';
+        return m;
+      }
+
+      // 本地模板兜底（GLM 未配置时，「一键生成训练计划」仍可用）
+      function planToText(plan) {
+        var t = '【' + plan.title + '】\n🎯 ' + plan.goal + '\n📋 ' + plan.summary + '\n\n';
+        plan.schedule.forEach(function (d) {
+          t += '■ 第' + d.day + '天 · ' + d.title + '\n';
+          d.exercises.forEach(function (x) {
+            t += '  · ' + x.name + '　' + x.sets + '×' + x.reps + ' · 休息' + x.rest + '\n';
+          });
+        });
+        t += '\n📈 进阶规则：' + plan.progression;
+        if (plan.cautions && plan.cautions.length) t += '\n⚠️ 注意事项：' + plan.cautions.join('；');
+        return t;
+      }
+      function fallbackPlan() {
+        var plan = window.JTRAINER.generate({
+          currentHeight: maxJumpH || 50, goalHeight: 0, age: 25,
+          level: 'intermediate', days: 3, equipment: ['none'], injury: 'none'
+        });
+        return planToText(plan);
+      }
+
+      // ---------- 发送 ----------
+      function send(text) {
+        text = (text || '').trim();
+        if (!text || busy) return;
+        busy = true;
+        sendBtn.disabled = true;
+
+        var q = quotaInfo();
+        if (!q.unlimited && q.used >= FREE_DAILY) {
+          addMsg('ai', '今日免费对话次数已用完。\n可前往「会员」购买/兑换解锁无限对话，或到「计划」页使用免费训练模板。', 'err');
+          busy = false; sendBtn.disabled = false; return;
+        }
+
+        // GLM 未配置：一键生成计划用本地模板兜底，其余给提示
+        if (!window.GLM || !window.GLM.isConfigured()) {
+          if (/计划|生成/.test(text)) {
+            addMsg('user', text);
+            addMsg('ai', fallbackPlan());
+          } else {
+            addMsg('user', text);
+            addMsg('ai', 'AI 服务未配置（js/supabase-config.js → GLM_API_KEY），暂时无法对话。可到「计划」页使用免费训练模板。', 'err');
+          }
+          busy = false; sendBtn.disabled = false; return;
+        }
+
+        addMsg('user', text);
+        history.push({ role: 'user', content: text });
+        var typing = addTyping();
+        var messages = [{ role: 'system', content: systemPrompt() }].concat(history.slice(-12));
+
+        var streamed = '';
+        window.GLM.chat(messages, {
+          temperature: 0.6, stream: true,
+          onChunk: function (c) {
+            streamed += c;
+            typing.textContent = streamed;
+            msgsEl.scrollTop = msgsEl.scrollHeight;
+          }
+        }).then(function (r) {
+          if (r.ok && r.text) {
+            history.push({ role: 'assistant', content: r.text });
+            saveQuota(q.used + 1);
+          } else {
+            typing.className = 'msg ai err';
+            typing.textContent = friendlyErr(r);
+          }
+          renderQuota();
+          busy = false; sendBtn.disabled = false;
+        }).catch(function (e) {
+          typing.className = 'msg ai err';
+          typing.textContent = '出错了：' + (e && e.message ? e.message : '网络异常，请稍后重试');
+          busy = false; sendBtn.disabled = false;
+        });
+      }
+
+      // ---------- 快捷按钮 ----------
+      var QUICK = [
+        { label: '⚡ 一键生成训练计划', prompt: '请根据我的数据，生成一份四周弹跳提升训练计划（按天列出动作、组数×次数、休息、要点）。' },
+        { label: '📈 分析我的弹跳瓶颈', prompt: '请结合我的弹跳记录，分析我的弹跳瓶颈在哪里，并给出针对性训练建议。' },
+        { label: '💪 力量与弹跳关系', prompt: '请结合我的杠铃测速数据，分析我的力量水平与弹跳表现的关系，指出需要加强的力量项。' },
+        { label: '🔄 调整我的计划', prompt: '请根据我的训练打卡与近期数据，帮我调整训练计划（指出哪里该加量/减量）。' }
+      ];
+      var quickBox = document.getElementById('chatQuick');
+      QUICK.forEach(function (item) {
+        var b = document.createElement('button');
+        b.className = 'jt-btn jt-btn-ghost jt-btn-sm';
+        b.textContent = item.label;
+        b.addEventListener('click', function () { send(item.prompt); });
+        quickBox.appendChild(b);
       });
 
-      function renderTemplate(plan, badge) {        var box = document.getElementById('trResult');
-        var daysHtml = plan.schedule.map(function (d) {
-          var rows = d.exercises.map(function (x) {
-            return '<div class="ex-row">' +
-              '<span class="ex-name">' + x.name + '</span>' +
-              '<span class="ex-param">' + x.sets + '×' + x.reps + ' · ' + x.rest + '</span>' +
-              '<span class="ex-note">' + x.note + '</span>' +
-              '</div>';
-          }).join('');
-          return '<div class="day-card"><div class="day-title">第 ' + d.day + ' 天 · ' + d.title + '</div>' + rows + '</div>';
-        }).join('');
-        var cautionsHtml = plan.cautions.length
-          ? '<div class="info-box warn"><b>⚠️ 注意事项</b><br>' + plan.cautions.join('<br>') + '</div>' : '';
-        box.innerHTML =
-          '<div class="plan-head">' +
-            '<span class="plan-title">' + plan.title + '</span>' +
-            '<span class="plan-badge ' + (badge ? 'pro' : 'free') + '">' + (badge || '免费模板生成') + '</span>' +
-          '</div>' +
-          '<div class="plan-meta">🎯 ' + plan.goal + '<br>📋 ' + plan.summary + '</div>' +
-          daysHtml +
-          '<div class="info-box"><b>📈 进阶规则</b><br>' + plan.progression + '</div>' +
-          cautionsHtml +
-          '<button class="btn jt-btn jt-btn-accent" style="width:100%;" id="btnSavePlan">💾 保存计划到云端</button>';
-        document.getElementById('btnSavePlan').addEventListener('click', savePlan);
-      }
-
-      function renderLLM(text) {
-        var box = document.getElementById('trResult');
-        box.innerHTML =
-          '<div class="plan-head">' +
-            '<span class="plan-title">AI 定制训练计划</span>' +
-            '<span class="plan-badge pro">GLM AI 生成</span>' +
-          '</div>' +
-          '<div class="llm-text">' + text.replace(/</g, '&lt;') + '</div>' +
-          '<button class="jt-btn jt-btn-accent" style="width:100%;" id="btnSavePlan">💾 保存计划到云端</button>';
-        document.getElementById('btnSavePlan').addEventListener('click', savePlan);
-      }
-
-      // 组装 GLM 训练计划提示词
-      function buildPlanPrompt(input, ctx) {
-        var eqMap = { none: '徒手', dumbbell: '哑铃', barbell: '杠铃', bands: '弹力带' };
-        var lvMap = { beginner: '初级', intermediate: '中级', advanced: '高级' };
-        var injMap = { none: '无', knee: '膝盖', ankle: '脚踝', back: '腰部' };
-        var eqs = input.equipment.map(function (e) { return eqMap[e] || e; }).join('、');
-        var s = '请为一名篮球运动员制定四周弹跳提升训练计划。\n' +
-          '基础数据：当前弹跳高度 ' + input.currentHeight + 'cm，' +
-          (input.goalHeight ? '目标高度 ' + input.goalHeight + 'cm，' : '') +
-          '年龄 ' + input.age + '，水平：' + (lvMap[input.level] || input.level) +
-          '，每周训练 ' + input.days + ' 天，可用器械：' + eqs + '，伤病：' + (injMap[input.injury] || input.injury) + '。\n';
-        if (ctx) s += '\n【该用户的训练记录，供个性化参考】\n' + ctx + '\n';
-        s += '要求：\n' +
-          '1. 按天输出每周训练安排，每天给出动作名称、组数×次数、休息时间、动作要点；\n' +
-          '2. 包含进阶规则与恢复/休息建议；\n' +
-          '3. 若有伤病，给出规避与替代动作；\n' +
-          '4. 只输出 JSON，不要任何多余文字，格式：{"title":"...","goal":"...","summary":"...","schedule":[{"day":1,"title":"力量日","exercises":[{"name":"杠铃深蹲","sets":4,"reps":"6-10","rest":"120s","note":"..."}]}],"progression":"...","cautions":["..."]}';
-        return s;
-      }
-
-      // 汇总该用户全部训练记录，作为 AI 个性化上下文
-      async function buildContextText() {
-        try {
-          var user = await Auth.getCurrentUser();
-          if (!user) return '';
-          var recs = await Auth.fetchRecords();
-          var pl = await Auth.fetchTrainingPlans();
-          var lines = [];
-          if (recs.jumps && recs.jumps.length) {
-            lines.push('该用户近期弹跳记录（' + recs.jumps.length + '条，最新在前）：');
-            recs.jumps.slice(0, 10).forEach(function (r) {
-              lines.push('  · ' + (r.test_type || '助跑起跳') + ' ' + r.height_cm + 'cm' +
-                (r.box_height != null ? '（箱高' + r.box_height + 'cm）' : '') +
-                ' 腾空' + r.flight_time + 's' +
-                (r.created_at ? '（' + new Date(r.created_at).toLocaleDateString() + '）' : ''));
-            });
-          }
-          if (recs.barbells && recs.barbells.length) {
-            lines.push('该用户近期杠铃测速（' + recs.barbells.length + '条）：');
-            recs.barbells.slice(0, 10).forEach(function (r) {
-              lines.push('  · 峰值速度 ' + r.peak_speed + 'm/s' + (r.weight != null ? ' 重量' + r.weight + 'kg' : ''));
-            });
-          }
-          if (pl.plans && pl.plans.length) {
-            lines.push('历史训练计划 ' + pl.plans.length + ' 个（参考已有安排，避免重复）。');
-          }
-          return lines.length ? lines.join('\n') : '';
-        } catch (e) { return ''; }
-      }
-
-      async function buildMessages(input) {
-        var ctx = await buildContextText();
-        return [
-          { role: 'system', content: '你是资深弹跳/力量训练教练，输出简洁专业的训练计划。' },
-          { role: 'user', content: buildPlanPrompt(input, ctx) }
-        ];
-      }
-
-      // GLM 返回：优先解析 JSON 结构化渲染，失败则文本渲染
-      function renderGLMPlan(text) {
-        var cleaned = String(text).replace(/```json/gi, '').replace(/```/g, '').trim();
-        var obj = null;
-        try { obj = JSON.parse(cleaned); } catch (e) { obj = null; }
-        if (obj && Array.isArray(obj.schedule) && obj.schedule.length) {
-          var plan = {
-            title: obj.title || 'AI 定制训练计划',
-            goal: obj.goal || '',
-            summary: obj.summary || 'GLM AI 深度定制',
-            schedule: obj.schedule,
-            progression: obj.progression || '',
-            cautions: obj.cautions || []
-          };
-          currentPlan = plan;
-          renderTemplate(plan, 'GLM AI 生成');
-        } else {
-          currentPlan = { type: 'glm', text: text };
-          renderLLM(text);
+      sendBtn.addEventListener('click', function () { send(inputEl.value); inputEl.value = ''; });
+      inputEl.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          send(inputEl.value);
+          inputEl.value = '';
         }
-      }
+      });
 
-      function savePlan() {
-        Auth.getCurrentUser().then(function (user) {
-          if (!user) {
-            showToast('未登录，无法保存计划，请先登录', 'err');
-            setTimeout(function () { location.href = 'login.html?next=trainer.html'; }, 900);
-            return;
-          }
-          var payload = {
-            title: (currentPlan && currentPlan.title) || 'AI 定制训练计划',
-            summary: (currentPlan && currentPlan.summary) || 'AI 深度定制',
-            plan_json: currentPlan || {}
-          };
-          Auth.saveTrainingPlan(payload).then(function (res) {
-            if (res.error) { showToast('保存失败: ' + (res.error.message || ''), 'err'); return; }
-            showToast('计划已保存到云端', 'ok');
-            setTimeout(function () { location.href = 'history.html'; }, 900);
-          });
+      // ---------- 初始化 ----------
+      Auth.init(function (session) {
+        if (!session) { location.href = 'login.html?next=trainer.html'; return; }
+        buildContext().then(function () {
+          addMsg('ai', '你好，我是你的 AI 弹跳教练 🤖\n已自动读取你的训练数据（身高/摸高/弹跳记录/杠铃数据/打卡情况）。\n可以直接提问，或点下方快捷按钮。');
+          inputEl.focus();
         });
-      }
-
-      window.doGenerate = function (e) {
-        e.preventDefault();
-        var input = collectInput();
-        lastInput = input;
-        if (!input.currentHeight) { setMsg('请填写当前弹跳高度', false); return false; }
-        setMsg('', true);
-        var btn = document.getElementById('btnGenerate');
-        btn.disabled = true;
-        var box = document.getElementById('trResult');
-
-        var member = Auth.getPlan() === 'pro';
-        var llmWorker = !!(window.JTConfig && window.JTConfig.LLM_API_URL);
-        var glmReady = !!(window.GLM && window.GLM.isConfigured());
-
-        aiAttempted = false;
-        if (glmReady) {
-          aiAttempted = true;
-          // [计费] 消耗一次 AI 分析额度（免费每日2次 → 余额 → VIP 无限）
-          var consume = (window.JTAuth && window.JTAuth.consumeAI)
-            ? window.JTAuth.consumeAI('trainer')
-            : Promise.resolve({ ok: true, used_kind: 'free' });
-          consume.then(function (r) {
-            if (!r.ok) {
-              btn.disabled = false;
-              setMsg(r.msg || '今日 AI 分析次数已用完', false);
-              // 提示升级入口
-              var tip = document.createElement('div');
-              tip.className = 'info-box';
-              tip.innerHTML = '可<a href="membership.html" style="color:var(--accent);font-weight:700;">购买会员 / 兑换邀请码</a>解锁无限 AI 分析，或使用下方内置模板生成免费计划。';
-              box.innerHTML = '';
-              box.appendChild(tip);
-              return;
-            }
-            usedKind = r.used_kind || 'free';
-            runGLMGenerate(input);
-          });
-          return false;
-        } else if (member && llmWorker) {
-          aiAttempted = true;
-          Auth.generatePlanWithLLM({ type: 'jump-training-plan', data: input }).then(function (res) {
-            finishGeneration(res);
-          });
-        } else {
-          var plan = window.JTRAINER.generate(input);
-          currentPlan = plan;
-          btn.disabled = false;
-          renderTemplate(plan);
-        }
-        return false;
-      };
-
-      // 真正执行 GLM 生成（计费已通过）
-      function runGLMGenerate(input) {
-        var btn = document.getElementById('btnGenerate');
-        var box = document.getElementById('trResult');
-        var streamBox = document.createElement('div');
-        streamBox.className = 'llm-text';
-        streamBox.style.whiteSpace = 'pre-wrap';
-        box.innerHTML = '';
-        box.appendChild(streamBox);
-        function appendChunk(d) { streamBox.textContent += d; box.scrollTop = box.scrollHeight; }
-
-        genId = 'glm' + Date.now();
-        genStart = Date.now();
-        genPending = true;
-        sessionStorage.removeItem('vt_result');
-        sessionStorage.setItem('vt_gen', JSON.stringify({ id: genId, startedAt: genStart, estimate: ESTIMATE }));
-        startCountdown();
-
-        buildMessages(input).then(function (messages) {
-          var task = swReady
-            ? generateViaSW(genId, messages, { temperature: 0.5, onChunk: appendChunk }, window.JTConfig)
-            : window.GLM.chat(messages, { temperature: 0.5, stream: true, onChunk: appendChunk });
-          task.then(function (res) {
-            // GLM 失败（网络/超时）退回本次消耗
-            if (!res.ok && usedKind) {
-              window.JTAuth && window.JTAuth.refundAI(usedKind);
-            }
-            finishGeneration(res);
-          });
-        }).catch(function () {
-          if (usedKind) window.JTAuth && window.JTAuth.refundAI(usedKind);
-          btn.disabled = false;
-          var plan = window.JTRAINER.generate(input);
-          currentPlan = plan;
-          renderTemplate(plan);
-        });
-      }
-
-      Auth.init();
-      initSW();
-      recoverState();
+      });
     })();
   </script>
 </body>

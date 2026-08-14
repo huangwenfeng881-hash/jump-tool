@@ -198,11 +198,17 @@ window.VTPose = (function () {
       comY = (lm[23].y + lm[24].y) / 2;
       comX = (lm[23].x + lm[24].x) / 2;
     } else if (visible(lm[23])) { comY = lm[23].y; comX = lm[23].x; }
+    // 脚部最低点 y（画面坐标，1=底部）：脚踝/脚跟/脚尖中可见的最低点，用于自动识别离地/落地
+    var feetY = null;
+    for (var i = 27; i <= 32; i++) {
+      if (visible(lm[i]) && (feetY === null || lm[i].y > feetY)) feetY = lm[i].y;
+    }
     return {
       kneeL: kneeL,
       kneeR: kneeR,
       comH: comY === null ? null : Math.round((1 - comY) * 1000) / 10,
-      comX: comX === null ? null : Math.round(comX * 1000) / 10
+      comX: comX === null ? null : Math.round(comX * 1000) / 10,
+      feetY: feetY
     };
   }
 
@@ -441,6 +447,7 @@ window.VTPose = (function () {
           if (cancelled) { resolve({ cancelled: true, data: data }); return; }
           if (i > total) { resolve({ cancelled: false, data: data }); return; }
           var t = cs + i * frameInterval * sampleEvery;
+          t = Math.round(t * fps) / fps; // 对齐到精确帧，保证多次运行时间轴一致
           if (t > ce + 1e-6) { resolve({ cancelled: false, data: data }); return; }
           seekTo(video, t)
             .then(nextFrame)
@@ -452,8 +459,8 @@ window.VTPose = (function () {
               if (box && (box.w < 40 || box.h < 40)) box = null;
               frame = box ? makeBoxFrame(video, box, analysisDim()) : makeFrameCanvas(video, analysisDim());
               if (!frame) {
-                var curT0 = Math.max(0, Math.min((video.currentTime || t) - cs, ce - cs));
-                data.push({ t: Math.round(curT0 * 1000) / 1000, kneeL: prev ? prev.kneeL : null, kneeR: prev ? prev.kneeR : null, comH: prev ? prev.comH : null, comX: prev ? prev.comX : null, lost: true });
+                var curT0 = Math.max(0, Math.min(t - cs, ce - cs));
+                data.push({ t: Math.round(curT0 * 1000) / 1000, kneeL: prev ? prev.kneeL : null, kneeR: prev ? prev.kneeR : null, comH: prev ? prev.comH : null, comX: prev ? prev.comX : null, feetY: prev ? prev.feetY : null, lost: true });
                 lostStreak++;
                 if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true, abortedReason: 'lost' }); return; }
                 if (opts.onProgress) opts.onProgress(i, total, curT0, lostStreak);
@@ -465,11 +472,11 @@ window.VTPose = (function () {
             .then(function (r) {
               // 单帧推理超时/异常：按丢失帧处理并继续，避免卡死
               if (r && (r.timedOut || r.error)) {
-                var curT1 = Math.max(0, Math.min((video.currentTime || t) - cs, ce - cs));
+                var curT1 = Math.max(0, Math.min(t - cs, ce - cs));
                 curT1 = Math.round(curT1 * 1000) / 1000;
                 timeoutLost++;
                 lostStreak++;
-                data.push({ t: curT1, kneeL: prev ? prev.kneeL : null, kneeR: prev ? prev.kneeR : null, comH: prev ? prev.comH : null, comX: prev ? prev.comX : null, lost: true });
+                data.push({ t: curT1, kneeL: prev ? prev.kneeL : null, kneeR: prev ? prev.kneeR : null, comH: prev ? prev.comH : null, comX: prev ? prev.comX : null, feetY: prev ? prev.feetY : null, lost: true });
                 if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true, abortedReason: 'timeout' }); return; }
                 if (opts.onProgress) opts.onProgress(i, total, curT1, lostStreak);
                 setTimeout(function () { step(i + 1); }, 0);
@@ -479,13 +486,13 @@ window.VTPose = (function () {
               var lm = res && res.poseLandmarks ? res.poseLandmarks : null;
               // 框选裁剪时，把关键点从裁剪画布坐标映射回整帧视频坐标
               if (lm && frame && frame._crop) lm = mapBoxLandmarks(lm, frame._crop, video.videoWidth, video.videoHeight);
-              var curT = Math.max(0, Math.min((video.currentTime || t) - cs, ce - cs));
+              var curT = Math.max(0, Math.min(t - cs, ce - cs));
               curT = Math.round(curT * 1000) / 1000;
               var f = computeFrame(lm);
               if (f) {
                 lostStreak = 0;
                 prev = f;
-                data.push({ t: curT, kneeL: f.kneeL, kneeR: f.kneeR, comH: f.comH, comX: f.comX, lost: false });
+                data.push({ t: curT, kneeL: f.kneeL, kneeR: f.kneeR, comH: f.comH, comX: f.comX, feetY: f.feetY, lost: false });
                 if (opts.onFrame) opts.onFrame({ t: curT, lm: lm, f: f });
               } else {
                 lostStreak++;
@@ -496,6 +503,7 @@ window.VTPose = (function () {
                   kneeR: prev ? prev.kneeR : null,
                   comH: prev ? prev.comH : null,
                   comX: prev ? prev.comX : null,
+                  feetY: prev ? prev.feetY : null,
                   lost: true
                 });
                 if (lostStreak >= maxLost) {
@@ -544,6 +552,191 @@ window.VTPose = (function () {
       maxCom: comVals.length ? Math.max.apply(null, comVals) : null,
       minCom: comVals.length ? Math.min.apply(null, comVals) : null
     };
+  }
+
+  // ---------- 自动识别弹跳（离地/落地帧 → 腾空时间 → 高度） ----------
+  // 依据脚部最低点 feetY（画面坐标，0=顶 1=底）：脚离地时 feetY 明显上移。
+  // 稳健策略：5 帧中值滤波 + 按人体身高自适应阈值 + 滞回 + 最短腾空过滤，
+  // 避免把姿态识别的正常抖动误判成“几厘米的假跳跃”，并保证多次运行结果稳定。
+  // 返回 [{liftoffTime, landingTime, flightTime, heightCm, contactTime, rsi}]，按高度降序。
+  function detectJump(data, opts) {
+    opts = opts || {};
+    var minAir = opts.minAirSec || 0.15;   // <0.15s 的“腾空”视为噪声
+    var maxAir = opts.maxAirSec || 1.5;
+    var n = data.length;
+    if (n < 5) return [];
+
+    // 原始脚部信号（lost 帧记为 null）
+    var raw = data.map(function (d) { return (!d.lost && d.feetY !== null && d.feetY !== undefined) ? d.feetY : null; });
+
+    // 5 帧中值滤波（对单帧尖峰稳健，远优于均值）
+    var s = new Array(n);
+    for (var i = 0; i < n; i++) {
+      var win = [];
+      for (var k = Math.max(0, i - 2); k <= Math.min(n - 1, i + 2); k++) {
+        if (raw[k] !== null) win.push(raw[k]);
+      }
+      if (win.length) { win.sort(function (a, b) { return a - b; }); s[i] = win[Math.floor(win.length / 2)]; }
+      else s[i] = null;
+    }
+
+    // 地面基准：脚着地占多数时间，取较高分位
+    var ys = s.filter(function (v) { return v !== null; }).sort(function (a, b) { return a - b; });
+    if (ys.length < 5) return [];
+    var ground = ys[Math.floor(ys.length * 0.9)];
+
+    // 人体尺度：髋到脚的中位距离（≈半身高），让阈值随拍摄远近自适应
+    var hf = [];
+    for (var i2 = 0; i2 < n; i2++) {
+      var d2 = data[i2];
+      if (d2.feetY !== null && d2.feetY !== undefined && d2.comH !== null && d2.comH !== undefined) {
+        var dist = d2.feetY - (1 - d2.comH / 100); // comH=(1-hipY)*100 → hipY=1-comH/100
+        if (dist > 0.02 && dist < 0.8) hf.push(dist);
+      }
+    }
+    var scale = 0.12;
+    if (hf.length) { hf.sort(function (a, b) { return a - b; }); scale = hf[Math.floor(hf.length / 2)]; }
+    scale = Math.max(0.04, Math.min(0.35, scale));
+
+    // 滞回阈值：进入腾空需脚明显上移，退出更宽松，避免边界抖动。
+    // 混用相对值 + 绝对下限：人站得远（画面里小）时也不会退化成过度灵敏。
+    var enter = ground - Math.max(scale * 0.14, 0.03);
+    var exit = ground - Math.max(scale * 0.06, 0.012);
+
+    // 找腾空段（平滑信号 + 滞回）
+    var segs = [];
+    var start = null;
+    for (var i3 = 0; i3 < n; i3++) {
+      var v = s[i3];
+      if (start === null && v !== null && v < enter) start = i3;
+      else if (start !== null && (v === null || v >= exit)) { segs.push([start, Math.max(start, i3 - 1)]); start = null; }
+    }
+    if (start !== null) segs.push([start, n - 1]);
+
+    // 过滤 + 计算
+    var jumps = [];
+    segs.forEach(function (seg) {
+      var a = seg[0], b = seg[1];
+      var ft = data[b].t - data[a].t;
+      if (ft < minAir || ft > maxAir) return;
+      jumps.push({
+        liftoffTime: Math.round(data[a].t * 1000) / 1000,
+        landingTime: Math.round(data[b].t * 1000) / 1000,
+        flightTime: Math.round(ft * 1000) / 1000,
+        heightCm: Math.round((9.81 * ft * ft / 8) * 1000) / 10
+      });
+    });
+
+    // 合并地面间隔极短（<0.06s，噪声断裂）的相邻段
+    jumps.sort(function (a, b) { return a.liftoffTime - b.liftoffTime; });
+    var merged = [];
+    jumps.forEach(function (j) {
+      var last = merged[merged.length - 1];
+      if (last && j.liftoffTime - last.landingTime < 0.06) {
+        last.landingTime = j.landingTime;
+        last.flightTime = Math.round((last.landingTime - last.liftoffTime) * 1000) / 1000;
+        last.heightCm = Math.round((9.81 * last.flightTime * last.flightTime / 8) * 1000) / 10;
+      } else {
+        merged.push(j);
+      }
+    });
+    jumps = merged;
+
+    // 触地时间（RSI）：相邻两次弹跳的 落地→下次离地
+    for (var m2 = 1; m2 < jumps.length; m2++) {
+      var contact = jumps[m2].liftoffTime - jumps[m2 - 1].landingTime;
+      if (contact > 0 && contact < 2) {
+        jumps[m2].contactTime = Math.round(contact * 1000) / 1000;
+        jumps[m2].rsi = Math.round(((jumps[m2].heightCm / 100) / contact) * 100) / 100;
+      }
+    }
+    jumps.sort(function (a, b) { return b.heightCm - a.heightCm; });
+    return jumps;
+  }
+
+  // ---------- 髋部最高点测弹跳（需要身高做像素→厘米标定） ----------
+  // 原理：弹跳高度 = 起跳后髋部(≈重心)最高点 − 站立髋部基准，再用身高换算成厘米。
+  // 相比“腾空时间法”，挂框/抓篮不会让它虚高，适合扣篮等非纯抛物线场景。
+  // 关键：标定在每个顶点附近“局部”进行（人在画面里走近/走远时全局标定会失真）。
+  // opts: { heightCm: 必填, count: 可选(预期跳跃次数) }
+  function measureJumpByHip(data, opts) {
+    opts = opts || {};
+    var heightCm = parseFloat(opts.heightCm);
+    if (!heightCm || heightCm <= 0) return { ok: false, msg: '请先填写身高', jumps: [] };
+    var count = parseInt(opts.count, 10) || 0;
+    var n = data.length;
+    if (n < 5) return { ok: false, msg: '数据不足', jumps: [] };
+
+    // 髋部 y（0=顶 1=底，由 comH=(1-hipY)*100 反推）与脚部 y
+    var hip = data.map(function (d) { return (!d.lost && d.comH !== null && d.comH !== undefined) ? (1 - d.comH / 100) : null; });
+    var foot = data.map(function (d) { return (!d.lost && d.feetY !== null && d.feetY !== undefined) ? d.feetY : null; });
+
+    // 5 帧中值平滑髋部（仅用于找顶点）
+    var s = new Array(n);
+    for (var j = 0; j < n; j++) {
+      var win = [];
+      for (var k = Math.max(0, j - 2); k <= Math.min(n - 1, j + 2); k++) if (hip[k] !== null) win.push(hip[k]);
+      if (win.length) { win.sort(function (a, b) { return a - b; }); s[j] = win[Math.floor(win.length / 2)]; } else s[j] = null;
+    }
+
+    // 找髋部最高点（y 局部最小）作为候选顶点
+    var peaks = [];
+    for (var m = 1; m < n - 1; m++) {
+      if (s[m] === null || s[m - 1] === null || s[m + 1] === null) continue;
+      if (s[m] < s[m - 1] && s[m] <= s[m + 1]) {
+        var bestM = m, bestV = hip[m];
+        for (var q = Math.max(0, m - 2); q <= Math.min(n - 1, m + 2); q++) {
+          if (hip[q] !== null && hip[q] < bestV) { bestV = hip[q]; bestM = q; }
+        }
+        peaks.push({ idx: bestM, t: data[bestM].t, hipY: bestV });
+      }
+    }
+    // 相邻极近的峰合并（保留更高者）
+    peaks.sort(function (a, b) { return a.t - b.t; });
+    var merged = [];
+    peaks.forEach(function (p) {
+      var last = merged[merged.length - 1];
+      if (last && p.t - last.t < 0.15) { if (p.hipY < last.hipY) merged[merged.length - 1] = p; return; }
+      merged.push(p);
+    });
+    peaks = merged;
+
+    // 对每个顶点：在其附近 ±1s 窗口内局部标定 + 局部基准
+    var out = [];
+    var endT = data[n - 1].t;
+    peaks.forEach(function (p) {
+      var t0 = Math.max(0, p.t - 1.0), t1 = Math.min(endT, p.t + 1.0);
+      var legs = [], feets = [];
+      for (var i = 0; i < n; i++) {
+        if (data[i].t < t0 || data[i].t > t1) continue;
+        if (hip[i] !== null && foot[i] !== null && foot[i] > hip[i]) legs.push(foot[i] - hip[i]);
+        if (foot[i] !== null) feets.push(foot[i]);
+      }
+      if (legs.length < 5 || feets.length < 5) return;
+      legs.sort(function (a, b) { return a - b; });
+      feets.sort(function (a, b) { return a - b; });
+      var legNorm = legs[Math.floor(legs.length * 0.9)];     // 站直时髋→脚长度
+      var ground = feets[Math.floor(feets.length * 0.9)];    // 局部地面线（脚最低处）
+      // 髋→脚 占身高的比例：MediaPipe 的“髋”关键点比解剖髋关节靠上（接近腰线），
+      // 实测约 0.63（若整体仍偏小/偏大，微调此系数即可）。
+      var HIP_FRAC = 0.63;
+      var scale = heightCm / (legNorm / HIP_FRAC);               // 厘米 / 单位画面高度（局部）
+      var baseHip = ground - legNorm;                        // 站立髋高 = 地面 − 站直腿长（不受腾空帧影响）
+      var riseCm = (baseHip - p.hipY) * scale;
+      if (riseCm > 2) out.push({ heightCm: Math.round(riseCm * 10) / 10, peakTime: Math.round(p.t * 1000) / 1000 });
+    });
+
+    // 给了次数：取最高的 N 次；没给：过滤掉跑步起伏等小抖动
+    if (count > 0) {
+      out.sort(function (a, b) { return b.heightCm - a.heightCm; });
+      out = out.slice(0, count);
+      out.sort(function (a, b) { return a.peakTime - b.peakTime; });
+    } else {
+      var minCm = Math.max(10, heightCm * 0.06);
+      out = out.filter(function (p) { return p.heightCm > minCm; });
+    }
+    out.sort(function (a, b) { return b.heightCm - a.heightCm; });
+    return { ok: true, jumps: out };
   }
 
   // ---------- 曲线图（Chart.js，宿主页面复用） ----------
@@ -715,6 +908,8 @@ window.VTPose = (function () {
     renderKeyframe: renderKeyframe,
     computeStats: computeStats,
     computeFrame: computeFrame,
+    detectJump: detectJump,
+    measureJumpByHip: measureJumpByHip,
     buildChart: buildChart,
     evaluate: evaluate,
     isConfigured: isConfigured,

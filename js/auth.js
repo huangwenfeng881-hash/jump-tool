@@ -415,6 +415,79 @@
         var res = await c.from('orders').select('*').order('created_at', { ascending: false }).limit(20);
         return res.data || [];
       } catch (e) { return []; }
+    },
+
+    // ---------- 第一批次新增：个人资料 / 训练打卡 / 摸高记录 ----------
+
+    /** 读取本人身体资料（user_profiles 表），无则返回 null */
+    getProfile: async function () {
+      var c = getClient();
+      if (!c) return null;
+      try {
+        var res = await c.from('user_profiles').select('*').limit(1);
+        return (res.data && res.data[0]) ? res.data[0] : null;
+      } catch (e) { return null; }
+    },
+
+    /** 保存本人身体资料（upsert，按 user_id） */
+    saveProfile: async function (data) {
+      var c = getClient();
+      if (!c) return { error: { message: 'Supabase 未配置' } };
+      var user = await Auth.getCurrentUser();
+      if (!user) return { error: { message: '未登录，请先登录' } };
+      return c.from('user_profiles').upsert({
+        user_id: user.id,
+        nickname: data.nickname || null,
+        height_cm: data.height_cm != null ? data.height_cm : null,
+        reach_cm: data.reach_cm != null ? data.reach_cm : null,
+        weight_kg: data.weight_kg != null ? data.weight_kg : null,
+        wingspan_cm: data.wingspan_cm != null ? data.wingspan_cm : null,
+        public_show: !!data.public_show,
+        updated_at: new Date().toISOString()
+      });
+    },
+
+    /** 读取本人全部打卡日期（返回日期字符串数组，如 ['2026-07-21']） */
+    fetchCheckins: async function () {
+      var c = getClient();
+      if (!c) return [];
+      try {
+        var res = await c.from('checkins').select('checkin_date');
+        return (res.data || []).map(function (r) { return r.checkin_date; });
+      } catch (e) { return []; }
+    },
+
+    /** 打卡/取消打卡：date 形如 'YYYY-MM-DD'。已打卡则删除，未打卡则插入 */
+    toggleCheckin: async function (date) {
+      var c = getClient();
+      if (!c) return { error: { message: 'Supabase 未配置' } };
+      var user = await Auth.getCurrentUser();
+      if (!user) return { error: { message: '未登录，请先登录' } };
+      try {
+        var q = await c.from('checkins').select('id').eq('user_id', user.id).eq('checkin_date', date);
+        if (q.error) return q;
+        if (q.data && q.data.length) {
+          return c.from('checkins').delete().eq('id', q.data[0].id);
+        }
+        return c.from('checkins').insert({ user_id: user.id, checkin_date: date });
+      } catch (e) { return { error: e }; }
+    },
+
+    /** 记录一次摸高成绩（复用 jump_records 表，test_type='摸高'，无腾空时间填 0） */
+    saveTouchRecord: function (heightCm) {
+      return Auth.saveJumpRecord({ height_cm: heightCm, flight_time: 0, test_type: '摸高' });
+    },
+
+    // ---------- 第二批：公开成绩榜单 ----------
+
+    /** 拉取公开榜单（只含昵称/站立摸高/最大原地/最大助跑，绝不含邮箱等敏感信息） */
+    fetchLeaderboard: async function () {
+      var c = getClient();
+      if (!c) return [];
+      try {
+        var res = await c.rpc('get_leaderboard');
+        return res.data || [];
+      } catch (e) { return []; }
     }
   };
 

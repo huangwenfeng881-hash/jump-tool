@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>训练打卡 · Vertrise跃升</title>
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; }
+    .jt-nav { width: 100%; }
+    .ck-wrap { width: 100%; max-width: 560px; margin: 0 auto; padding: 24px 20px 56px; display: flex; flex-direction: column; gap: 16px; }
+    .ck-head h1 { font-size: 1.5rem; font-weight: 800; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .ck-stats { display: flex; gap: 10px; }
+    .ck-stat { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+    .ck-stat .v { font-size: 1.4rem; font-weight: 800; color: var(--accent-bright); font-family: var(--font-mono); }
+    .ck-stat .k { font-size: 0.75rem; color: var(--text2); margin-top: 2px; }
+    .ck-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; }
+    .ck-month { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .ck-month b { font-size: 1rem; }
+    .ck-month button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; font-size: 1rem; }
+    .ck-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .ck-week { text-align: center; font-size: 0.72rem; color: var(--text3); padding: 4px 0; }
+    .ck-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-size: 0.9rem; cursor: pointer; border: 1px solid transparent; transition: var(--transition); }
+    .ck-day.checked { background: var(--gradient); color: var(--accent-ink); font-weight: 700; }
+    .ck-day.today { border-color: var(--accent); }
+    .ck-day.future { opacity: 0.3; cursor: default; }
+    .ck-day.blank { pointer-events: none; }
+    .ck-hint { font-size: 0.78rem; color: var(--text3); text-align: center; }
+    @media (max-width: 420px) { .ck-grid { gap: 4px; } .ck-day { font-size: 0.82rem; } }
+  </style>
+  <link rel="stylesheet" href="css/ux.css?v=15">
+</head>
+<body>
+
+  <nav class="jt-nav">
+    <a class="jt-nav-logo" href="index.html">
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="jt-nav-links">
+    <a class="jt-nav-link" href="index.html">首页</a>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+        <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+        <a class="jt-nav-link" href="pose.html">动作分析</a>
+        <a class="jt-nav-link" href="trainer.html">AI教练</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">数据<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="progress.html">进步曲线</a>
+        <a class="jt-nav-link" href="barbell-chart.html">杠铃图表</a>
+        <a class="jt-nav-link" href="leaderboard.html">排行榜</a>
+      </div>
+    </div>
+    <div class="jt-nav-group active">
+      <button class="jt-nav-link jt-nav-trigger" type="button">训练<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link active" href="checkin.html">训练打卡</a>
+        <a class="jt-nav-link" href="plans.html">训练计划</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">我的<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="profile.html">我的资料</a>
+        <a class="jt-nav-link" href="history.html">训练记录</a>
+        <a class="jt-nav-link feedback-nav" href="feedback.html">问题反馈</a>
+        <a class="jt-nav-link" href="membership.html">会员</a>
+        <a class="jt-nav-link" href="login.html">登录 / 注册</a>
+      </div>
+    </div>
+    </div>
+    <div class="jt-nav-user">
+      <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
+<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+<svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.signOut()">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html?next=checkin.html" style="display:none">登录</a>
+    </div>
+  </nav>
+
+  <div class="ck-wrap">
+    <div class="ck-head">
+      <h1>📅 训练打卡</h1>
+    </div>
+
+    <div class="ck-stats">
+      <div class="ck-stat"><div class="v" id="statStreak">0</div><div class="k">连续训练（天）</div></div>
+      <div class="ck-stat"><div class="v" id="statTotal">0</div><div class="k">总打卡（天）</div></div>
+    </div>
+
+    <div class="ck-card">
+      <div class="ck-month">
+        <button id="btnPrev">◀</button>
+        <b id="monthLabel">----</b>
+        <button id="btnNext">▶</button>
+      </div>
+      <div class="ck-grid" id="weekHead">
+        <div class="ck-week">日</div><div class="ck-week">一</div><div class="ck-week">二</div><div class="ck-week">三</div><div class="ck-week">四</div><div class="ck-week">五</div><div class="ck-week">六</div>
+      </div>
+      <div class="ck-grid" id="dayGrid"></div>
+    </div>
+
+    <div class="ck-hint">点击日期即可打卡/取消打卡（每天完成弹跳训练就打一次卡）</div>
+  </div>
+
+  <div class="jt-toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js?v=15"></script>
+  <script>
+    (function () {
+      'use strict';
+      var Auth = window.JTAuth;
+      var dates = {};      // 'YYYY-MM-DD' -> true
+      var year, month;     // 当前展示的月份
+      var today = new Date();
+      var todayStr = fmtDate(today);
+
+      function pad(n) { return (n < 10 ? '0' : '') + n; }
+      function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+
+      function toast(msg, type) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'jt-toast show ' + (type || '');
+        setTimeout(function () { t.className = 'jt-toast'; }, 2600);
+      }
+
+      // 连续打卡天数：从今天（或昨天，若今天未打）往前数
+      function calcStreak() {
+        var streak = 0;
+        var d = new Date();
+        if (!dates[todayStr]) d.setDate(d.getDate() - 1);
+        while (dates[fmtDate(d)]) { streak++; d.setDate(d.getDate() - 1); }
+        return streak;
+      }
+
+      function render() {
+        document.getElementById('monthLabel').textContent = year + '年' + (month + 1) + '月';
+        var grid = document.getElementById('dayGrid');
+        var html = '';
+        var first = new Date(year, month, 1).getDay();
+        var days = new Date(year, month + 1, 0).getDate();
+        for (var i = 0; i < first; i++) html += '<div class="ck-day blank"></div>';
+        for (var d = 1; d <= days; d++) {
+          var dateObj = new Date(year, month, d);
+          var ds = fmtDate(dateObj);
+          var cls = 'ck-day';
+          if (dates[ds]) cls += ' checked';
+          if (ds === todayStr) cls += ' today';
+          if (dateObj > today) cls += ' future';
+          html += '<div class="' + cls + '" data-date="' + ds + '">' + d + '</div>';
+        }
+        grid.innerHTML = html;
+        document.getElementById('statStreak').textContent = calcStreak();
+        document.getElementById('statTotal').textContent = Object.keys(dates).length;
+      }
+
+      function load() {
+        Auth.fetchCheckins().then(function (list) {
+          dates = {};
+          (list || []).forEach(function (d) { dates[d] = true; });
+          var now = new Date();
+          year = now.getFullYear();
+          month = now.getMonth();
+          render();
+        });
+      }
+
+      document.getElementById('dayGrid').addEventListener('click', function (e) {
+        var cell = e.target.closest('.ck-day');
+        if (!cell || cell.classList.contains('blank') || cell.classList.contains('future')) return;
+        var date = cell.dataset.date;
+        var wasChecked = !!dates[date];
+        // 弹簧弹跳反馈（CSS keyframe，贴合弹跳主题）
+        cell.classList.remove('ux-pop');
+        void cell.offsetWidth; // 重启动画
+        cell.classList.add('ux-pop');
+        // 乐观切换高亮 + 统计（背景由 CSS 过渡平滑变化，不整格重渲染）
+        if (wasChecked) delete dates[date]; else dates[date] = true;
+        cell.classList.toggle('checked', !wasChecked);
+        document.getElementById('statStreak').textContent = calcStreak();
+        document.getElementById('statTotal').textContent = Object.keys(dates).length;
+        Auth.toggleCheckin(date).then(function (res) {
+          if (res.error) {
+            // 失败回滚
+            if (wasChecked) dates[date] = true; else delete dates[date];
+            cell.classList.toggle('checked', wasChecked);
+            document.getElementById('statStreak').textContent = calcStreak();
+            document.getElementById('statTotal').textContent = Object.keys(dates).length;
+            return toast('操作失败: ' + (res.error.message || ''), 'err');
+          }
+          toast(wasChecked ? '已取消打卡' : '打卡成功，今天也练了 💪', 'ok');
+        });
+      });
+      document.getElementById('btnPrev').addEventListener('click', function () {
+        month--; if (month < 0) { month = 11; year--; }
+        render();
+      });
+      document.getElementById('btnNext').addEventListener('click', function () {
+        month++; if (month > 11) { month = 0; year++; }
+        render();
+      });
+
+      Auth.init(function (session) {
+        if (!session) { location.href = 'login.html?next=checkin.html'; return; }
+        load();
+      });
+    })();
+  </script>
+</body>
+</html>
