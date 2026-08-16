@@ -7,9 +7,11 @@
   <link rel="icon" type="image/png" href="img/favicon.png">
   <link rel="stylesheet" href="css/style.css">
   <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
-  <!-- MediaPipe Pose（本地自托管）：用于自动识别离地/落地 -->
-  <script src="mediapipe/pose.js"></script>
-  <script src="mediapipe/pose_solution_packed_assets_loader.js"></script>
+  <!-- MediaPipe Tasks PoseLandmarker（本地自托管，CPU 推理，不依赖 GPU/CDN） -->
+  <script type="module">
+    import { PoseLandmarker, FilesetResolver } from './mediapipe/tasks-vision/vision_bundle.mjs';
+    window.__VT_VISION__ = { PoseLandmarker: PoseLandmarker, FilesetResolver: FilesetResolver };
+  </script>
   <style>
     body { display: flex; flex-direction: column; align-items: center; }
     .jt-nav { width: 100%; }
@@ -93,6 +95,7 @@
     <div class="jt-nav-group active">
       <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
       <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="ai-jump.html">AI弹跳分析</a>
         <a class="jt-nav-link active" href="jump.html">弹跳测量</a>
         <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
         <a class="jt-nav-link" href="pose.html">动作分析</a>
@@ -169,14 +172,14 @@
         <!-- 逐帧导航 -->
         <div class="frame-nav" id="frameNav">
           <button id="btnFrameBack" title="后退一帧 (←)">◀</button>
-          <span class="frame-info" id="frameInfo">0.000s</span>
+          <span class="frame-info" id="frameInfo">0 / 0 帧</span>
           <button id="btnFrameFwd" title="前进一帧 (→)">▶</button>
           <span class="kbd-inline">← → 逐帧 · A 离地 · S 落地</span>
         </div>
 
         <div class="timeline" id="timeline">
           <input type="range" id="timelineSlider" min="0" max="1000" value="0" step="1">
-          <div class="timeline-labels"><span>0.000s</span><span id="timelineCurrent">0.000s</span><span id="timelineEnd">0.000s</span></div>
+          <div class="timeline-labels"><span>0 帧</span><span id="timelineCurrent">0 帧</span><span id="timelineEnd">0 帧</span></div>
           <div class="timeline-markers" id="timelineMarkers"></div>
         </div>
 
@@ -265,9 +268,64 @@
         var f = 0;
         try {
           var s = el.video.captureStream && el.video.captureStream();
-          if (s) { var tr = s.getVideoTracks()[0]; if (tr && tr.getSettings && tr.getSettings().frameRate > 0) f = Math.round(tr.getSettings().frameRate); }
+          // 保留视频原始帧率（不取整）：57 / 29.97 / 可变帧率都按原值参与帧数计算
+          if (s) { var tr = s.getVideoTracks()[0]; if (tr && tr.getSettings) { var fr = tr.getSettings().frameRate; if (fr > 0 && isFinite(fr)) f = fr; } }
         } catch (e) {}
+        detectedFps = f;      // 记录容器帧率原值（0 = 检测失败）
         fps = f || 30;
+      }
+
+      // 播放中按实际解码帧数增量校准（对 seek/拖动免疫），
+      // 确保总帧数与视频真实帧数一致（容器帧率缺失/不准/可变帧率时尤其重要）。
+      // 注意：getVideoPlaybackQuality 的解码计数会滞后于播放进度，窗口太短会算低，
+      // 故要求至少 1s / 20 帧的窗口；且容器帧率可信（检测成功）且偏差 <15% 时不覆盖，
+      // 避免把 57fps 误改成 54.5fps 这类短窗口误差。
+      var detectedFps = 0;
+      var calFrames = 0, calTime = 0, calActive = false, fpsCalibrated = false;
+      var autoCalibrating = false, calLatest = 0;   // 自动校准中持续更新估值，结束时用最长窗口锁定
+      function calibrateFps() {
+        if (fpsCalibrated) return;
+        var q = null, t = el.video.currentTime || 0;
+        try { q = el.video.getVideoPlaybackQuality && el.video.getVideoPlaybackQuality(); } catch (e) {}
+        if (!q) return;
+        // 优先用解码帧数（webkitDecodedFrameCount）：totalVideoFrames 是渲染帧数，
+        // 在低配/无 GPU 环境会因渲染丢帧而偏低（57.6fps 会被算成 55）
+        var decoded = q.totalVideoFrames;
+        if (typeof q.webkitDecodedFrameCount === 'number') decoded = q.webkitDecodedFrameCount;
+        if (!calActive) {
+          // 基准延迟到播放稳定后（t≥0.3s）：播放启动期解码计数滞后最大
+          if (t < 0.3) return;
+          calActive = true; calFrames = decoded; calTime = t;
+          return;
+        }
+        var df = decoded - calFrames;
+        var dt = t - calTime;
+        if (dt >= 1.0 && df >= 20) {
+          var real = df / dt;
+          if (real > 5 && real < 500) {
+            if (detectedFps > 0 && Math.abs(real - detectedFps) / detectedFps < 0.15) { calLatest = 0; return; } // 容器值可信，保持原值
+            if (autoCalibrating) { calLatest = real; return; }  // 自动校准中：暂存，等最长窗口
+            fpsCalibrated = true;
+            fps = real;
+            syncTime();
+            el.end.textContent = totalFrames() + ' 帧';
+            setStatus('视频已就绪 · ' + Math.round(fps) + 'fps（已按真实帧数校准）· ← → 逐帧找离地/落地，按 A / S 标记', true);
+          }
+        }
+      }
+      function applyCalibrated() {
+        if (fpsCalibrated || !(calLatest > 0)) return;
+        fpsCalibrated = true;
+        fps = calLatest;
+        syncTime();
+        el.end.textContent = totalFrames() + ' 帧';
+        setStatus('视频已就绪 · ' + Math.round(fps) + 'fps（已按真实帧数校准）· ← → 逐帧找离地/落地，按 A / S 标记', true);
+      }
+
+      // 帧号换算（0-based，与弹跳检测的帧号一致）：当前帧 / 总帧
+      function totalFrames() { return Math.round(duration * fps) || 0; }
+      function frameOf(t) {
+        return Math.max(0, Math.min(Math.round((t || 0) * fps), totalFrames()));
       }
 
       function fitCanvas() {
@@ -287,6 +345,10 @@
 
       function loadFile(file) {
         if (!file || !file.type.startsWith('video/')) return toast('请选择视频文件', 'err');
+        // 重置上一视频的帧率校准状态（换视频时不清会导致新视频沿用旧校准结果）
+        if (autoCalibTimer) { clearTimeout(autoCalibTimer); autoCalibTimer = null; }
+        autoCalibrating = false;
+        detectedFps = 0; fpsCalibrated = false; calActive = false; calFrames = 0; calTime = 0; calLatest = 0;
         if (videoUrl) URL.revokeObjectURL(videoUrl);
         videoUrl = URL.createObjectURL(file);
         el.video.src = videoUrl;
@@ -304,12 +366,95 @@
           el.frameNav.classList.add('visible');
           el.liftoff.disabled = false;
           el.landing.disabled = false;
-          el.end.textContent = duration.toFixed(3) + 's';
-          setStatus('视频已就绪 · ← → 逐帧找离地/落地，按 A / S 标记', true);
+          el.end.textContent = totalFrames() + ' 帧';
+          setStatus('视频已就绪 · ' + Math.round(fps) + 'fps · ← → 逐帧找离地/落地，按 A / S 标记', true);
           toast('视频已导入', 'ok');
+          autoCalibrateFps();
+          readVideoFrames();
         };
         el.video.onerror = function () { toast('视频无法解码，请检查格式', 'err'); };
         el.video.load();
+      }
+
+      // 精确帧数：直接解析 MP4 容器（stsz 样本表），不依赖播放解码统计。
+      // 手机视频常标注错误帧率（30fps 容器 / 57fps 实际），解析 stsz 得到的就是真实帧数。
+      function parseMp4TotalFrames(buf) {
+        if (!buf || buf.byteLength < 16) return null;
+        var dv = new DataView(buf);
+        function be32(o) { return dv.getUint32(o); }
+        function btype(o) { return String.fromCharCode(dv.getUint8(o + 4), dv.getUint8(o + 5), dv.getUint8(o + 6), dv.getUint8(o + 7)); }
+        // 找 moov（通常在文件尾）
+        var moov = -1, moovSize = 0, off = 0;
+        while (off + 8 <= buf.byteLength) {
+          var size = be32(off);
+          if (size < 8 || off + size > buf.byteLength) break;
+          if (btype(off) === 'moov') { moov = off; moovSize = size; break; }
+          off += size;
+        }
+        if (moov < 0) return null;
+        var counts = [];
+        function walk(start, end, isVideo) {
+          var o = start;
+          while (o + 8 <= end) {
+            var size = be32(o);
+            if (size < 8 || o + size > end) break;
+            var t = btype(o);
+            if (t === 'hdlr' && o + 20 <= end) {
+              var h = String.fromCharCode(dv.getUint8(o + 16), dv.getUint8(o + 17), dv.getUint8(o + 18), dv.getUint8(o + 19));
+              if (h === 'vide') isVideo = true;
+            } else if (t === 'stsz' && isVideo) {
+              var cnt = be32(o + 16);
+              if (cnt > 0 && cnt < 10000000) counts.push(cnt);
+            } else if (t === 'trak' || t === 'mdia' || t === 'minf' || t === 'stbl') {
+              walk(o + 8, o + size, isVideo);
+            }
+            o += size;
+          }
+        }
+        walk(moov + 8, moov + moovSize, false);
+        return counts.length ? Math.max.apply(null, counts) : null;
+      }
+
+      // 加载后解析 MP4 得到精确总帧数并换算精确帧率；解析失败走播放校准兜底
+      function readVideoFrames() {
+        if (!videoUrl || fpsCalibrated) return;
+        fetch(videoUrl).then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
+          var n = parseMp4TotalFrames(buf);
+          if (n && n > 0 && duration > 0) {
+            fpsCalibrated = true;      // 精确帧数已定，不再用播放校准覆盖
+            fps = n / duration;        // 精确平均帧率（57fps 视频 = 208/3.6491 = 57.0）
+            el.end.textContent = n + ' 帧';
+            syncTime();
+            setStatus('视频已就绪 · ' + n + ' 帧 · ' + Math.round(fps) + 'fps · ← → 逐帧找离地/落地，按 A / S 标记', true);
+          }
+          // 非 mp4 / 解析失败：等 autoCalibrateFps 的播放校准
+        }).catch(function () {});
+      }
+
+      // 容器帧率可能标注错误（如 30fps 容器 / 57fps 实际，手机 VFR 视频常见），
+      // 静音自动播放约 3 秒触发校准（期间持续用更长窗口刷新估值），
+      // 让总帧数在导入后立即正确，然后暂停回到开头。
+      var autoCalibTimer = null;
+      function autoCalibrateFps() {
+        if (fpsCalibrated || duration <= 1.2) return;
+        autoCalibrating = true;
+        el.video.muted = true;
+        var finish = function () {
+          if (!autoCalibTimer && !autoCalibrating) return;   // 已被换视频清理 / 已结束
+          autoCalibrating = false;
+          if (autoCalibTimer) { clearTimeout(autoCalibTimer); autoCalibTimer = null; }
+          try { el.video.pause(); } catch (e) {}
+          applyCalibrated();   // 用自动校准期间最长窗口的估值锁定
+          try { el.video.currentTime = 0; } catch (e) {}
+          syncTime();
+        };
+        el.video.play().then(function () {
+          autoCalibTimer = setTimeout(finish, 3000);
+        }).catch(function () { autoCalibrating = false; });
+        // 用户手动暂停/操作时提前结束自动校准
+        el.video.addEventListener('pause', function onP() {
+          if (autoCalibTimer) { el.video.removeEventListener('pause', onP); finish(); }
+        }, { once: true });
       }
 
       function resetState() {
@@ -355,10 +500,11 @@
       }
 
       function syncTime() {
+        calibrateFps();
         var t = el.video.currentTime || 0;
         el.slider.value = duration ? Math.round((t / duration) * 1000) : 0;
-        el.current.textContent = t.toFixed(3) + 's';
-        el.frameInfo.textContent = t.toFixed(3) + 's';
+        el.current.textContent = frameOf(t) + ' 帧';
+        el.frameInfo.textContent = frameOf(t) + ' / ' + totalFrames() + ' 帧';
       }
 
       async function step(dir) {
@@ -375,7 +521,7 @@
         markers.sort(function (a, b) { return a.time - b.time; });
         renderMarkers();
         pair();
-        toast((type === 'liftoff' ? '⬆ 离地 ' : '⬇ 落地 ') + t.toFixed(3) + 's', 'ok');
+        toast((type === 'liftoff' ? '⬆ 离地 ' : '⬇ 落地 ') + frameOf(t) + ' 帧', 'ok');
       }
 
       function removeMarker(id) {
@@ -462,7 +608,7 @@
           var tag = m.type === 'liftoff' ? '⬆ 离地' : (m.type === 'landing' ? '⬇ 落地' : '▲ 顶点');
           return '<div class="marker-item">' +
             '<span class="tag ' + m.type + '">' + tag + '</span>' +
-            '<span class="time">' + m.time.toFixed(3) + 's</span>' +
+            '<span class="time">' + frameOf(m.time) + ' 帧</span>' +
             '<button class="del" data-id="' + m.id + '">✕</button></div>';
         }).join('');
         el.markerList.querySelectorAll('.del').forEach(function (b) {
@@ -490,12 +636,12 @@
             return '<div class="result-row"><span>#' + (i + 1) + '</span><span>顶点 ' + j.peakTime.toFixed(2) + 's</span><span class="h">' + j.heightCm.toFixed(1) + ' cm</span></div>';
           }).join('');
         } else {
-          el.detail.textContent = '共 ' + jumps.length + ' 次弹跳 · 最佳飞行时间 ' + best.flightTime.toFixed(3) + 's · 公式 h = g·t²/8' + (best.rsi != null ? ' · RSI ' + best.rsi.toFixed(2) : '');
+          el.detail.textContent = '共 ' + jumps.length + ' 次弹跳 · 最佳弹跳高度 ' + best.heightCm.toFixed(1) + ' cm' + (best.rsi != null ? ' · RSI ' + best.rsi.toFixed(2) : '');
           el.list.innerHTML = jumps.map(function (j, i) {
-            return '<div class="result-row"><span>#' + (i + 1) + '</span><span>⏱ ' + j.flightTime.toFixed(3) + 's</span>' +
+            return '<div class="result-row"><span>#' + (i + 1) + '</span><span class="h">' + j.heightCm.toFixed(1) + ' cm</span>' +
               (j.contactTime != null ? '<span>触地 ' + j.contactTime.toFixed(3) + 's</span>' : '') +
               (j.rsi != null ? '<span>RSI ' + j.rsi.toFixed(2) + '</span>' : '') +
-              '<span class="h">' + j.heightCm.toFixed(1) + ' cm</span></div>';
+              '<span>⏱ 腾空 ' + j.flightTime.toFixed(3) + 's</span></div>';
           }).join('');
         }
       }
@@ -596,10 +742,11 @@
       el.zone.addEventListener('dragover', function (e) { e.preventDefault(); });
       el.zone.addEventListener('drop', function (e) { e.preventDefault(); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
 
-      el.slider.addEventListener('input', function () { el.current.textContent = ((parseInt(el.slider.value) / 1000) * duration).toFixed(3) + 's'; });
+      el.slider.addEventListener('input', function () { el.current.textContent = frameOf(((parseInt(el.slider.value) / 1000) * duration)) + ' 帧'; });
       el.slider.addEventListener('change', async function () { await seekTo((parseInt(el.slider.value) / 1000) * duration); syncTime(); });
       el.video.addEventListener('timeupdate', syncTime);
       el.video.addEventListener('loadeddata', syncTime);
+      el.video.addEventListener('seeking', function () { calActive = false; });
 
       document.addEventListener('keydown', function (e) {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;

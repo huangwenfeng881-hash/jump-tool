@@ -11,10 +11,10 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js">
     </script>
-    <!-- MediaPipe Pose（本地自托管，无 CDN 依赖） -->
-    <script src="mediapipe/pose.js">
-    </script>
-    <script src="mediapipe/pose_solution_packed_assets_loader.js">
+    <!-- MediaPipe Tasks PoseLandmarker（本地自托管，CPU 推理，不依赖 GPU/CDN） -->
+    <script type="module">
+        import { PoseLandmarker, FilesetResolver } from './mediapipe/tasks-vision/vision_bundle.mjs';
+        window.__VT_VISION__ = { PoseLandmarker: PoseLandmarker, FilesetResolver: FilesetResolver };
     </script>
     <style>
         * {
@@ -669,6 +669,7 @@
     <div class="jt-nav-group active">
       <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
       <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="ai-jump.html">AI弹跳分析</a>
         <a class="jt-nav-link" href="jump.html">弹跳测量</a>
         <a class="jt-nav-link active" href="barbell.html">杠铃测速</a>
         <a class="jt-nav-link" href="pose.html">动作分析</a>
@@ -770,7 +771,7 @@
                 <button class="btn-icon" id="btnStepBack">⏮</button>
                 <button class="btn-icon" id="btnStepForward">⏭</button>
                 <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.01">
-                <span class="time-label" id="timeLabel">00:00.00 / 00:00.00</span>
+                <span class="time-label" id="timeLabel">0 / 0 帧</span>
                 <select id="speedSelect"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="1.5">1.5x</option><option value="2">2x</option></select>
                 <span style="color:var(--text-muted);font-size:0.7rem;" id="metaInfo">未加载视频</span>
             </div>
@@ -940,10 +941,6 @@
             let _histUpdateCounter = 0;
 
             // ---------- 工具函数 ----------
-            function formatTime(s) { if (isNaN(s) || s < 0) return '00:00.00';
-                const m = Math.floor(s / 60),
-                    sec = s % 60; return `${String(m).padStart(2, '0')}:${sec.toFixed(2).padStart(5, '0')}`; }
-
             function showToast(msg, err = false) {
                 const t = document.querySelector('.toast');
                 if (t) t.remove();
@@ -1051,6 +1048,7 @@
                     videoDuration = videoEl.duration;
                     videoWidth = videoEl.videoWidth;
                     videoHeight = videoEl.videoHeight;
+                    fpsCalibrated = false; manualFpsOverride = false; calActive = false;
                     estimateFrameRate();
                     totalFramesEstimate = Math.round(videoDuration * videoFps);
                     videoLoaded = true;
@@ -1090,7 +1088,7 @@
                     trackingBox.style.display = 'none';
                     updateChart([]);
                     updateStatsPanel(null);
-                    showToast(`视频加载成功 | ${videoWidth}x${videoHeight} | ${videoDuration.toFixed(1)}s | ~${videoFps}fps`);
+                    showToast(`视频加载成功 | ${videoWidth}x${videoHeight} | ${videoDuration.toFixed(1)}s | ~${Math.round(videoFps)}fps`);
                 };
                 videoEl.onerror = () => showToast('视频加载失败', true);
                 videoEl.onseeked = () => { updateTimeLabel();
@@ -1109,11 +1107,39 @@
                     const s = videoEl.captureStream().getVideoTracks()[0];
                     if (s && s.getSettings) {
                         const f = s.getSettings().frameRate;
-                        if (f > 0) { videoFps = Math.round(f);
-                            manualFpsInput.value = videoFps; return; }
+                        // 保留视频原始帧率（不取整）：57 / 29.97 / 可变帧率都按原值参与帧数计算
+                        if (f > 0 && isFinite(f)) { videoFps = f;
+                            manualFpsInput.value = Math.round(videoFps); return; }
                     }
                 } catch (e) {}
                 videoFps = parseInt(manualFpsInput.value) || 30;
+            }
+
+            // 播放中按实际解码帧数增量校准（对 seek/拖动免疫），
+            // 确保总帧数与视频真实帧数一致；用户手动改过 fps 输入框后不再自动校准
+            let calFrames = 0, calTime = 0, calActive = false, fpsCalibrated = false, manualFpsOverride = false;
+            manualFpsInput.addEventListener('change', () => { manualFpsOverride = true; });
+            videoEl.addEventListener('seeking', () => { calActive = false; });
+            function calibrateFps() {
+                if (fpsCalibrated || manualFpsOverride) return;
+                const q = (videoEl.getVideoPlaybackQuality && videoEl.getVideoPlaybackQuality()) || null;
+                const t = videoEl.currentTime || 0;
+                if (!q) return;
+                if (!calActive) { calActive = true; calFrames = q.totalVideoFrames; calTime = t; return; }
+                const df = q.totalVideoFrames - calFrames;
+                const dt = t - calTime;
+                if (dt >= 0.5 && df >= 10) {
+                    const real = df / dt;
+                    if (real > 5 && real < 500) {
+                        fpsCalibrated = true;
+                        videoFps = real;
+                        totalFramesEstimate = Math.round(videoDuration * videoFps);
+                        manualFpsInput.value = Math.round(real);
+                        updateTimeLabel();
+                        updateMetaInfo();
+                        showToast(`已校准真实帧率 ${Math.round(real)}fps`);
+                    }
+                }
             }
 
             function resizeOverlayCanvas() {
@@ -1239,16 +1265,22 @@
                 // 播放到剪辑终点自动停止
                 const ce = clamp(parseFloat(clipEndInput.value) || videoDuration, 0, videoDuration);
                 if (videoEl.currentTime >= ce) { videoEl.pause(); return; }
+                calibrateFps();
                 drawOverlayFrame();
                 updateTimeLabel();
                 seekSlider.value = videoEl.currentTime;
                 requestAnimationFrame(playbackLoop);
             }
 
-            function updateTimeLabel() { timeLabel.textContent = `${formatTime(videoEl.currentTime)} / ${formatTime(videoDuration)}`; }
+            // 帧号换算（0-based，与姿态检测的帧号一致）：当前帧 / 总帧
+            function totalFrames() { return Math.round(videoDuration * videoFps) || 0; }
+            function frameOf(t) {
+                return Math.max(0, Math.min(Math.round((t || 0) * videoFps), totalFrames()));
+            }
+            function updateTimeLabel() { timeLabel.textContent = `${frameOf(videoEl.currentTime)} / ${totalFrames()} 帧`; }
 
             function updateMetaInfo() { if (!videoLoaded) { metaInfo.textContent = '未加载视频'; return; }
-                metaInfo.textContent = `${videoWidth}x${videoHeight} | ~${videoFps}fps | ${totalFramesEstimate}帧`; }
+                metaInfo.textContent = `${videoWidth}x${videoHeight} | ~${Math.round(videoFps)}fps | ${totalFramesEstimate}帧`; }
 
             function stepFrame(dir) { if (!videoLoaded) return;
                 videoEl.pause();

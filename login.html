@@ -85,6 +85,7 @@
     <div class="jt-nav-group">
       <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
       <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="ai-jump.html">AI弹跳分析</a>
         <a class="jt-nav-link" href="jump.html">弹跳测量</a>
         <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
         <a class="jt-nav-link" href="pose.html">动作分析</a>
@@ -169,6 +170,11 @@
         <div class="jt-field">
           <label for="regConfirm">确认密码</label>
           <input class="jt-input" id="regConfirm" type="password" placeholder="再次输入密码" autocomplete="new-password">
+        </div>
+        <div class="jt-field">
+          <label for="regInvite">推广邀请码（选填）</label>
+          <input class="jt-input" id="regInvite" type="text" placeholder="推广人提供的邀请码，如 VTRS-XXXX" autocomplete="off">
+          <div style="font-size:0.74rem;color:var(--text3);margin-top:-2px;">填写推广人的邀请码：注册后自动获赠 VIP 会员，站长可据此统计推广来源</div>
         </div>
         <div class="jt-msg err" id="regMsg"></div>
         <button class="jt-btn jt-btn-accent" type="submit" style="width:100%">注 册</button>
@@ -297,7 +303,11 @@
         if (p1 !== p2) { setMsg('regMsg', '两次输入的密码不一致', false); return false; }
         var btn = e.target.querySelector('button');
         btn.disabled = true;
-        Auth.signUp(document.getElementById('regEmail').value, p1).then(function (r) {
+        Auth.signUp(
+          document.getElementById('regEmail').value,
+          p1,
+          document.getElementById('regInvite').value
+        ).then(function (r) {
           btn.disabled = false;
           setMsg('regMsg', r.msg, r.ok);
           if (r.ok) {

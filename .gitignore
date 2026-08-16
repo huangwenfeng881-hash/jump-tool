@@ -1,1 +1,9 @@
 supabase/.temp/
+# 本地测试产物
+_frames/
+# 首页视频的临时剪辑片段
+intro_tmp/
+# 精度验证用的个人测试视频（如需上传删掉这行即可）
+test video/
+# 服务器启动失败日志
+server-error.log

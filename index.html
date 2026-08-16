@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vertrise跃升 · 弹跳高度测量 / 杠铃 VBT 测速 / AI 弹跳训练师</title>
-  <meta name="description" content="免费在线工具：上传视频测算弹跳高度、杠铃 VBT 速度分析，AI 训练师按你的水平生成训练计划。无需注册，打开即用。">
+  <title>AI 弹跳分析 · Vertrise跃升</title>
+  <meta name="description" content="上传助跑起跳视频，AI 自动拆解起跳角度、屈膝深度、摆臂速度、最后两步节奏、落地稳定性，判断你是力量型/速度型/弹性型，并指出弹跳短板。免费在线使用。">
   <link rel="icon" type="image/png" href="img/favicon.png">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/landing.css">
@@ -14,6 +14,24 @@
     .ld-dunk-sub { font-size: 0.85rem; opacity: 0.9; margin-top: 4px; }
     .ld-dunk-go { background: rgba(0,0,0,0.18); padding: 9px 18px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
     .ld-dunk:hover .ld-dunk-go { background: rgba(0,0,0,0.32); }
+    /* AI 弹跳分析 · 首页弹窗 */
+    .ld-modal-mask { position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 20px; }
+    .ld-modal-mask.show { display: flex; }
+    .ld-modal { width: 100%; max-width: 440px; background: var(--bg-panel, #fff); color: var(--text); border-radius: 18px; padding: 26px 24px 22px; box-shadow: 0 24px 64px rgba(0,0,0,0.35); border: 1px solid var(--border); animation: ld-pop .35s cubic-bezier(.22,1,.36,1); text-align: left; position: relative; overflow: hidden; }
+    @keyframes ld-pop { from { opacity: 0; transform: translateY(22px) scale(.96); } to { opacity: 1; transform: none; } }
+    .ld-modal::before { content: ''; position: absolute; left: 0; top: 0; right: 0; height: 4px; background: var(--gradient); }
+    .ld-modal-close { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--surface2); color: var(--text2); font-size: 1rem; cursor: pointer; line-height: 1; }
+    .ld-modal-close:hover { background: var(--surface3); }
+    .ld-modal-icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .ld-modal h3 { margin: 0 0 6px; font-size: 1.25rem; font-weight: 800; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .ld-modal p { margin: 0 0 12px; font-size: 0.88rem; color: var(--text2); line-height: 1.65; }
+    .ld-modal-list { display: flex; flex-direction: column; gap: 7px; margin: 0 0 16px; padding: 0; list-style: none; }
+    .ld-modal-list li { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 7px 10px; }
+    .ld-modal-list li svg { flex-shrink: 0; color: var(--success); }
+    .ld-modal-list li b { color: var(--accent-bright); font-weight: 700; }
+    .ld-modal-actions { display: flex; gap: 10px; }
+    .ld-modal-actions .jt-btn { flex: 1; }
+    .ld-modal-note { margin-top: 10px; font-size: 0.72rem; color: var(--text3); text-align: center; }
   </style>
   <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
   <link rel="stylesheet" href="css/ux.css?v=15">
@@ -35,6 +53,7 @@
     <div class="jt-nav-group">
       <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
       <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="ai-jump.html">AI弹跳分析</a>
         <a class="jt-nav-link" href="jump.html">弹跳测量</a>
         <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
         <a class="jt-nav-link" href="pose.html">动作分析</a>
@@ -82,11 +101,11 @@
   <!-- Hero -->
   <header class="ld-hero">
     <canvas id="heroFx"></canvas>
-    <div class="ld-hero-badge"><span class="dot"></span> 弹跳测量 · 杠铃 VBT · AI 训练师</div>
-    <h1>把每次起跳，<span class="brand-cn">量成数据</span></h1>
-    <p class="ld-hero-sub">上传一段训练视频，测出弹跳高度与杠铃速度；AI 训练师再按你的水平排好计划。免费工具，打开就能用。</p>
+    <div class="ld-hero-badge"><span class="dot"></span> AI 弹跳分析 · 动作拆解 · 短板诊断</div>
+    <h1>让 AI 拆解<span class="brand-cn">你的每一次起跳</span></h1>
+    <p class="ld-hero-sub">上传一段助跑起跳视频，AI 自动算出起跳角度、屈膝深度、摆臂速度、最后两步节奏与落地稳定性，判断你是力量型、速度型还是弹性型，并指出你的弹跳短板。</p>
     <div class="ld-hero-cta">
-      <a class="jt-btn jt-btn-accent jt-btn-lg" href="jump.html">免费开始测量</a>
+      <a class="jt-btn jt-btn-accent jt-btn-lg" href="ai-jump.html">🤖 免费 AI 分析弹跳</a>
       <a class="jt-btn jt-btn-outline jt-btn-lg" href="trainer.html">AI 训练师</a>
     </div>
     <div class="ld-hero-cta" style="margin-top:14px;">
@@ -103,13 +122,13 @@
     </div>
   </header>
 
-  <!-- 扣篮差距入口：进入网站第一眼可见 -->
-  <a class="ld-dunk" href="profile.html">
+  <!-- AI 弹跳分析入口：进入网站第一眼可见（主要宣传点） -->
+  <a class="ld-dunk" href="ai-jump.html">
     <div>
-      <div class="ld-dunk-title">🏀 计算扣篮还差多少厘米</div>
-      <div class="ld-dunk-sub">填一下站立摸高，马上告诉你距离扣标准篮筐还差多远</div>
+      <div class="ld-dunk-title">🤖 AI 弹跳分析：5 项指标一键拆解</div>
+      <div class="ld-dunk-sub">起跳角度 · 屈膝深度 · 摆臂速度 · 最后两步节奏 · 落地稳定性 · 力量/速度/弹性型判断 · 短板诊断</div>
     </div>
-    <span class="ld-dunk-go">去计算 →</span>
+    <span class="ld-dunk-go">开始分析 →</span>
   </a>
 
   <!-- 未登录提示（登录后隐藏） -->
@@ -132,10 +151,19 @@
   <section class="ld-section" id="tools">
     <div class="ld-section-head">
       <span class="ld-kicker">功能工具</span>
-      <h2>三件套，把训练说得清</h2>
-      <p>不整玄学，每样工具都给你一组看得懂的数字。</p>
+      <h2>AI 弹跳分析，一键拆解动作</h2>
+      <p>不整玄学，每项指标都是一组看得懂的数字，短板由 AI 直接告诉你。</p>
     </div>
     <div class="ld-tools">
+      <a class="ld-tool-card" href="ai-jump.html">
+        <div class="ld-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9m0 0 3.5-3.5M12 12 8.5 8.5M5 21l3-6M19 21l-3-6M4 12h5M15 12h5"/></svg></div>
+        <div class="ld-tool-name">AI 弹跳分析</div>
+        <div class="ld-tool-desc">上传助跑起跳视频，AI 自动拆解起跳角度、屈膝深度、摆臂速度、最后两步节奏、落地稳定性，判断你的弹跳类型并指出短板。</div>
+        <div class="ld-tool-foot">
+          <span class="ld-tool-badge free">免费每日 2 次</span>
+          <span class="ld-tool-go">去分析 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+        </div>
+      </a>
       <a class="ld-tool-card" href="jump.html">
         <div class="ld-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg></div>
         <div class="ld-tool-name">弹跳测量</div>
@@ -213,7 +241,7 @@
       <div class="ld-step">
         <div class="ld-step-num">2</div>
         <h3>AI 自动分析</h3>
-        <p>弹跳高度、杠铃速度、功率曲线，一帧帧算给你看。</p>
+        <p>起跳角度、屈膝深度、摆臂速度、两步节奏、落地稳定性，一帧帧算给你看。</p>
       </div>
       <div class="ld-step">
         <div class="ld-step-num">3</div>
@@ -234,7 +262,7 @@
       <div class="ld-price-card">
         <div class="ld-price-name">FREE</div>
         <div class="ld-price-amount">¥0<small> / 永久</small></div>
-        <div class="ld-price-desc">弹跳测量<br>杠铃测速<br>AI 分析每日 2 次</div>
+        <div class="ld-price-desc">AI 弹跳分析<br>弹跳测量 · 杠铃测速<br>每日 2 次免费</div>
         <a class="jt-btn jt-btn-outline" href="jump.html">免费开始</a>
         <div class="ld-price-note">登录后使用，每日自动重置</div>
       </div>
@@ -276,6 +304,10 @@
         <div class="ld-faq-a">一部能拍视频的手机或相机就够了。侧面拍，让杠铃全程都在画面里，软件会自动追踪轨迹，算出速度、位移和功率曲线。</div>
       </details>
       <details>
+        <summary>AI 弹跳分析会分析什么？</summary>
+        <div class="ld-faq-a">上传一段助跑起跳视频，AI 会识别你的骨架并自动算出起跳角度、摆臂速度、最后两步节奏、落地稳定性与腾空时间，并用膝盖角度/髋角曲线展示下蹲蓄力过程；再结合内置的弹跳技术要点，判断你是力量型、速度型还是弹性型，并列出最需要改进的短板和训练建议。</div>
+      </details>
+      <details>
         <summary>AI 训练师靠谱吗？</summary>
         <div class="ld-faq-a">免费版基于成熟的弹跳训练框架（力量 + 爆发力 + 技术）按你的水平排计划，会照顾年龄、伤病和可用器械；会员版再由 AI 结合你的数据深度定制。</div>
       </details>
@@ -286,8 +318,8 @@
   <section class="ld-cta">
     <div class="ld-cta-band">
       <h2>把今天的汗水，变成下周的数据</h2>
-      <p>免费工具已就绪，拍一段视频就能开始。</p>
-      <a class="jt-btn jt-btn-accent jt-btn-lg" href="jump.html">开始第一次测量</a>
+      <p>拍一段助跑起跳视频，让 AI 告诉你短板在哪里。</p>
+      <a class="jt-btn jt-btn-accent jt-btn-lg" href="ai-jump.html">🤖 开始 AI 弹跳分析</a>
     </div>
   </section>
 
@@ -299,6 +331,7 @@
         <span>Vertrise跃升</span>
       </div>
       <div class="jt-footer-links">
+        <a href="ai-jump.html">AI 弹跳分析</a>
         <a href="jump.html">弹跳测量</a>
         <a href="barbell.html">杠铃测速</a>
         <a href="trainer.html">AI 训练师</a>
@@ -308,6 +341,27 @@
       <span>测量结果仅供参考，训练请循序渐进，注意安全。</span>
     </div>
   </footer>
+
+  <!-- AI 弹跳分析 · 进入网站弹窗（当日展示一次） -->
+  <div class="ld-modal-mask" id="aiModalMask">
+    <div class="ld-modal" role="dialog" aria-modal="true">
+      <button class="ld-modal-close" id="aiModalClose" aria-label="关闭">✕</button>
+      <div class="ld-modal-icon">🤖</div>
+      <h3>AI 弹跳分析上线</h3>
+      <p>上传一段助跑起跳视频，AI 自动拆解你的起跳动作，找出弹跳短板：</p>
+      <ul class="ld-modal-list">
+        <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>📐 起跳角度 · 🦵 屈膝深度 · 💨 摆臂速度</li>
+        <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>👣 最后两步节奏 · 🛬 落地稳定性</li>
+        <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>判断你是 <b>力量型 / 速度型 / 弹性型</b></li>
+        <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>列出你的 <b>弹跳短板</b> 与针对性训练建议</li>
+      </ul>
+      <div class="ld-modal-actions">
+        <a class="jt-btn jt-btn-accent" href="ai-jump.html" id="aiModalGo">🚀 免费开始 AI 分析</a>
+        <button class="jt-btn jt-btn-ghost" id="aiModalLater">先逛逛</button>
+      </div>
+      <div class="ld-modal-note">免费用户每日 2 次 AI 分析 · 会员无限使用</div>
+    </div>
+  </div>
 
   <div class="jt-toast" id="toast"></div>
 
@@ -460,6 +514,27 @@
       })();
 
       Auth.init(refreshUI);
+
+      // AI 弹跳分析弹窗：进入网站即展示（当日只弹一次）
+      (function () {
+        var mask = document.getElementById('aiModalMask');
+        if (!mask) return;
+        function close() {
+          mask.classList.remove('show');
+          try { localStorage.setItem('vt-ai-modal-day', new Date().toDateString()); } catch (e) {}
+        }
+        function maybeShow() {
+          var seen = null;
+          try { seen = localStorage.getItem('vt-ai-modal-day'); } catch (e) {}
+          if (seen === new Date().toDateString()) return; // 今天已看过
+          setTimeout(function () { mask.classList.add('show'); }, 700);
+        }
+        document.getElementById('aiModalClose').addEventListener('click', close);
+        document.getElementById('aiModalLater').addEventListener('click', close);
+        document.getElementById('aiModalGo').addEventListener('click', close);
+        mask.addEventListener('click', function (e) { if (e.target === mask) close(); });
+        maybeShow();
+      })();
     })();
   </script>
 </body>

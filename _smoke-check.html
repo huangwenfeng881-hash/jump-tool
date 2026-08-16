@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>smoke check</title></head>
+<body>
+<script>
+// _smoke-check.html — 冒烟测试：iframe 加载 login.html / ai-jump.html，
+// 校验新增元素与逻辑存在，结果 POST 到 /save（由 _frames.cjs 落盘）
+(function () {
+  'use strict';
+  var results = { login: {}, aijump: {} };
+
+  function post() {
+    var payload = { name: 'smoke.json', dataUrl: 'data:application/json;base64,' + btoa(JSON.stringify(results)) };
+    fetch('/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(function () {});
+  }
+
+  function checkLogin(doc) {
+    results.login.regInvite = !!doc.getElementById('regInvite');
+    results.login.regInviteLabel = !!doc.querySelector('label[for="regInvite"]');
+    var scripts = doc.querySelectorAll('script');
+    var wired = false;
+    scripts.forEach(function (sc) {
+      if ((sc.textContent || '').indexOf("getElementById('regInvite').value") >= 0) wired = true;
+    });
+    results.login.signUpWired = wired;
+  }
+
+  function checkAiJump(doc) {
+    var ids = ['aiTipBox', 'aiTipClose', 'aiFbCard', 'aiFbFile', 'aiFbLiftoff', 'aiFbLanding', 'aiFbHeight', 'aiFbIssue', 'aiFbSubmit', 'aiFbMsg'];
+    ids.forEach(function (id) { results.aijump[id] = !!doc.getElementById(id); });
+    var scripts = doc.querySelectorAll('script');
+    var annotation = false, wiring = false, tipJs = false;
+    scripts.forEach(function (sc) {
+      var t = sc.textContent || '';
+      if (t.indexOf('弹跳测量') >= 0 && t.indexOf('heightCm') >= 0) annotation = true;
+      if (t.indexOf('submitAnalysisFeedback') >= 0) wiring = true;
+      if (t.indexOf('vt-ai-tip-closed') >= 0) tipJs = true;
+    });
+    results.aijump.heightAnnotation = annotation;
+    results.aijump.feedbackWiring = wiring;
+    results.aijump.tipDismissJs = tipJs;
+  }
+
+  var loaded = { login: false, aijump: false };
+  function tryPost() {
+    if (loaded.login && loaded.aijump) post();
+  }
+
+  var f1 = document.createElement('iframe');
+  f1.src = 'login.html';
+  f1.onload = function () {
+    setTimeout(function () { checkLogin(f1.contentDocument); loaded.login = true; tryPost(); }, 1200);
+  };
+  document.body.appendChild(f1);
+
+  var f2 = document.createElement('iframe');
+  f2.src = 'ai-jump.html';
+  f2.onload = function () {
+    setTimeout(function () { checkAiJump(f2.contentDocument); loaded.aijump = true; tryPost(); }, 2200);
+  };
+  document.body.appendChild(f2);
+
+  // 兜底：无论是否加载完成，超时后也提交一次
+  setTimeout(function () { tryPost(); setTimeout(tryPost, 1500); }, 15000);
+})();
+</script>
+</body>
+</html>

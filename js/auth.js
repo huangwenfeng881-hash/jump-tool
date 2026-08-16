@@ -71,7 +71,10 @@
       if (!c) { notify(null); return; }
       // 刷新页面 / 首次加载：从本地恢复会话
       c.auth.getSession().then(function (res) {
-        notify(res && res.data ? res.data.session : null);
+        var s = res && res.data ? res.data.session : null;
+        notify(s);
+        // 会话恢复后补一次推广码兑换（覆盖“邮箱确认链接直接登录”的情况）
+        if (s) Auth.redeemPendingInvite();
       }).catch(function () { notify(null); });
       // 登录 / 退出 / token 刷新时自动通知各页刷新导航
       c.auth.onAuthStateChange(function (event, session) {
@@ -133,20 +136,33 @@
 
     // ---------- 认证 ----------
 
-    /** 邮箱+密码注册；基础表单校验（邮箱格式、密码长度）。 */
-    signUp: function (email, password) {
+    /** 邮箱+密码注册；基础表单校验（邮箱格式、密码长度）。inviteCode 为推广人提供的邀请码（选填）。 */
+    signUp: function (email, password, inviteCode) {
       email = (email || '').trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Promise.resolve({ ok: false, msg: '邮箱格式不正确' });
       if ((password || '').length < 6) return Promise.resolve({ ok: false, msg: '密码至少 6 位' });
       var c = getClient();
       if (!c) return Promise.resolve({ ok: false, msg: 'Supabase 未配置，请先在 js/supabase-config.js 填入项目信息' });
-      return c.auth.signUp({ email: email, password: password }).then(function (res) {
+      inviteCode = (inviteCode || '').trim().toUpperCase();
+      var opts = {};
+      if (inviteCode) opts.data = { invite_code: inviteCode }; // 永久记录在用户 metadata，站长可查
+      return c.auth.signUp({ email: email, password: password, options: opts }).then(function (res) {
         if (res.error) return { ok: false, msg: friendlyAuthError(res.error) };
         // 开启了邮箱确认时 session 为 null，提示去邮箱确认
         if (!res.data || !res.data.session) {
+          if (inviteCode) {
+            // 首次登录时自动兑换（绑定推广关系 + VIP 奖励）
+            try { localStorage.setItem('vt_pending_invite', inviteCode); } catch (e) {}
+            return { ok: true, needConfirm: true, msg: '注册成功，请前往邮箱完成确认后登录；登录后将自动兑换推广邀请码' };
+          }
           return { ok: true, needConfirm: true, msg: '注册成功，请前往邮箱完成确认后登录' };
         }
-        return { ok: true, msg: '注册成功，已自动登录' };
+        if (!inviteCode) return { ok: true, msg: '注册成功，已自动登录' };
+        // 已自动登录：立即兑换邀请码（记录推广来源 + VIP 奖励）
+        return Auth.redeemInvite(inviteCode).then(function (r) {
+          if (r.ok) return { ok: true, msg: '注册成功，已自动登录；' + r.msg };
+          return { ok: true, msg: '注册成功，已自动登录；推广码暂未生效（' + r.msg + '，可到「会员」页重试）' };
+        });
       });
     },
 
@@ -160,6 +176,8 @@
       return c.auth.signInWithPassword({ email: email, password: password }).then(function (res) {
         if (res.error) return { ok: false, msg: friendlyAuthError(res.error) };
         notify(res.data.session);
+        // 注册时填过推广码但需邮箱确认的：首次登录自动兑换（绑定推广关系）
+        Auth.redeemPendingInvite();
         return { ok: true, msg: '登录成功' };
       });
     },
@@ -283,6 +301,46 @@
       }
     },
 
+    /** 提交「AI 分析不准」纠错反馈：可附带视频上传到私有存储桶，并记录分析指标 */
+    submitAnalysisFeedback: async function (data) {
+      var c = getClient();
+      if (!c) return { ok: false, msg: 'Supabase 未配置，请先在 js/supabase-config.js 填入项目信息' };
+      var user = await Auth.getCurrentUser();
+      var videoPath = null;
+      if (data.videoFile) {
+        if (!user) return { ok: false, msg: '上传视频反馈需要先登录（也可去掉视频，仅提交文字说明）' };
+        var name = (data.videoFile.name || 'video.mp4').replace(/[\\/:*?"<>|\s]+/g, '_');
+        var ext = (name.match(/\.[a-zA-Z0-9]+$/) || ['.mp4'])[0];
+        videoPath = user.id + '/' + Date.now() + ext;
+        var up = await c.storage.from('jump-feedback').upload(videoPath, data.videoFile, {
+          cacheControl: '3600',
+          contentType: data.videoFile.type || 'video/mp4'
+        });
+        if (up.error) return { ok: false, msg: '视频上传失败：' + (up.error.message || '请重试') };
+      }
+      var row = {
+        user_id: user ? user.id : null,
+        video_name: data.videoName || null,
+        video_path: videoPath,
+        video_sec: data.videoSec != null ? data.videoSec : null,
+        fps: data.fps != null ? data.fps : null,
+        frames: data.frames != null ? data.frames : null,
+        metrics: data.metrics || {},
+        actual_liftoff: (data.actualLiftoff !== undefined && data.actualLiftoff !== '') ? data.actualLiftoff : null,
+        actual_landing: (data.actualLanding !== undefined && data.actualLanding !== '') ? data.actualLanding : null,
+        actual_height_cm: (data.actualHeightCm !== undefined && data.actualHeightCm !== '') ? data.actualHeightCm : null,
+        issue: data.issue || ''
+      };
+      try {
+        // 不加 .select()：本表无 SELECT 策略（仅后台可读），避免 INSERT...RETURNING 触发 RLS 报错
+        var res = await c.from('analysis_feedback').insert(row);
+        if (res.error) return { ok: false, msg: '提交失败：' + (res.error.message || '请重试') };
+        return { ok: true, msg: videoPath ? '已提交视频与反馈，感谢帮助改进算法！' : '已提交反馈，感谢帮助改进算法！' };
+      } catch (e) {
+        return { ok: false, msg: '提交失败：' + (e.message || '请重试') };
+      }
+    },
+
     /** 保存 AI 训练师生成的训练计划（绑定用户 ID） */
     saveTrainingPlan: function (data) {
       return Auth._insert('training_plans', {
@@ -392,6 +450,25 @@
         if (res.error) return { ok: false, msg: res.error.message || '兑换失败' };
         return (res.data && res.data[0]) ? res.data[0] : { ok: false, msg: '兑换失败' };
       }).catch(function (e) { return { ok: false, msg: e.message || '兑换失败' }; });
+    },
+
+    /** 兑换注册时留下的待绑定推广码（注册后未自动登录时，首次登录/会话恢复时触发） */
+    redeemPendingInvite: function () {
+      var code = '';
+      try { code = localStorage.getItem('vt_pending_invite') || ''; } catch (e) {}
+      if (!code) return Promise.resolve(null);
+      return Auth.redeemInvite(code).then(function (r) {
+        if (r.ok) {
+          try { localStorage.removeItem('vt_pending_invite'); } catch (e) {}
+        } else {
+          // 明确无效的码不再重试（避免每次进站都请求）；网络类错误保留下次再试
+          var m = r.msg || '';
+          if (m.indexOf('不存在') >= 0 || m.indexOf('停用') >= 0 || m.indexOf('用完') >= 0 || m.indexOf('已使用') >= 0) {
+            try { localStorage.removeItem('vt_pending_invite'); } catch (e) {}
+          }
+        }
+        return r;
+      }).catch(function () { return null; });
     },
 
     /** 读取已上架套餐（定价以分为单位） */

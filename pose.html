@@ -8,9 +8,11 @@
   <link rel="stylesheet" href="css/style.css">
   <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-  <!-- MediaPipe Pose（本地自托管，无 CDN 依赖） -->
-  <script src="mediapipe/pose.js"></script>
-  <script src="mediapipe/pose_solution_packed_assets_loader.js"></script>
+  <!-- MediaPipe Tasks PoseLandmarker（本地自托管，CPU 推理，不依赖 GPU/CDN） -->
+  <script type="module">
+    import { PoseLandmarker, FilesetResolver } from './mediapipe/tasks-vision/vision_bundle.mjs';
+    window.__VT_VISION__ = { PoseLandmarker: PoseLandmarker, FilesetResolver: FilesetResolver };
+  </script>
   <style>
     body {
       display: flex;
@@ -271,6 +273,7 @@
     <div class="jt-nav-group active">
       <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
       <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="ai-jump.html">AI弹跳分析</a>
         <a class="jt-nav-link" href="jump.html">弹跳测量</a>
         <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
         <a class="jt-nav-link active" href="pose.html">动作分析</a>
@@ -340,7 +343,7 @@
           <button class="jt-btn jt-btn-outline jt-btn-sm" id="psSelect">📁 选择视频</button>
           <button class="jt-btn jt-btn-ghost jt-btn-sm" id="psPlay">▶</button>
           <input type="range" id="psSeek" min="0" max="100" value="0">
-          <span class="ps-time" id="psTime">0.00s</span>
+          <span class="ps-time" id="psTime">0 / 0 帧</span>
         </div>
       </div>
 
@@ -370,8 +373,8 @@
         <div class="ps-card">
           <label for="psSample">跳帧采样（每 N 帧取 1 帧，越大越快但越粗）</label>
           <select id="psSample">
-            <option value="1">1（最精细）</option>
-            <option value="2" selected>2（推荐）</option>
+            <option value="1" selected>1（最精细，推荐）</option>
+            <option value="2">2</option>
             <option value="3">3</option>
             <option value="4">4（最快）</option>
           </select>
@@ -473,7 +476,7 @@
         if (!boxCtrl.hasBox()) return toast('请先框选人物', 'err');
         var ok = boxCtrl.saveKeyframe();
         var n = boxCtrl.getKeyframes().length;
-        toast(ok ? ('已记录关键帧（共 ' + n + ' 个），当前时刻：' + (video.currentTime || 0).toFixed(2) + 's') : '请先框选人物', ok ? 'ok' : 'err');
+        toast(ok ? ('已记录关键帧（共 ' + n + ' 个），当前帧：' + frameOf(video.currentTime) + ' / ' + totalFrames()) : '请先框选人物', ok ? 'ok' : 'err');
         boxHintEl.textContent = '框选已跟随人物，共 ' + n + ' 个关键帧';
       });
       boxClearBtn.addEventListener('click', function () {
@@ -516,12 +519,42 @@
             var tr = s.getVideoTracks()[0];
             if (tr && tr.getSettings) {
               var fr = tr.getSettings().frameRate;
-              if (fr > 0) f = Math.round(fr);
+              // 保留视频原始帧率（不取整）：57 / 29.97 / 可变帧率都按原值参与帧数计算
+              if (fr > 0 && isFinite(fr)) f = fr;
             }
           }
         } catch (e) {}
         videoFps = f || 30;
       }
+
+      // 播放中按实际解码帧数增量校准（对 seek/拖动免疫），
+      // 确保总帧数与视频真实帧数一致（容器帧率缺失/不准/可变帧率时尤其重要）
+      var calFrames = 0, calTime = 0, calActive = false, fpsCalibrated = false;
+      function calibrateFps() {
+        if (fpsCalibrated) return;
+        var q = null, t = video.currentTime || 0;
+        try { q = video.getVideoPlaybackQuality && video.getVideoPlaybackQuality(); } catch (e) {}
+        if (!q) return;
+        if (!calActive) { calActive = true; calFrames = q.totalVideoFrames; calTime = t; return; }
+        var df = q.totalVideoFrames - calFrames;
+        var dt = t - calTime;
+        if (dt >= 0.5 && df >= 10) {
+          var real = df / dt;
+          if (real > 5 && real < 500) {
+            fpsCalibrated = true;
+            videoFps = real;
+            updateTime();
+            statusEl.textContent = '视频已加载 · ' + Math.round(videoFps) + 'fps（已按真实帧数校准）';
+          }
+        }
+      }
+
+      // 帧号换算（0-based，与弹跳检测的帧号一致）：当前帧 / 总帧
+      function totalFrames() { return Math.round(duration * videoFps) || 0; }
+      function frameOf(t) {
+        return Math.max(0, Math.min(Math.round((t || 0) * videoFps), totalFrames()));
+      }
+      function frameText() { return frameOf(video.currentTime) + ' / ' + totalFrames() + ' 帧'; }
 
       function loadFile(file) {
         if (!file || !file.type.startsWith('video/')) return toast('请选择视频文件', 'err');
@@ -548,7 +581,7 @@
           btnConfirmClip.textContent = '✅ 全片已就绪';
           clipHintEl.style.display = 'none';
           applySeekClip();
-          statusEl.textContent = '视频已加载';
+          statusEl.textContent = '视频已加载 · ' + Math.round(videoFps) + 'fps';
           statusEl.classList.add('active');
           startBtn.disabled = false;
           evalBtn.disabled = true;
@@ -561,7 +594,8 @@
       }
 
       function updateTime() {
-        timeLabel.textContent = (video.currentTime || 0).toFixed(2) + 's';
+        calibrateFps();
+        timeLabel.textContent = frameText();
         seekSlider.value = duration ? Math.round((video.currentTime / duration) * 100) : 0;
         boxCtrl.setPlayTime(video.currentTime || 0);
       }
@@ -607,6 +641,7 @@
       document.getElementById('psPlay').addEventListener('click', function () { if (video.paused) video.play(); else video.pause(); });
       seekSlider.addEventListener('input', function () { if (duration) video.currentTime = (seekSlider.value / 100) * duration; });
       video.addEventListener('timeupdate', updateTime);
+      video.addEventListener('seeking', function () { calActive = false; });
       video.addEventListener('play', function () { document.getElementById('psPlay').textContent = '⏸'; });
       video.addEventListener('pause', function () { document.getElementById('psPlay').textContent = '▶'; });
       document.getElementById('psFull').addEventListener('click', function () {
@@ -661,7 +696,7 @@
         task = P.analyze({
           video: video,
           fps: videoFps,
-          sampleEvery: parseInt(sampleSel.value, 10) || 2,
+          sampleEvery: parseInt(sampleSel.value, 10) || 1,
           clipStart: cs,
           clipEnd: ce,
           boxes: boxCtrl.getKeyframes(),
@@ -731,7 +766,7 @@
           video: video,
           data: poseData,
           activity: 'approach-jump',
-          sampleEvery: parseInt(sampleSel.value, 10) || 2,
+          sampleEvery: parseInt(sampleSel.value, 10) || 1,
           clipStart: parseFloat(clipStartInput.value) || 0,
           clipEnd: parseFloat(clipEndInput.value) || duration,
           onChunk: function (d) {
