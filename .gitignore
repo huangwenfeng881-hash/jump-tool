@@ -7,3 +7,4 @@ intro_tmp/
 test video/
 # 服务器启动失败日志
 server-error.log
+_tmp_compare/
