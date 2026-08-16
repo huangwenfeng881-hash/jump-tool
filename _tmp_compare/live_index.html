@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vertrise跃升 · 弹跳高度测量 / 杠铃 VBT 测速 / AI 弹跳训练师</title>
+  <meta name="description" content="免费在线工具：上传视频测算弹跳高度、杠铃 VBT 速度分析，AI 训练师按你的水平生成训练计划。无需注册，打开即用。">
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/landing.css">
+  <style>
+    .ld-dunk { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: var(--gradient); color: var(--accent-ink); border-radius: var(--radius); padding: 18px 22px; text-decoration: none; box-shadow: var(--glow); margin-top: 22px; }
+    .ld-dunk-title { font-size: 1.15rem; font-weight: 800; }
+    .ld-dunk-sub { font-size: 0.85rem; opacity: 0.9; margin-top: 4px; }
+    .ld-dunk-go { background: rgba(0,0,0,0.18); padding: 9px 18px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+    .ld-dunk:hover .ld-dunk-go { background: rgba(0,0,0,0.32); }
+  </style>
+  <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
+  <link rel="stylesheet" href="css/ux.css?v=15">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+</head>
+<body class="landing">
+
+  <!-- 顶部导航 -->
+  <nav class="jt-nav">
+    <a class='jt-nav-logo' href='/'>
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="jt-nav-links">
+    <a class='jt-nav-link active' href='/'>首页</a>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class='jt-nav-link' href='/jump'>弹跳测量</a>
+        <a class='jt-nav-link' href='/barbell'>杠铃测速</a>
+        <a class='jt-nav-link' href='/pose'>动作分析</a>
+        <a class='jt-nav-link' href='/trainer'>AI教练</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">数据<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class='jt-nav-link' href='/progress'>进步曲线</a>
+        <a class='jt-nav-link' href='/barbell-chart'>杠铃图表</a>
+        <a class='jt-nav-link' href='/leaderboard'>排行榜</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">训练<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class='jt-nav-link' href='/checkin'>训练打卡</a>
+        <a class='jt-nav-link' href='/plans'>训练计划</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">我的<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class='jt-nav-link' href='/profile'>我的资料</a>
+        <a class='jt-nav-link' href='/history'>训练记录</a>
+        <a class='jt-nav-link feedback-nav' href='/feedback'>问题反馈</a>
+        <a class='jt-nav-link' href='/membership'>会员</a>
+        <a class='jt-nav-link' href='/login'>登录 / 注册</a>
+      </div>
+    </div>
+    </div>
+    <div class="jt-nav-user">
+      <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
+<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+<svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.signOut()">退出</button>
+      <a class='jt-btn jt-btn-accent jt-btn-sm' href='/login?next=index.html' id='btnLogin' style='display:none'>登录</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="ld-hero">
+    <canvas id="heroFx"></canvas>
+    <div class="ld-hero-badge"><span class="dot"></span> 弹跳测量 · 杠铃 VBT · AI 训练师</div>
+    <h1>把每次起跳，<span class="brand-cn">量成数据</span></h1>
+    <p class="ld-hero-sub">上传一段训练视频，测出弹跳高度与杠铃速度；AI 训练师再按你的水平排好计划。免费工具，打开就能用。</p>
+    <div class="ld-hero-cta">
+      <a class='jt-btn jt-btn-accent jt-btn-lg' href='/jump'>免费开始测量</a>
+      <a class='jt-btn jt-btn-outline jt-btn-lg' href='/trainer'>AI 训练师</a>
+    </div>
+    <div class="ld-hero-cta" style="margin-top:14px;">
+      <a class="jt-btn jt-btn-lg app-download-btn" id="appDownloadBtn" href="download/Vertrise跃升-v1.0.0.apk" download>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        📱 下载安卓 App
+      </a>
+      <div class="app-download-hint">Android 安装包 · 4.5MB · 打开即用</div>
+    </div>
+    <div class="ld-hero-trust">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>无需注册</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>全部工具免费</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>记录云端同步</span>
+    </div>
+  </header>
+
+  <!-- 扣篮差距入口：进入网站第一眼可见 -->
+  <a class='ld-dunk' href='/profile'>
+    <div>
+      <div class="ld-dunk-title">🏀 计算扣篮还差多少厘米</div>
+      <div class="ld-dunk-sub">填一下站立摸高，马上告诉你距离扣标准篮筐还差多远</div>
+    </div>
+    <span class="ld-dunk-go">去计算 →</span>
+  </a>
+
+  <!-- 未登录提示（登录后隐藏） -->
+  <div class="ld-auth-note" id="authSection">
+    <div class="jt-card">
+      <div>
+        <h3>登录后，训练记录自动保存到云端</h3>
+        <p>弹跳高度、杠铃曲线、训练计划，随时回来翻看。</p>
+      </div>
+      <a class='jt-btn jt-btn-accent' href='/login'>登录 / 注册</a>
+    </div>
+  </div>
+
+  <!-- 已登录欢迎条 -->
+  <div class="ld-userbar" id="userBar" style="display:none;">
+    已登录：<b id="userBarName"></b> &nbsp;·&nbsp; <a class='jt-link' href='/history'>📋 我的训练记录</a>
+  </div>
+
+  <!-- 功能工具 -->
+  <section class="ld-section" id="tools">
+    <div class="ld-section-head">
+      <span class="ld-kicker">功能工具</span>
+      <h2>三件套，把训练说得清</h2>
+      <p>不整玄学，每样工具都给你一组看得懂的数字。</p>
+    </div>
+    <div class="ld-tools">
+      <a class='ld-tool-card' href='/jump'>
+        <div class="ld-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg></div>
+        <div class="ld-tool-name">弹跳测量</div>
+        <div class="ld-tool-desc">上传跳跃视频，标记起跳与落地，自动换算出高度与腾空时间。可对标尺校准，测得更准。</div>
+        <div class="ld-tool-foot">
+          <span class="ld-tool-badge free">免费</span>
+          <span class="ld-tool-go">去测量 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+        </div>
+      </a>
+      <a class='ld-tool-card' href='/barbell'>
+        <div class="ld-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></svg></div>
+        <div class="ld-tool-name">杠铃测速</div>
+        <div class="ld-tool-desc">侧面拍一段卧推或深蹲，自动追踪杠铃轨迹，算出峰值速度、向心/离心速度与功率曲线。</div>
+        <div class="ld-tool-foot">
+          <span class="ld-tool-badge free">免费</span>
+          <span class="ld-tool-go">去测速 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+        </div>
+      </a>
+      <a class='ld-tool-card' href='/trainer'>
+        <div class="ld-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="3"/><circle cx="9" cy="13.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="13.5" r="1.1" fill="currentColor" stroke="none"/><path d="M12 8V4M9.5 4h5"/></svg></div>
+        <div class="ld-tool-name">AI 弹跳训练师</div>
+        <div class="ld-tool-desc">填上当前弹跳、训练水平和器械，自动生成四周训练计划；伤病、年龄、可用器械都能照顾到。</div>
+        <div class="ld-tool-foot">
+          <span class="ld-tool-badge free">免费</span>
+          <span class="ld-tool-go">去生成 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- 新增工具：数据 / 打卡 / 计划 / 我的 -->
+  <section class="ld-section">
+    <div class="ld-section-head">
+      <span class="ld-kicker">新增工具</span>
+      <h2>记录 · 打卡 · 计划，一整套</h2>
+      <p>练了多少、打卡几天、照着什么计划练，都帮你管起来。</p>
+    </div>
+    <div class="ld-tools">
+      <a class='ld-tool-card' href='/progress'>
+        <div class="ld-tool-name">📈 进步曲线</div>
+        <div class="ld-tool-desc">弹跳高度折线图，原地/助跑/摸高分开看，进步一目了然。</div>
+        <div class="ld-tool-foot"><span class="ld-tool-badge free">免费</span><span class="ld-tool-go">去看看</span></div>
+      </a>
+      <a class='ld-tool-card' href='/checkin'>
+        <div class="ld-tool-name">📅 训练打卡</div>
+        <div class="ld-tool-desc">日历打卡，连续训练天数与总打卡天数自动统计。</div>
+        <div class="ld-tool-foot"><span class="ld-tool-badge free">免费</span><span class="ld-tool-go">去打卡</span></div>
+      </a>
+      <a class='ld-tool-card' href='/plans'>
+        <div class="ld-tool-name">📋 训练计划</div>
+        <div class="ld-tool-desc">三套现成计划模板：入门 / 爆发力 / 力量，一键复制照着练。</div>
+        <div class="ld-tool-foot"><span class="ld-tool-badge free">免费</span><span class="ld-tool-go">看计划</span></div>
+      </a>
+      <a class='ld-tool-card' href='/profile'>
+        <div class="ld-tool-name">👤 我的资料</div>
+        <div class="ld-tool-desc">身高、站立摸高、体重、臂展，实时计算扣篮差距。</div>
+        <div class="ld-tool-foot"><span class="ld-tool-badge free">免费</span><span class="ld-tool-go">去填写</span></div>
+      </a>
+    </div>
+  </section>
+
+  <!-- 三步流程 -->
+  <section class="ld-section" id="how">
+    <div class="ld-section-head">
+      <span class="ld-kicker">怎么用</span>
+      <h2>三步，拿到你的数据</h2>
+      <p>不需要复杂设置，跟平时的训练流程一样。</p>
+    </div>
+    <div class="ld-steps">
+      <div class="ld-step">
+        <div class="ld-step-num">1</div>
+        <h3>上传视频</h3>
+        <p>用手机拍一段训练视频，拖进工具页即可，无需上传服务器。</p>
+      </div>
+      <div class="ld-step">
+        <div class="ld-step-num">2</div>
+        <h3>AI 自动分析</h3>
+        <p>弹跳高度、杠铃速度、功率曲线，一帧帧算给你看。</p>
+      </div>
+      <div class="ld-step">
+        <div class="ld-step-num">3</div>
+        <h3>照着练</h3>
+        <p>把结果交给 AI 训练师，生成计划，存进云端随时回看。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 定价 -->
+  <section class="ld-section" id="pricing">
+    <div class="ld-section-head">
+      <span class="ld-kicker">会员方案</span>
+      <h2>先免费，够用再升级</h2>
+      <p>基础工具全部免费。AI 分析免费每日 2 次，会员无限使用。</p>
+    </div>
+    <div class="ld-pricing">
+      <div class="ld-price-card">
+        <div class="ld-price-name">FREE</div>
+        <div class="ld-price-amount">¥0<small> / 永久</small></div>
+        <div class="ld-price-desc">弹跳测量<br>杠铃测速<br>AI 分析每日 2 次</div>
+        <a class='jt-btn jt-btn-outline' href='/jump'>免费开始</a>
+        <div class="ld-price-note">登录后使用，每日自动重置</div>
+      </div>
+      <div class="ld-price-card">
+        <div class="ld-price-name">AI 单次</div>
+        <div class="ld-price-amount">¥1.99<small> / 1次</small></div>
+        <div class="ld-price-desc">AI 分析 ×1<br>不设有效期<br>随用随买</div>
+        <a class='jt-btn jt-btn-outline' href='/membership'>立即购买</a>
+        <div class="ld-price-note">余额永久有效</div>
+      </div>
+      <div class="ld-price-card featured">
+        <span class="ld-price-tag">最受欢迎</span>
+        <div class="ld-price-name">VIP 月度</div>
+        <div class="ld-price-amount">¥9.9<small> / 1个月</small></div>
+        <div class="ld-price-desc">AI 分析无限使用<br>深度定制训练计划<br>高级动作评估</div>
+        <a class='jt-btn jt-btn-accent' href='/membership'>升级 VIP</a>
+        <div class="ld-price-note">3个月 ¥19.9 · 1年 ¥79.9</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="ld-section" id="faq">
+    <div class="ld-section-head">
+      <span class="ld-kicker">常见问题</span>
+      <h2>你可能想问</h2>
+    </div>
+    <div class="ld-faq">
+      <details>
+        <summary>需要注册才能用吗？</summary>
+        <div class="ld-faq-a">不用。三个工具打开就能直接用。登录只是为了把训练记录存到云端，方便下次回来翻看。</div>
+      </details>
+      <details>
+        <summary>弹跳高度是怎么测出来的？</summary>
+        <div class="ld-faq-a">上传一段正面拍摄的起跳视频，手动标记起跳和落地两帧，工具按腾空时间换算成高度；拍摄时放一个已知长度的参照物还能校准，结果更准。</div>
+      </details>
+      <details>
+        <summary>杠铃测速需要什么设备？</summary>
+        <div class="ld-faq-a">一部能拍视频的手机或相机就够了。侧面拍，让杠铃全程都在画面里，软件会自动追踪轨迹，算出速度、位移和功率曲线。</div>
+      </details>
+      <details>
+        <summary>AI 训练师靠谱吗？</summary>
+        <div class="ld-faq-a">免费版基于成熟的弹跳训练框架（力量 + 爆发力 + 技术）按你的水平排计划，会照顾年龄、伤病和可用器械；会员版再由 AI 结合你的数据深度定制。</div>
+      </details>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="ld-cta">
+    <div class="ld-cta-band">
+      <h2>把今天的汗水，变成下周的数据</h2>
+      <p>免费工具已就绪，拍一段视频就能开始。</p>
+      <a class='jt-btn jt-btn-accent jt-btn-lg' href='/jump'>开始第一次测量</a>
+    </div>
+  </section>
+
+  <!-- 页脚 -->
+  <footer class="jt-footer">
+    <div class="jt-footer-inner">
+      <div class="jt-footer-brand">
+        <img src="img/logo.png" alt="">
+        <span>Vertrise跃升</span>
+      </div>
+      <div class="jt-footer-links">
+        <a href='/jump'>弹跳测量</a>
+        <a href='/barbell'>杠铃测速</a>
+        <a href='/trainer'>AI 训练师</a>
+        <a href='/feedback'>问题反馈</a>
+        <a href='/login'>登录</a>
+      </div>
+      <span>测量结果仅供参考，训练请循序渐进，注意安全。</span>
+    </div>
+  </footer>
+
+  <div class="jt-toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js?v=15"></script>
+  <script>
+    (function () {
+      'use strict';
+      var Auth = window.JTAuth;
+
+      // 登录状态刷新：登录后隐藏登录提示卡并显示欢迎条；未登录显示提示卡
+      function refreshUI(session) {
+        var logged = !!session;
+        var authSec = document.getElementById('authSection');
+        var userBar = document.getElementById('userBar');
+        if (authSec) authSec.style.display = logged ? 'none' : 'block';
+        if (userBar) {
+          userBar.style.display = logged ? 'block' : 'none';
+          if (logged && session.user) {
+            document.getElementById('userBarName').textContent = session.user.email;
+          }
+        }
+      }
+
+      // 阶段二：Hero 与「计算扣篮还差多少」模块分层入场（GSAP；减弱动画自动跳过）
+      window.UX && window.UX.gsap(function (gsap) {
+        gsap.from('.ld-hero > *', { opacity: 0, y: 20, duration: .55, stagger: .1, ease: 'power3.out' });
+        gsap.from('.ld-dunk > div, .ld-dunk > .ld-dunk-go', { opacity: 0, y: 16, duration: .5, stagger: .12, ease: 'power3.out', delay: .25 });
+      });
+
+      // 阶段三：滚动时 Hero 上滑淡出（空间感；GSAP quickTo 平滑，入场过渡结束后接管）
+      window.UX && window.UX.gsap(function (gsap) {
+        var hero = document.querySelector('.ld-hero');
+        if (!hero) return;
+        var yTo = gsap.quickTo(hero, 'y', { duration: .35, ease: 'power2.out' });
+        var oTo = gsap.quickTo(hero, 'opacity', { duration: .35, ease: 'power2.out' });
+        var locked = false;
+        window.addEventListener('scroll', function () {
+          var y = window.scrollY;
+          if (y > 4 && !locked) { locked = true; hero.style.transition = 'none'; }
+          if (y < 700) {
+            yTo(-y * 0.12);
+            oTo(Math.max(0.25, 1 - y / 420));
+          }
+        }, { passive: true });
+      });
+
+      // 阶段四：Hero 粒子光点（Canvas 2D，DPR 适配，离开视口自动暂停省性能）
+      (function () {
+        var canvas = document.getElementById('heroFx');
+        if (!canvas || !canvas.getContext) return;
+        var hero = canvas.parentElement;
+        var ctx = canvas.getContext('2d');
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var W = 0, H = 0, pts = [], running = true;
+        var COUNT = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 26 : 56;
+        // 鼠标划水：记录光标位置，移动时持续产生水波涟漪
+        var mouse = { x: -9999, y: -9999, on: false };
+        var ripples = [], lastRipple = 0;
+        hero.addEventListener('mousemove', function (e) {
+          var r = hero.getBoundingClientRect();
+          mouse.x = e.clientX - r.left;
+          mouse.y = e.clientY - r.top;
+          mouse.on = true;
+          var now = performance.now();
+          if (now - lastRipple > 90) {
+            lastRipple = now;
+            ripples.push({ x: mouse.x, y: mouse.y, t: now, maxR: 200, dur: 900 });
+          }
+        }, { passive: true });
+        hero.addEventListener('mouseleave', function () { mouse.on = false; mouse.x = -9999; mouse.y = -9999; ripples = []; });
+        window.addEventListener('scroll', function () { mouse.on = false; mouse.x = -9999; mouse.y = -9999; ripples = []; }, { passive: true });
+
+        function resize() {
+          var r = hero.getBoundingClientRect();
+          W = Math.max(320, r.width); H = Math.max(200, r.height);
+          canvas.width = W * dpr; canvas.height = H * dpr;
+          canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        function make() {
+          return {
+            x: Math.random() * W, y: H + 12 + Math.random() * 80,
+            r: Math.random() * 2 + 0.7,
+            vy: -(Math.random() * 0.7 + 0.3),
+            vx: (Math.random() - 0.5) * 0.3,
+            a: Math.random() * 0.45 + 0.2,
+            ph: Math.random() * Math.PI * 2,
+            wave: 0 // 涟漪点亮强度（颜色水波）
+          };
+        }
+        function init() { pts = []; for (var i = 0; i < COUNT; i++) pts.push(make()); }
+
+        function frame(now) {
+          if (running) {
+            ctx.clearRect(0, 0, W, H);
+            // 划水：涟漪扫过时粒子被“点亮”（颜色水波）+ 轻微位移
+            for (var ri = ripples.length - 1; ri >= 0; ri--) {
+              var rp = ripples[ri];
+              if (now - rp.t > rp.dur) { ripples.splice(ri, 1); continue; }
+              var rr = (now - rp.t) / rp.dur * rp.maxR;
+              var band = 36;
+              for (var i = 0; i < pts.length; i++) {
+                var p = pts[i];
+                var dx = p.x - rp.x, dy = p.y - rp.y;
+                var d = Math.sqrt(dx * dx + dy * dy);
+                var gap = Math.abs(d - rr);
+                if (gap < band) {
+                  var w = 1 - gap / band;
+                  if (w > p.wave) p.wave = w;   // 亮度水波：越接近波峰越亮
+                  if (d > 0.1) {                  // 轻微划开（不再是明显圆环位移）
+                    var f = w * 1.5;
+                    var nx = -dy / d, ny = dx / d;
+                    p.x += (dx / d) * f + nx * f * 0.4;
+                    p.y += (dy / d) * f + ny * f * 0.4;
+                  }
+                }
+              }
+            }
+            for (var i = 0; i < pts.length; i++) {
+              var p = pts[i];
+              p.wave *= 0.9; // 亮度衰减
+              p.x += p.vx; p.y += p.vy;
+              if (p.y < -24 || p.x < -30 || p.x > W + 30) { pts[i] = make(); continue; }
+              var tw = 0.6 + Math.sin(now / 900 + p.ph) * 0.4;
+              // 颜色水波：涟漪点亮时粒子由青色变为亮白青色
+              var bright = p.wave > 1 ? 1 : p.wave;
+              var cr = Math.round(79 + (232 - 79) * bright);
+              var cg = Math.round(209 + (251 - 209) * bright);
+              var cb = Math.round(255 + (255 - 255) * bright);
+              ctx.globalAlpha = p.a * tw * (0.7 + bright * 0.5);
+              ctx.fillStyle = 'rgb(' + cr + ',' + cg + ',' + cb + ')';
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, p.r * (1 + bright * 0.9), 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+          }
+          requestAnimationFrame(frame);
+        }
+
+        resize(); init();
+        window.addEventListener('resize', function () { resize(); init(); });
+        if ('IntersectionObserver' in window) {
+          new IntersectionObserver(function (es) { running = es[0].isIntersecting; }).observe(hero);
+        }
+        requestAnimationFrame(frame);
+      })();
+
+      Auth.init(refreshUI);
+    })();
+  </script>
+</body>
+</html>
