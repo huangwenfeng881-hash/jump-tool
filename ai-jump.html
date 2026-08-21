@@ -432,6 +432,61 @@
       }
       function frameText() { return frameOf(video.currentTime) + ' / ' + totalFrames() + ' 帧'; }
 
+      // 精确帧数：直接解析 MP4 容器（stsz 样本表），不依赖播放解码统计。
+      // 手机视频常标注错误帧率（30fps 容器 / 56fps 实际），解析 stsz 得到真实帧数；
+      // 帧率错误会让腾空时间差近 2 倍、高度差近 4 倍（高度∝ft²），必须加载即校准。
+      function parseMp4TotalFrames(buf) {
+        if (!buf || buf.byteLength < 16) return null;
+        var dv = new DataView(buf);
+        function be32(o) { return dv.getUint32(o); }
+        function btype(o) { return String.fromCharCode(dv.getUint8(o + 4), dv.getUint8(o + 5), dv.getUint8(o + 6), dv.getUint8(o + 7)); }
+        var moov = -1, moovSize = 0, off = 0;
+        while (off + 8 <= buf.byteLength) {
+          var size = be32(off);
+          if (size < 8 || off + size > buf.byteLength) break;
+          if (btype(off) === 'moov') { moov = off; moovSize = size; break; }
+          off += size;
+        }
+        if (moov < 0) return null;
+        var counts = [];
+        function walk(start, end, isVideo) {
+          var o = start;
+          while (o + 8 <= end) {
+            var size = be32(o);
+            if (size < 8 || o + size > end) break;
+            var t = btype(o);
+            if (t === 'hdlr' && o + 20 <= end) {
+              var h = String.fromCharCode(dv.getUint8(o + 16), dv.getUint8(o + 17), dv.getUint8(o + 18), dv.getUint8(o + 19));
+              if (h === 'vide') isVideo = true;
+            } else if (t === 'stsz' && isVideo) {
+              var cnt = be32(o + 16);
+              if (cnt > 0 && cnt < 10000000) counts.push(cnt);
+            } else if (t === 'trak' || t === 'mdia' || t === 'minf' || t === 'stbl') {
+              walk(o + 8, o + size, isVideo);
+            }
+            o += size;
+          }
+        }
+        walk(moov + 8, moov + moovSize, false);
+        return counts.length ? Math.max.apply(null, counts) : null;
+      }
+
+      // 加载后解析 MP4 得到精确总帧数并换算精确帧率；解析失败走播放校准兜底
+      function readVideoFrames() {
+        if (!videoUrl || fpsCalibrated) return;
+        fetch(videoUrl).then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
+          var n = parseMp4TotalFrames(buf);
+          if (n && n > 0 && duration > 0) {
+            fpsCalibrated = true;      // 精确帧数已定，不再用播放校准覆盖
+            videoFps = n / duration;   // 精确平均帧率（56fps 视频保持 56）
+            updateTime();
+            setStatus('视频已加载 · ' + n + ' 帧 · ' + Math.round(videoFps) + 'fps（已按容器帧数校准）· 可点「开始 AI 分析」', 'active');
+            toast('帧率已校准：' + Math.round(videoFps) + 'fps（' + n + ' 帧）', 'ok');
+          }
+          // 非 mp4 / 解析失败：等播放校准兜底
+        }).catch(function () {});
+      }
+
       function loadFile(file) {
         if (!file || !file.type.startsWith('video/')) return toast('请选择视频文件', 'err');
         currentFile = file;
@@ -462,6 +517,7 @@
           startBtn.disabled = false;
           poseCtx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
           toast('视频已加载，可直接点「开始 AI 分析」', 'ok');
+          readVideoFrames(); // 解析 MP4 stsz 校准精确帧率（不依赖播放）
           if (typeof updateFbFileInfo === 'function') updateFbFileInfo();
         };
         video.onerror = function () { toast('视频加载失败', 'err'); };
@@ -618,6 +674,8 @@
         metricsHint.textContent = m.jumpCount > 1
           ? '共识别 ' + m.jumpCount + ' 次弹跳，以上为最高一次的指标；屈膝深度见下方曲线图。'
           : '屈膝深度与屈髋深度见下方曲线图。';
+        metricsHint.textContent += ' · 离地帧 ' + Math.round(m.best.jump.liftoffTime * videoFps) +
+          ' / 落地帧 ' + Math.round(m.best.jump.landingTime * videoFps) + '（' + videoFps.toFixed(1) + 'fps，可直接与标注帧号对比）';
       }
 
       // ---------- AI 报告渲染（流式） ----------

@@ -60,6 +60,7 @@ class AnalyzeFragment : Fragment() {
         }
         binding.btnReAnalyze.setOnClickListener { showSelect() }
         binding.btnFbSubmit.setOnClickListener { submitFeedback() }
+        binding.btnGenReport.setOnClickListener { generateReport() }
     }
 
     /** 从主页进入时调用（原生版无需加载网页） */
@@ -137,12 +138,12 @@ class AnalyzeFragment : Fragment() {
             }
             binding.txtResultError.text = hint
         } else {
-            renderMetrics(m)
+            renderMetrics(m, outcome.fps)
         }
         showResult()
     }
 
-    private fun renderMetrics(m: MetricsResult) {
+    private fun renderMetrics(m: MetricsResult, fps: Double) {
         val grid = binding.metricsGrid
         grid.removeAllViews()
         val best = m.best ?: return
@@ -150,6 +151,13 @@ class AnalyzeFragment : Fragment() {
         // 弹跳高度（带误差提示）
         addMetric(grid, "📏 弹跳高度", best.jump.heightCm.toString() + " cm",
             if (best.jumpCount > 1) "共 ${best.jumpCount} 次弹跳" else "测量存在一定误差，建议与卷尺/摸高实测对照")
+
+        // 起跳/落地时刻（秒 + 帧号，便于与人工标注对比）
+        val loFrame = Math.round(best.jump.liftoffTime * fps)
+        val laFrame = Math.round(best.jump.landingTime * fps)
+        addMetric(grid, "⏱ 离地 / 落地时刻",
+            "${best.jump.liftoffTime}s / ${best.jump.landingTime}s",
+            "对应帧号：离地≈$loFrame 帧 · 落地≈$laFrame 帧（${fps.toInt()}fps）· 腾空 ${best.jump.flightTime}s")
 
         // 起跳方式
         val tk = best.takeoff
@@ -192,6 +200,28 @@ class AnalyzeFragment : Fragment() {
         card.findViewById<android.widget.TextView>(R.id.metricValue).text = value
         card.findViewById<android.widget.TextView>(R.id.metricSub).text = sub
         grid.addView(card)
+    }
+
+    private fun generateReport() {
+        val outcome = lastOutcome ?: return
+        if (!outcome.metrics.ok) {
+            binding.txtAiReport.text = "未识别到弹跳，无法生成报告。"
+            return
+        }
+        binding.btnGenReport.isEnabled = false
+        binding.txtAiReport.text = "⏳ AI 正在分析，预计 10~40 秒，请稍候…"
+        Thread {
+            val text = com.vertrise.jumptool.AiReportGenerator.buildMetricsText(outcome.metrics)
+            val (report, err) = com.vertrise.jumptool.AiReportGenerator.generate(text)
+            mainHandler.post {
+                binding.btnGenReport.isEnabled = true
+                if (report != null) {
+                    binding.txtAiReport.text = report
+                } else {
+                    binding.txtAiReport.text = err
+                }
+            }
+        }.start()
     }
 
     private fun submitFeedback() {

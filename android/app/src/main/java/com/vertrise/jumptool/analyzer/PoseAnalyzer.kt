@@ -56,7 +56,7 @@ object PoseAnalyzer {
             return Outcome(emptyList(), 30.0, 0.0, MetricsResult(false, "视频时长无效", emptyList(), null, emptyMap()), "视频时长无效")
         }
 
-        val fps = readFps(context, uri)
+        val fps = readFps(context, uri, durationSec, mmr)
         val frameInterval = 1.0 / fps
         val total = floor(durationSec / (frameInterval * sampleEvery)).toInt()
         if (total <= 0) {
@@ -141,7 +141,17 @@ object PoseAnalyzer {
         return Outcome(frames, fps, durationSec, metrics, aborted = aborted)
     }
 
-    private fun readFps(context: Context, uri: Uri): Double {
+    private fun readFps(context: Context, uri: Uri, durationSec: Double, mmr: MediaMetadataRetriever?): Double {
+        // 优先：API 28+ 的视频帧数元数据（比容器帧率标注更真实，VFR 视频尤其重要）
+        if (mmr != null && android.os.Build.VERSION.SDK_INT >= 28) {
+            try {
+                val cnt = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)?.toLong() ?: 0L
+                if (cnt > 0 && durationSec > 0) {
+                    val f = cnt.toDouble() / durationSec
+                    if (f > 5 && f < 500) return f
+                }
+            } catch (e: Exception) {}
+        }
         val ex = MediaExtractor()
         try {
             ex.setDataSource(context, uri, null)
