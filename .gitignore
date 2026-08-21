@@ -9,3 +9,4 @@ test video/
 server-error.log
 _tmp_compare/
 _fixtures/
+_diag/node_modules/
