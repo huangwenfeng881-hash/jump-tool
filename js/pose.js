@@ -33,7 +33,7 @@ window.VTPose = (function () {
       var timer = setInterval(function () {
         if (window.__VT_VISION__ && window.__VT_VISION__.PoseLandmarker) {
           clearInterval(timer); resolve(window.__VT_VISION__);
-        } else if (Date.now() - t0 > (timeoutMs || 20000)) {
+        } else if (Date.now() - t0 > (timeoutMs || 60000)) {
           clearInterval(timer);
           // file:// 下 ES module 的 import 会被浏览器 CORS 限制拦截，必须走 HTTP 访问
           var isFile = typeof location !== 'undefined' && location.protocol === 'file:';
@@ -114,8 +114,8 @@ window.VTPose = (function () {
 
   function loadModel(modelComplexity) {
     if (poseLandmarker) return Promise.resolve(poseLandmarker);
-    // 30s 超时：模型加载（下载/编译 WASM）卡住时明确报错而非无限等待
-    return withTimeout(initPose(modelComplexity), 30000, '模型加载超时，请检查网络后重试');
+    // 60s 超时：模型加载（下载/编译 WASM）卡住时明确报错而非无限等待
+    return withTimeout(initPose(modelComplexity), 60000, '模型加载超时，请检查网络后重试');
   }
 
   // 单帧推理：15s 超时。超时/异常不抛错，标记 timedOut 由调用方按丢失帧处理。

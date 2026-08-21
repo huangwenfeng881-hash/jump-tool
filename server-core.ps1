@@ -1,5 +1,8 @@
 ﻿# server-core.ps1 — 静态服务器进程（由 start-server.ps1 启动，Stop-Process 停止即释放端口）
 # 用法: powershell -NoProfile -ExecutionPolicy Bypass -File server-core.ps1 -Port 8899
+# v4：单线程 + 静态资源 Cache-Control 缓存头（模型/wasm 二次加载秒开）+ 流式传输。
+# 说明：PS 5.1 的多线程方案（runspace/Thread）会因 HttpListenerContext 跨 runspace 序列化失败，
+# 单线程串行在冷加载时约 10s 可完成模型加载（前端超时已放宽到 60s 兜底）。
 param([int]$Port = 8899)
 
 $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -70,18 +73,21 @@ while ($true) {
     }
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
       $res.StatusCode = 404
-      $msg = [System.Text.Encoding]::UTF8.GetBytes('404 Not Found')
-      $res.OutputStream.Write($msg, 0, $msg.Length)
       $res.Close()
       continue
     }
     $ext = [System.IO.Path]::GetExtension($full).ToLower()
     $ct = 'application/octet-stream'
     if ($mimeMap.ContainsKey($ext)) { $ct = $mimeMap[$ext] }
-    $bytes = [System.IO.File]::ReadAllBytes($full)
     $res.ContentType = $ct
-    $res.ContentLength64 = $bytes.Length
-    $res.OutputStream.Write($bytes, 0, $bytes.Length)
+    if ($ext -eq '.html' -or $ext -eq '.htm') {
+      $res.Headers['Cache-Control'] = 'no-cache'
+    } else {
+      # 模型 / wasm / 静态资源缓存 1 天，二次加载秒开（浏览器强缓存）
+      $res.Headers['Cache-Control'] = 'public, max-age=86400'
+    }
+    $fs = [System.IO.File]::OpenRead($full)
+    try { $fs.CopyTo($res.OutputStream) } finally { $fs.Dispose() }
     $res.Close()
   } catch {
     try { $ctx.Response.StatusCode = 500; $ctx.Response.Close() } catch {}

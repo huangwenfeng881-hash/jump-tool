@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>model check</title></head>
+<body>
+<script type="module">
+  import { PoseLandmarker, FilesetResolver } from './mediapipe/tasks-vision/vision_bundle.mjs';
+  window.__VT_VISION__ = { PoseLandmarker: PoseLandmarker, FilesetResolver: FilesetResolver };
+</script>
+<script>
+// _model-check.html — 实测 MediaPipe 模型完整初始化耗时（module + fileset + createFromOptions）
+(function () {
+  'use strict';
+  function post(obj) {
+    fetch('/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'model-check.json', dataUrl: 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(obj)))) })
+    }).catch(function () {});
+  }
+  var t0 = Date.now();
+  var timer = setInterval(function () {
+    if (window.__VT_VISION__ && window.__VT_VISION__.PoseLandmarker) {
+      clearInterval(timer);
+      var tMod = Date.now();
+      var vision = window.__VT_VISION__;
+      (async function () {
+        var fileset = await vision.FilesetResolver.forVisionTasks('./mediapipe/tasks-vision/');
+        var lm = await vision.PoseLandmarker.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: './mediapipe/tasks-vision/pose_landmarker_lite.task', delegate: 'CPU' },
+          runningMode: 'VIDEO', numPoses: 1,
+          minPoseDetectionConfidence: 0.3, minPosePresenceConfidence: 0.3, minTrackingConfidence: 0.3
+        });
+        post({ ok: true, moduleMs: tMod - t0, totalMs: Date.now() - t0, cache: !!sessionStorage.getItem('vt-mc-2nd') });
+        sessionStorage.setItem('vt-mc-2nd', '1');
+      })().catch(function (e) {
+        post({ ok: false, moduleMs: tMod - t0, error: String(e && e.message || e) });
+      });
+    }
+  }, 100);
+  setTimeout(function () { post({ ok: false, timeout: true }); }, 90000);
+})();
+</script>
+</body>
+</html>
