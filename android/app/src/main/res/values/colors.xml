@@ -19,4 +19,5 @@
     <color name="outline">#73777F</color>
     <color name="nav_checked">#00639B</color>
     <color name="nav_unchecked">#8D9199</color>
+    <color name="error_red">#D93025</color>
 </resources>
