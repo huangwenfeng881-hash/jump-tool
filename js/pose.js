@@ -841,7 +841,7 @@ window.VTPose = (function () {
         if (deltas.length >= 3) {
           var sorted = deltas.slice().sort(function (a, b) { return a - b; });
           var med = sorted[Math.floor(sorted.length / 2)];
-          if ((dv <= med * 0.7 || dv <= 0.008) && j + 4 < n && rawF[j + 2] !== null && rawF[j + 3] !== null && rawF[j + 4] !== null) {
+          if ((dv <= med * 0.6 || dv <= 0.007) && j + 4 < n && rawF[j + 2] !== null && rawF[j + 3] !== null && rawF[j + 4] !== null) {
             var d2 = rawF[j + 2] - rawF[j + 1];
             var d3 = rawF[j + 3] - rawF[j + 2];
             var d4 = rawF[j + 4] - rawF[j + 3];
@@ -880,7 +880,7 @@ window.VTPose = (function () {
       // 1.0 阈值在 49 帧才触发，晚 1 帧）；确认帧阈值 0.6 → 0.5。
       for (var q = m0 + 1; q < n - 1; q++) {
         if (sH[q] === null) continue;
-        if (sH[q] > mVal + 0.6 && sH[q + 1] !== null && sH[q + 1] >= mVal + 0.4) { lo = q; break; }
+        if (sH[q] > mVal + 0.4 && sH[q + 1] !== null && sH[q + 1] >= mVal + 0.25) { lo = q; break; }
       }
       if (lo < 0 || lo >= landing) { dbg.rejected++; dInfo.rejected = 'no-liftoff'; dbg.descs.push(dInfo); return; }
       // 脚法精修起跳：实测校准（test video 10 组标注）——GT「离地时刻」= 脚信号开始
