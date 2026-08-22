@@ -675,8 +675,8 @@
           ? '共识别 ' + m.jumpCount + ' 次弹跳，以上为最高一次的指标；屈膝深度见下方曲线图。'
           : '屈膝深度与屈髋深度见下方曲线图。';
         // 帧号按 1-based 显示（与人工标注"第100帧"口径一致；检测内部为 0-based 索引）
-        metricsHint.textContent += ' · 离地帧 ' + (Math.round(m.best.jump.liftoffTime * videoFps) + 1) +
-          ' / 落地帧 ' + (Math.round(m.best.jump.landingTime * videoFps) + 1) + '（' + videoFps.toFixed(1) + 'fps，可直接与标注帧号对比）';
+        metricsHint.textContent += ' · 离地帧 ' + (Math.round(m.jump.liftoffTime * videoFps) + 1) +
+          ' / 落地帧 ' + (Math.round(m.jump.landingTime * videoFps) + 1) + '（' + videoFps.toFixed(1) + 'fps，可直接与标注帧号对比）';
       }
 
       // ---------- AI 报告渲染（流式） ----------
