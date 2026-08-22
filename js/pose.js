@@ -175,21 +175,21 @@ window.VTPose = (function () {
     });
   }
 
+  // nextFrame：帧真正显示后 resolve，并返回该帧的真实时间戳（mediaTime）。
+  // 用途：抽帧时用它作为样本时间，使姿态与帧严格一致，抵消 VFR/seek 落点微差造成的
+  // 同一视频两次分析结果不一致（离地/落地帧摆动、单/双脚翻转）。
   function nextFrame(video) {
     return new Promise(function (r) {
-      // 优先用 requestVideoFrameCallback：帧真正显示后回调，drawImage 必然取到
-      // 该时间点的帧（旧实现 rAF×2 在 seek 后可能取到滞后一帧的旧画面，
-      // 导致同一视频两次分析结果不一致——起跳方式/时刻在阈值边界翻转）。
       if (typeof video.requestVideoFrameCallback === 'function') {
         var called = false;
-        var t = setTimeout(function () { if (!called) { called = true; r(); } }, 400);
+        var t = setTimeout(function () { if (!called) { called = true; r(null); } }, 400);
         try {
-          video.requestVideoFrameCallback(function () {
-            if (!called) { called = true; clearTimeout(t); r(); }
+          video.requestVideoFrameCallback(function (now, meta) {
+            if (!called) { called = true; clearTimeout(t); r(meta && typeof meta.mediaTime === 'number' ? meta.mediaTime : null); }
           });
-        } catch (e) { if (!called) { called = true; clearTimeout(t); r(); } }
+        } catch (e) { if (!called) { called = true; clearTimeout(t); r(null); } }
       } else {
-        requestAnimationFrame(function () { requestAnimationFrame(r); });
+        requestAnimationFrame(function () { requestAnimationFrame(function () { r(video.currentTime || null); }); });
       }
     });
   }
@@ -592,10 +592,12 @@ window.VTPose = (function () {
           if (i > total) { resolve({ cancelled: false, data: data }); return; }
           var t = cs + i * frameInterval * sampleEvery;
           t = Math.round(t * fps) / fps; // 对齐到精确帧，保证多次运行时间轴一致
+          var actualTime = t;   // 实际抽到帧的真实时间（rVFC mediaTime），优先作样本时间戳
           if (t > ce + 1e-6) { resolve({ cancelled: false, data: data }); return; }
           seekTo(video, t)
             .then(function () { return nextFrame(video); })
-            .then(function () {
+            .then(function (mt) {
+              if (mt !== null && mt !== undefined) actualTime = mt;
               if (cancelled) { resolve({ cancelled: true, data: data }); return; }
               // 有框选时按框裁剪放大人物（含外扩），否则整帧分析。
               // 过小的框（误点产生的 8px 小框）视为无效，回退整帧分析，避免裁剪到无人物区域导致全帧丢失
@@ -603,7 +605,7 @@ window.VTPose = (function () {
               if (box && (box.w < 40 || box.h < 40)) box = null;
               frame = box ? makeBoxFrame(video, box, analysisDim()) : makeFrameCanvas(video, analysisDim());
               if (!frame) {
-                var curT0 = Math.max(0, Math.min(t - cs, ce - cs));
+                var curT0 = Math.max(0, Math.min(actualTime - cs, ce - cs));
                 data.push(entryOf(Math.round(curT0 * 1000) / 1000, prev, true));
                 lostStreak++;
                 if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true, abortedReason: 'lost' }); return; }
@@ -616,7 +618,7 @@ window.VTPose = (function () {
             .then(function (r) {
               // 单帧推理超时/异常：按丢失帧处理并继续，避免卡死
               if (r && (r.timedOut || r.error)) {
-                var curT1 = Math.max(0, Math.min(t - cs, ce - cs));
+                var curT1 = Math.max(0, Math.min(actualTime - cs, ce - cs));
                 curT1 = Math.round(curT1 * 1000) / 1000;
                 timeoutLost++;
                 lostStreak++;
@@ -631,7 +633,7 @@ window.VTPose = (function () {
               if (r && r.res && r.res.landmarks && r.res.landmarks.length) lm = r.res.landmarks[0];
               // 框选裁剪时，把关键点从裁剪画布坐标映射回整帧视频坐标
               if (lm && frame && frame._crop) lm = mapBoxLandmarks(lm, frame._crop, video.videoWidth, video.videoHeight);
-              var curT = Math.max(0, Math.min(t - cs, ce - cs));
+              var curT = Math.max(0, Math.min(actualTime - cs, ce - cs));
               curT = Math.round(curT * 1000) / 1000;
               var f = computeFrame(lm);
               if (f) {
