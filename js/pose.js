@@ -175,7 +175,7 @@ window.VTPose = (function () {
     });
   }
 
-  function nextFrame() {
+  function nextFrame(video) {
     return new Promise(function (r) {
       // 优先用 requestVideoFrameCallback：帧真正显示后回调，drawImage 必然取到
       // 该时间点的帧（旧实现 rAF×2 在 seek 后可能取到滞后一帧的旧画面，
@@ -594,7 +594,7 @@ window.VTPose = (function () {
           t = Math.round(t * fps) / fps; // 对齐到精确帧，保证多次运行时间轴一致
           if (t > ce + 1e-6) { resolve({ cancelled: false, data: data }); return; }
           seekTo(video, t)
-            .then(nextFrame)
+            .then(function () { return nextFrame(video); })
             .then(function () {
               if (cancelled) { resolve({ cancelled: true, data: data }); return; }
               // 有框选时按框裁剪放大人物（含外扩），否则整帧分析。
@@ -666,7 +666,7 @@ window.VTPose = (function () {
 
   // ---------- 关键帧渲染（JPEG dataURL） ----------
   function renderKeyframe(video, t, maxDim) {
-    return seekTo(video, t).then(nextFrame).then(function () {
+    return seekTo(video, t).then(function () { return nextFrame(video); }).then(function () {
       return makeFrameCanvas(video, maxDim || 720).toDataURL('image/jpeg', 0.7);
     });
   }
