@@ -635,9 +635,12 @@ object JumpAnalyzer {
         val gapSorted = gaps.map { it.gap }.sorted()
         val gap90 = gapSorted[floor(gapSorted.size * 0.9).toInt()]
 
+        // 起跳瞬间（最后 0.07s 内 + 起跳后 2 帧）两脚高度差最大值（与 JS 一致：
+        // 单脚起跳摆动腿在离地后 1~2 帧才明显抬起，窗口必须含起跳后帧）
         val lastWin = max(w0, iLo - jsRound(0.07 * fps).toInt())
+        val lastEnd = min(data.size - 1, iLo + 2)
         var lastGapMax = 0.0
-        for (i in lastWin..iLo) {
+        for (i in lastWin..lastEnd) {
             val e = data[i] ?: continue
             if (!e.lost && e.leftFeetY != null && e.rightFeetY != null) {
                 val gg = abs(e.leftFeetY - e.rightFeetY)

@@ -177,7 +177,20 @@ window.VTPose = (function () {
 
   function nextFrame() {
     return new Promise(function (r) {
-      requestAnimationFrame(function () { requestAnimationFrame(r); });
+      // 优先用 requestVideoFrameCallback：帧真正显示后回调，drawImage 必然取到
+      // 该时间点的帧（旧实现 rAF×2 在 seek 后可能取到滞后一帧的旧画面，
+      // 导致同一视频两次分析结果不一致——起跳方式/时刻在阈值边界翻转）。
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        var called = false;
+        var t = setTimeout(function () { if (!called) { called = true; r(); } }, 400);
+        try {
+          video.requestVideoFrameCallback(function () {
+            if (!called) { called = true; clearTimeout(t); r(); }
+          });
+        } catch (e) { if (!called) { called = true; clearTimeout(t); r(); } }
+      } else {
+        requestAnimationFrame(function () { requestAnimationFrame(r); });
+      }
     });
   }
 
@@ -1540,10 +1553,13 @@ window.VTPose = (function () {
     if (gaps.length < 2) return unk;
     var gap90 = gaps.map(function (x) { return x.gap; }).sort(function (a, b) { return a - b; });
     gap90 = gap90[Math.floor(gap90.length * 0.9)];
-    // 起跳瞬间（最后 0.07s 内）两脚高度差的最大值
+    // 起跳瞬间（最后 0.07s 内 + 起跳后 2 帧）两脚高度差的最大值。
+    // 窗口必须含起跳后 1~2 帧：单脚起跳时摆动腿在离地瞬间才明显抬起，
+    // 只看到起跳帧时两脚本可能还贴地（尤其 lo 提前 1 帧时），会把单脚误判成双脚。
     var lastWin = Math.max(w0, iLo - Math.round(0.07 * fps));
+    var lastEnd = Math.min(data.length - 1, iLo + 2);
     var lastGapMax = 0;
-    for (var i2 = lastWin; i2 <= iLo; i2++) {
+    for (var i2 = lastWin; i2 <= lastEnd; i2++) {
       var e2 = data[i2];
       if (e2 && !e2.lost && e2.leftFeetY !== null && e2.rightFeetY !== null) {
         var gg = Math.abs(e2.leftFeetY - e2.rightFeetY);
