@@ -863,23 +863,23 @@ window.VTPose = (function () {
       }
       if (m0 < 0) { dbg.rejected++; dInfo.rejected = 'no-hip-min'; dbg.descs.push(dInfo); return; }
       var lo = -1;
-      // 起跳检测：髋部从最低点抬升。阈值 1.5 → 1.2（56fps 下 1.5 需约 5 帧才触发，
-      // 导致起跳晚 2~4 帧）；确认帧阈值 1.0 → 0.8，仍可防单帧噪声尖峰。
+      // 起跳检测：髋部从最低点抬升。阈值 1.5 → 1.0（1.2 仍让单脚起跳晚 ~3 帧）；
+      // 确认帧阈值 0.8 → 0.6，防单帧噪声尖峰即可。
       for (var q = m0 + 1; q < n - 1; q++) {
         if (sH[q] === null) continue;
-        if (sH[q] > mVal + 1.2 && sH[q + 1] !== null && sH[q + 1] >= mVal + 0.8) { lo = q; break; }
+        if (sH[q] > mVal + 1.0 && sH[q + 1] !== null && sH[q + 1] >= mVal + 0.6) { lo = q; break; }
       }
       if (lo < 0 || lo >= landing) { dbg.rejected++; dInfo.rejected = 'no-liftoff'; dbg.descs.push(dInfo); return; }
       // 脚法精修起跳：实测校准（test video 10 组标注）——GT「离地时刻」= 脚信号开始
       // 持续下降的起点（连续 2 帧 Δ≤-0.003）。深蹲漂移在髋升前，窗口 [髋升, +8]；
-      // 且脚法必须明显晚于髋升（分离 ≥3 帧）才采用——倍帧/渐变起跳视频（如 test.mp4）
-      // 的脚信号滞后 1-2 帧，分离小，此时髋法（=GT）更准。
+      // 且脚法必须明显晚于髋升（分离 ≥4 帧）才采用——分离恰为 3 帧时脚信号
+      // 只滞后 1-2 帧（倍帧/单脚渐变起跳），脚法反而不如髋法接近 GT（实测 52→54 变晚）。
       var fDrop = -1;
       for (var fd = lo; fd < Math.min(n - 1, lo + 8); fd++) {
         if (fd < 1 || sF[fd - 1] === null || sF[fd] === null || sF[fd + 1] === null) continue;
         if (sF[fd] - sF[fd - 1] <= -0.003 && sF[fd + 1] - sF[fd] <= -0.003) { fDrop = fd; break; }
       }
-      if (fDrop >= lo + 3) lo = fDrop;
+      if (fDrop >= lo + 4) lo = fDrop;
 
       var ft = data[landing].t - data[lo].t;
       if (ft < minAir || ft > maxAir) { dbg.rejected++; dInfo.rejected = 'ft=' + Math.round(ft * 1000) / 1000; dbg.descs.push(dInfo); return; }

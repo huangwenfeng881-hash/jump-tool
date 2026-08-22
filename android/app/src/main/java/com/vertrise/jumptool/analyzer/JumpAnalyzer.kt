@@ -194,21 +194,21 @@ object JumpAnalyzer {
             }
             if (m0 < 0) { rejected++; continue }
             var lo = -1
-            // 起跳检测：阈值 1.5→1.2 / 1.0→0.8（56fps 下更灵敏，与 JS 一致）
+            // 起跳检测：阈值 1.2→1.0 / 0.8→0.6（更早触发，修正单脚起跳晚 ~3 帧，与 JS 一致）
             for (q in m0 + 1 until n - 1) {
                 val v = sH[q]
                 if (v == null) continue
-                if (v > mVal + 1.2 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 0.8) { lo = q; break }
+                if (v > mVal + 1.0 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 0.6) { lo = q; break }
             }
             if (lo < 0 || lo >= landing) { rejected++; continue }
-            // 脚法精修
+            // 脚法精修：分离 ≥4 帧才采用（分离 3 帧时脚法反而不如髋法，与 JS 一致）
             var fDrop = -1
             val fdEnd = min(n - 1, lo + 8)
             for (fd in lo until fdEnd) {
                 if (fd < 1 || sF[fd - 1] == null || sF[fd] == null || sF[fd + 1] == null) continue
                 if (sF[fd]!! - sF[fd - 1]!! <= -0.003 && sF[fd + 1]!! - sF[fd]!! <= -0.003) { fDrop = fd; break }
             }
-            if (fDrop >= lo + 3) lo = fDrop
+            if (fDrop >= lo + 4) lo = fDrop
 
             var ft = data[landing].t - data[lo].t
             if (ft < minAir || ft > maxAir) { rejected++; continue }
