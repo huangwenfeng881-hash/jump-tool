@@ -649,6 +649,10 @@
         metricsBox.appendChild(metricCard('弹跳高度', '📏', j.heightCm.toFixed(1) + ' cm',
           '测量存在一定误差，建议去 <a href="jump.html" style="color:var(--accent);text-decoration:underline;">「弹跳测量」手动测量</a>' +
           (m.jumpCount > 1 ? ' · 共 ' + m.jumpCount + ' 次弹跳' : '')));
+        // 帧号大卡片（1-based，与人工标注口径一致）——方便用户/开发者直接读取对照
+        metricsBox.appendChild(metricCard('离地帧 / 落地帧', '🎞️',
+          (Math.round(j.liftoffTime * videoFps) + 1) + ' / ' + (Math.round(j.landingTime * videoFps) + 1) + ' 帧',
+          Math.round(j.flightTime * 1000) + ' ms 腾空 · ' + videoFps.toFixed(1) + 'fps'));
         var tk = m.takeoff || {};
         var tkTxt = tk.type === 'single' ? '单脚起跳' : (tk.type === 'double' ? '双脚起跳' : '--');
         var tkSub = tk.type === 'single' ? '摆动腿在空中，单脚蹬地' : (tk.type === 'double' ? '两脚本着地同时发力' : '数据不足');
@@ -677,6 +681,21 @@
         // 帧号按 1-based 显示（与人工标注"第100帧"口径一致；检测内部为 0-based 索引）
         metricsHint.textContent += ' · 离地帧 ' + (Math.round(m.jump.liftoffTime * videoFps) + 1) +
           ' / 落地帧 ' + (Math.round(m.jump.landingTime * videoFps) + 1) + '（' + videoFps.toFixed(1) + 'fps，可直接与标注帧号对比）';
+        // 一键复制结果（把帧号/腾空/高度复制成一行，方便粘贴反馈）
+        var _lo = Math.round(j.liftoffTime * videoFps) + 1;
+        var _la = Math.round(j.landingTime * videoFps) + 1;
+        var _txt = '离地帧' + _lo + ' 落地帧' + _la + ' 腾空' + Math.round(j.flightTime * 1000) + 'ms 高度' + j.heightCm.toFixed(1) + 'cm fps' + videoFps.toFixed(1);
+        var copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = '📋 复制结果';
+        copyBtn.style.cssText = 'margin:10px 0 0;padding:8px 14px;border:1px solid var(--accent,#3ddc84);border-radius:8px;background:transparent;color:var(--accent,#3ddc84);cursor:pointer;font-size:13px;';
+        copyBtn.onclick = function () {
+          function ok() { try { toast('已复制：' + _txt, 'ok'); } catch (e) {} }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(_txt).then(ok, function () { try { prompt('请复制：', _txt); } catch (e) {} });
+          } else { try { prompt('请复制：', _txt); } catch (e) {} }
+        };
+        metricsBox.appendChild(copyBtn);
       }
 
       // ---------- AI 报告渲染（流式） ----------

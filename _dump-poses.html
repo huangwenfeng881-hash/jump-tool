@@ -120,10 +120,12 @@
         fetch(rel).then(function (r) { return r.arrayBuffer(); }).then(function (ab) {
           var frames = parseFrames(ab);
           var fps = (frames && dur > 0) ? frames / dur : 30;
+          var sam = 1;
+          try { sam = Math.max(1, parseInt(new URLSearchParams(location.search).get('sam') || '1', 10) || 1); } catch (e) {}
           var task = P.analyze({
             video: v,
             fps: fps,
-            sampleEvery: 1,
+            sampleEvery: sam,
             clipStart: 0,
             clipEnd: dur,
             activity: 'approach-jump',

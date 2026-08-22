@@ -159,7 +159,7 @@ object JumpAnalyzer {
                     // 触地确认扩展到后续 3 帧保持低速（排除空中减速段误判，与 JS 一致）。
                     // 历史：2 帧会把空中减速段误判为触地（提前 4~14 帧）；4 帧又让真实触地后的
                     // 缓冲微动拖慢判定（晚 2 帧）——折中 3 帧。
-                    if ((dv <= med * 0.5 || dv <= 0.006) && j + 4 < n && rawF[j + 2] != null && rawF[j + 3] != null && rawF[j + 4] != null) {
+                    if ((dv <= med * 0.7 || dv <= 0.008) && j + 4 < n && rawF[j + 2] != null && rawF[j + 3] != null && rawF[j + 4] != null) {
                         val d2 = rawF[j + 2]!! - f1
                         val d3 = rawF[j + 3]!! - rawF[j + 2]!!
                         val d4 = rawF[j + 4]!! - rawF[j + 3]!!
@@ -195,11 +195,11 @@ object JumpAnalyzer {
             }
             if (m0 < 0) { rejected++; continue }
             var lo = -1
-            // 起跳检测：阈值 1.0/0.6 → 0.8/0.5（更早触发，修正单脚起跳晚 ~3 帧，与 JS 一致）
+            // 起跳检测：阈值 0.8/0.5 → 0.6/0.4（更早、更稳触发，消除单脚起跳帧号 48↔52 摆动，与 JS 一致）
             for (q in m0 + 1 until n - 1) {
                 val v = sH[q]
                 if (v == null) continue
-                if (v > mVal + 0.8 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 0.5) { lo = q; break }
+                if (v > mVal + 0.6 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 0.4) { lo = q; break }
             }
             if (lo < 0 || lo >= landing) { rejected++; continue }
             // 脚法精修：分离 ≥4 帧才采用（分离 3 帧时脚法反而不如髋法，与 JS 一致）

@@ -13,6 +13,7 @@ const CDP_PORT = parseInt(process.env.FIX_CDP_PORT || '9365', 10);
 const EXPECT = parseInt(process.env.FIX_EXPECT || '20', 10);
 const VID_LIST = process.env.FIX_VIDS || '';
 const DIM = process.env.FIX_DIM || '';
+const SAM = process.env.FIX_SAM || '';
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.mjs': 'application/javascript', '.css': 'text/css', '.mp4': 'video/mp4', '.wasm': 'application/wasm', '.task': 'application/octet-stream', '.json': 'application/json' };
 
@@ -54,7 +55,7 @@ const chromeArgs = [
   '--disable-background-networking', '--disable-component-update',
   '--mute-audio', '--disable-dev-shm-usage',
   '--enable-features=SharedArrayBuffer',
-  'http://127.0.0.1:' + PORT + '/_dump-poses.html' + (VID_LIST ? '?vids=' + VID_LIST : '') + (DIM ? '&dim=' + DIM : '') + '&light=1'
+  'http://127.0.0.1:' + PORT + '/_dump-poses.html' + (VID_LIST ? '?vids=' + VID_LIST : '') + (DIM ? '&dim=' + DIM : '') + (SAM ? '&sam=' + SAM : '') + '&light=1'
 ];
 if (headed) {
   // 有头：隐藏窗口到屏幕外，让 Chrome 用真实 GPU
