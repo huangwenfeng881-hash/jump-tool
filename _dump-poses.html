@@ -8,6 +8,7 @@
   window.__VT_VISION__ = { PoseLandmarker: PoseLandmarker, FilesetResolver: FilesetResolver };
 </script>
 <script src="js/supabase-config.js"></script>
+<script>try { window.JTConfig.POSE_ANALYZE_MAXDIM = parseInt(new URLSearchParams(location.search).get('dim') || '480', 10); } catch (e) {}</script>
 <script src="js/pose.js"></script>
 <script>
 (function () {
@@ -130,12 +131,13 @@
             onProgress: function (i, total) { if (i % 40 === 0) console.log(name + ' ' + Math.round(i / total * 100) + '%'); }
           });
           task.promise.then(function (res) {
+            var light = /[?&]light=1/.test(location.search);
             var out = {
               video: name,
               fps: Math.round(fps * 1000) / 1000,
               duration: Math.round(dur * 1000) / 1000,
               frames: frames,
-              poseData: res.data || [],
+              poseData: light ? [] : (res.data || []),
               metrics: null,
               aborted: !!res.aborted,
               abortedReason: res.abortedReason || null,

@@ -815,7 +815,10 @@ window.VTPose = (function () {
       var s0 = seg.start;
       var dInfo = { s0: s0 };
       // 找触地：Δ ≤ 0.5×段内中位速度 或 Δ ≤ 0.006（触地减速起点）。
-      // 相对/绝对双阈值 + 持续低速确认（随后 2 帧 < 0.7×中位，防腾空中途晃动）。
+      // 相对/绝对双阈值 + 持续低速确认（随后 4 帧 < 0.7×中位）。
+      // 注意：空中减速段（最高点后下落变慢）也会出现“速度骤降”，若只确认 2 帧会把
+      // 触地提前 4~14 帧（如 双脚70-86 实测 −14 帧）。真实触地后脚停在地面不再显著下降，
+      // 因此要求后续 4 帧都保持低速（d2~d5 < 0.7×med），空中减速段会自动排除。
       var deltas = [];
       var landing = -1;
       for (var j = s0; j < n - 1; j++) {
@@ -824,10 +827,12 @@ window.VTPose = (function () {
         if (deltas.length >= 3) {
           var sorted = deltas.slice().sort(function (a, b) { return a - b; });
           var med = sorted[Math.floor(sorted.length / 2)];
-          if ((dv <= med * 0.5 || dv <= 0.006) && j + 3 < n && rawF[j + 2] !== null && rawF[j + 3] !== null) {
+          if ((dv <= med * 0.5 || dv <= 0.006) && j + 5 < n && rawF[j + 2] !== null && rawF[j + 3] !== null && rawF[j + 4] !== null && rawF[j + 5] !== null) {
             var d2 = rawF[j + 2] - rawF[j + 1];
             var d3 = rawF[j + 3] - rawF[j + 2];
-            if (d2 < med * 0.7 && d3 < med * 0.7) {
+            var d4 = rawF[j + 4] - rawF[j + 3];
+            var d5 = rawF[j + 5] - rawF[j + 4];
+            if (d2 < med * 0.7 && d3 < med * 0.7 && d4 < med * 0.7 && d5 < med * 0.7) {
               landing = (dv < 0.002) ? j + 1 : j;   // 骤停（Δ<0.002）触地在 j→j+1 之间
               dInfo.med = med; dInfo.triggerDv = dv;
               break;
@@ -858,9 +863,11 @@ window.VTPose = (function () {
       }
       if (m0 < 0) { dbg.rejected++; dInfo.rejected = 'no-hip-min'; dbg.descs.push(dInfo); return; }
       var lo = -1;
+      // 起跳检测：髋部从最低点抬升。阈值 1.5 → 1.2（56fps 下 1.5 需约 5 帧才触发，
+      // 导致起跳晚 2~4 帧）；确认帧阈值 1.0 → 0.8，仍可防单帧噪声尖峰。
       for (var q = m0 + 1; q < n - 1; q++) {
         if (sH[q] === null) continue;
-        if (sH[q] > mVal + 1.5 && sH[q + 1] !== null && sH[q + 1] >= mVal + 1.0) { lo = q; break; }
+        if (sH[q] > mVal + 1.2 && sH[q + 1] !== null && sH[q + 1] >= mVal + 0.8) { lo = q; break; }
       }
       if (lo < 0 || lo >= landing) { dbg.rejected++; dInfo.rejected = 'no-liftoff'; dbg.descs.push(dInfo); return; }
       // 脚法精修起跳：实测校准（test video 10 组标注）——GT「离地时刻」= 脚信号开始

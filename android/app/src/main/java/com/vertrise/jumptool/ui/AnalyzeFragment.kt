@@ -152,9 +152,9 @@ class AnalyzeFragment : Fragment() {
         addMetric(grid, "📏 弹跳高度", best.jump.heightCm.toString() + " cm",
             if (best.jumpCount > 1) "共 ${best.jumpCount} 次弹跳" else "测量存在一定误差，建议与卷尺/摸高实测对照")
 
-        // 起跳/落地时刻（秒 + 帧号，便于与人工标注对比）
-        val loFrame = Math.round(best.jump.liftoffTime * fps)
-        val laFrame = Math.round(best.jump.landingTime * fps)
+        // 起跳/落地时刻（秒 + 帧号，1-based 与人工标注"第100帧"口径一致）
+        val loFrame = Math.round(best.jump.liftoffTime * fps) + 1
+        val laFrame = Math.round(best.jump.landingTime * fps) + 1
         addMetric(grid, "⏱ 离地 / 落地时刻",
             "${best.jump.liftoffTime}s / ${best.jump.landingTime}s",
             "对应帧号：离地≈$loFrame 帧 · 落地≈$laFrame 帧（${fps.toInt()}fps）· 腾空 ${best.jump.flightTime}s")

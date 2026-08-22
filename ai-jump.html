@@ -6,7 +6,7 @@
   <title>AI 弹跳分析 · Vertrise跃升</title>
   <meta name="description" content="上传助跑起跳视频，AI 自动拆解起跳角度、屈膝深度、摆臂速度、最后两步节奏、落地稳定性，判断你的弹跳类型（力量型/速度型/弹性型）并指出短板。">
   <link rel="icon" type="image/png" href="img/favicon.png">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20260822">
   <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <!-- MediaPipe Pose（本地自托管）：姿态识别，数据不出本机 -->
@@ -302,12 +302,12 @@
   <div class="jt-toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="js/supabase-config.js"></script>
-  <script src="js/glm-crypto.js"></script>
-  <script src="js/glm.js"></script>
-  <script src="js/auth.js"></script>
+  <script src="js/supabase-config.js?v=20260822"></script>
+  <script src="js/glm-crypto.js?v=20260822"></script>
+  <script src="js/glm.js?v=20260822"></script>
+  <script src="js/auth.js?v=20260822"></script>
   <script src="js/ui.js?v=15"></script>
-  <script src="js/pose.js"></script>
+  <script src="js/pose.js?v=20260822"></script>
   <script>
     (function () {
       'use strict';
@@ -674,8 +674,9 @@
         metricsHint.textContent = m.jumpCount > 1
           ? '共识别 ' + m.jumpCount + ' 次弹跳，以上为最高一次的指标；屈膝深度见下方曲线图。'
           : '屈膝深度与屈髋深度见下方曲线图。';
-        metricsHint.textContent += ' · 离地帧 ' + Math.round(m.best.jump.liftoffTime * videoFps) +
-          ' / 落地帧 ' + Math.round(m.best.jump.landingTime * videoFps) + '（' + videoFps.toFixed(1) + 'fps，可直接与标注帧号对比）';
+        // 帧号按 1-based 显示（与人工标注"第100帧"口径一致；检测内部为 0-based 索引）
+        metricsHint.textContent += ' · 离地帧 ' + (Math.round(m.best.jump.liftoffTime * videoFps) + 1) +
+          ' / 落地帧 ' + (Math.round(m.best.jump.landingTime * videoFps) + 1) + '（' + videoFps.toFixed(1) + 'fps，可直接与标注帧号对比）';
       }
 
       // ---------- AI 报告渲染（流式） ----------

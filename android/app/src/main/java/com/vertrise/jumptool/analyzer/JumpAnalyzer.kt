@@ -156,10 +156,13 @@ object JumpAnalyzer {
                 if (deltas.size >= 3) {
                     val sorted = deltas.sorted()
                     val med = sorted[floor(sorted.size / 2.0).toInt()]
-                    if ((dv <= med * 0.5 || dv <= 0.006) && j + 3 < n && rawF[j + 2] != null && rawF[j + 3] != null) {
+                    // 触地确认扩展到后续 4 帧保持低速（排除空中减速段误判，与 JS 一致）
+                    if ((dv <= med * 0.5 || dv <= 0.006) && j + 5 < n && rawF[j + 2] != null && rawF[j + 3] != null && rawF[j + 4] != null && rawF[j + 5] != null) {
                         val d2 = rawF[j + 2]!! - f1
                         val d3 = rawF[j + 3]!! - rawF[j + 2]!!
-                        if (d2 < med * 0.7 && d3 < med * 0.7) {
+                        val d4 = rawF[j + 4]!! - rawF[j + 3]!!
+                        val d5 = rawF[j + 5]!! - rawF[j + 4]!!
+                        if (d2 < med * 0.7 && d3 < med * 0.7 && d4 < med * 0.7 && d5 < med * 0.7) {
                             landing = if (dv < 0.002) j + 1 else j
                             break
                         }
@@ -191,10 +194,11 @@ object JumpAnalyzer {
             }
             if (m0 < 0) { rejected++; continue }
             var lo = -1
+            // 起跳检测：阈值 1.5→1.2 / 1.0→0.8（56fps 下更灵敏，与 JS 一致）
             for (q in m0 + 1 until n - 1) {
                 val v = sH[q]
                 if (v == null) continue
-                if (v > mVal + 1.5 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 1.0) { lo = q; break }
+                if (v > mVal + 1.2 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 0.8) { lo = q; break }
             }
             if (lo < 0 || lo >= landing) { rejected++; continue }
             // 脚法精修

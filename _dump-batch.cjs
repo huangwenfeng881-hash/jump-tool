@@ -12,6 +12,7 @@ const PORT = parseInt(process.env.FIX_PORT || '8935', 10);
 const CDP_PORT = parseInt(process.env.FIX_CDP_PORT || '9365', 10);
 const EXPECT = parseInt(process.env.FIX_EXPECT || '20', 10);
 const VID_LIST = process.env.FIX_VIDS || '';
+const DIM = process.env.FIX_DIM || '';
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.mjs': 'application/javascript', '.css': 'text/css', '.mp4': 'video/mp4', '.wasm': 'application/wasm', '.task': 'application/octet-stream', '.json': 'application/json' };
 
@@ -44,18 +45,29 @@ const server = http.createServer((req, res) => {
 server.listen(PORT);
 
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-fix-'));
-const chrome = spawn(CHROME, [
-  '--headless=new', '--remote-debugging-port=' + CDP_PORT,
+// FIX_HEADED=1 时有头模式（真实 GPU 加速，推理快 ~100 倍）；默认无头（软件渲染，慢）
+const headed = process.env.FIX_HEADED === '1';
+const chromeArgs = [
+  '--remote-debugging-port=' + CDP_PORT,
   '--user-data-dir=' + profile,
   '--no-first-run', '--no-default-browser-check',
   '--disable-background-networking', '--disable-component-update',
   '--mute-audio', '--disable-dev-shm-usage',
   '--enable-features=SharedArrayBuffer',
-  '--enable-logging=stderr', '--v=0',
-  '--use-gl=angle', '--use-angle=vulkan', '--use-vulkan=swiftshader',
-  '--enable-unsafe-swiftshader',
-  'http://127.0.0.1:' + PORT + '/_dump-poses.html' + (VID_LIST ? '?vids=' + VID_LIST : '')
-], { stdio: ['ignore', 'pipe', 'pipe'] });
+  'http://127.0.0.1:' + PORT + '/_dump-poses.html' + (VID_LIST ? '?vids=' + VID_LIST : '') + (DIM ? '&dim=' + DIM : '') + '&light=1'
+];
+if (headed) {
+  // 有头：隐藏窗口到屏幕外，让 Chrome 用真实 GPU
+  chromeArgs.unshift('--window-position=-32000,-32000', '--window-size=800,600');
+} else {
+  chromeArgs.unshift(
+    '--headless=new',
+    '--enable-logging=stderr', '--v=0',
+    '--use-gl=angle', '--use-angle=vulkan', '--use-vulkan=swiftshader',
+    '--enable-unsafe-swiftshader'
+  );
+}
+const chrome = spawn(CHROME, chromeArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
 chrome.stdout.on('data', d => { const s = String(d); if (s.indexOf('saved ') >= 0 || s.indexOf('ALL DONE') >= 0 || s.indexOf('[') >= 0) process.stdout.write('[page] ' + s); });
 chrome.stderr.on('data', d => { const s = String(d).trim(); if (s && s.indexOf('PdhAddEnglishCounter') < 0 && s.indexOf('main.crx') < 0) process.stdout.write('[chrome] ' + s.split('\n').slice(0, 2).join(' | ') + '\n'); });
 chrome.on('error', e => console.error('[chrome spawn error] ' + e.message));
