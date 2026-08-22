@@ -156,13 +156,14 @@ object JumpAnalyzer {
                 if (deltas.size >= 3) {
                     val sorted = deltas.sorted()
                     val med = sorted[floor(sorted.size / 2.0).toInt()]
-                    // 触地确认扩展到后续 4 帧保持低速（排除空中减速段误判，与 JS 一致）
-                    if ((dv <= med * 0.5 || dv <= 0.006) && j + 5 < n && rawF[j + 2] != null && rawF[j + 3] != null && rawF[j + 4] != null && rawF[j + 5] != null) {
+                    // 触地确认扩展到后续 3 帧保持低速（排除空中减速段误判，与 JS 一致）。
+                    // 历史：2 帧会把空中减速段误判为触地（提前 4~14 帧）；4 帧又让真实触地后的
+                    // 缓冲微动拖慢判定（晚 2 帧）——折中 3 帧。
+                    if ((dv <= med * 0.5 || dv <= 0.006) && j + 4 < n && rawF[j + 2] != null && rawF[j + 3] != null && rawF[j + 4] != null) {
                         val d2 = rawF[j + 2]!! - f1
                         val d3 = rawF[j + 3]!! - rawF[j + 2]!!
                         val d4 = rawF[j + 4]!! - rawF[j + 3]!!
-                        val d5 = rawF[j + 5]!! - rawF[j + 4]!!
-                        if (d2 < med * 0.7 && d3 < med * 0.7 && d4 < med * 0.7 && d5 < med * 0.7) {
+                        if (d2 < med * 0.7 && d3 < med * 0.7 && d4 < med * 0.7) {
                             landing = if (dv < 0.002) j + 1 else j
                             break
                         }
@@ -194,11 +195,11 @@ object JumpAnalyzer {
             }
             if (m0 < 0) { rejected++; continue }
             var lo = -1
-            // 起跳检测：阈值 1.2→1.0 / 0.8→0.6（更早触发，修正单脚起跳晚 ~3 帧，与 JS 一致）
+            // 起跳检测：阈值 1.0/0.6 → 0.8/0.5（更早触发，修正单脚起跳晚 ~3 帧，与 JS 一致）
             for (q in m0 + 1 until n - 1) {
                 val v = sH[q]
                 if (v == null) continue
-                if (v > mVal + 1.0 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 0.6) { lo = q; break }
+                if (v > mVal + 0.8 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 0.5) { lo = q; break }
             }
             if (lo < 0 || lo >= landing) { rejected++; continue }
             // 脚法精修：分离 ≥4 帧才采用（分离 3 帧时脚法反而不如髋法，与 JS 一致）
