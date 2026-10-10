@@ -8,7 +8,7 @@ import androidx.fragment.app.Fragment
 import com.vertrise.jumptool.BuildConfig
 import com.vertrise.jumptool.databinding.FragmentProfileBinding
 
-/** 我的页：版本信息 / 数据说明 / 免责声明 */
+/** 我的：账号、训练与设置入口，底部展示版本信息 */
 class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileBinding? = null
@@ -21,6 +21,7 @@ class ProfileFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        bindAppLinks(binding.root)
         binding.txtAppVersion.text = "Vertrise跃升 v" + BuildConfig.VERSION_NAME
     }
 

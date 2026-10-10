@@ -6,9 +6,10 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.vertrise.jumptool.BuildConfig
+import com.vertrise.jumptool.MainActivity
 import com.vertrise.jumptool.databinding.FragmentSettingsBinding
 
-/** 设置页：分析说明 / 主题 / 关于 */
+/** 设置（全屏子页面）：分析说明 / 主题 / 关于 */
 class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
@@ -22,6 +23,7 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.txtVersion.text = "版本 " + BuildConfig.VERSION_NAME
+        binding.btnBack.setOnClickListener { (activity as? MainActivity)?.closeChild() }
     }
 
     override fun onDestroyView() {

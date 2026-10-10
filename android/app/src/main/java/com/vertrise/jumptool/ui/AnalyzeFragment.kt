@@ -14,6 +14,8 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import com.vertrise.jumptool.FeedbackUploader
+import com.vertrise.jumptool.LocalStore
+import com.vertrise.jumptool.MainActivity
 import com.vertrise.jumptool.R
 import com.vertrise.jumptool.analyzer.JumpAnalyzer
 import com.vertrise.jumptool.analyzer.MetricsResult
@@ -53,6 +55,9 @@ class AnalyzeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.btnPickVideo.setOnClickListener {
             pickVideo.launch(arrayOf("video/*"))
+        }
+        binding.btnCloseAnalyze.setOnClickListener {
+            (activity as? MainActivity)?.closeChild()
         }
         binding.btnCancelAnalyze.setOnClickListener {
             cancelled.set(true)
@@ -138,6 +143,7 @@ class AnalyzeFragment : Fragment() {
             }
             binding.txtResultError.text = hint
         } else {
+            m.best?.let { LocalStore.recordJump(requireContext(), it.jump.heightCm.toInt()) }
             renderMetrics(m, outcome.fps)
         }
         showResult()

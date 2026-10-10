@@ -5,29 +5,32 @@ import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
-import com.google.android.material.bottomnavigation.BottomNavigationView
+import androidx.fragment.app.Fragment
 import com.vertrise.jumptool.databinding.ActivityMainBinding
 import com.vertrise.jumptool.ui.AnalyzeFragment
+import com.vertrise.jumptool.ui.AnalyzeHubFragment
+import com.vertrise.jumptool.ui.DataFragment
 import com.vertrise.jumptool.ui.HomeFragment
 import com.vertrise.jumptool.ui.ProfileFragment
 import com.vertrise.jumptool.ui.SettingsFragment
+import com.vertrise.jumptool.ui.TrainingFragment
+import com.vertrise.jumptool.ui.WebPageFragment
 
 /**
- * Vertrise跃升 · 原生壳
- * 底部导航：主页 / 设置 / 我的；「AI 弹跳分析」为内嵌本地页面（WebViewAssetLoader 加载 assets/app）。
- * 分析页从主页卡片进入，全屏展示（隐藏底部导航），返回后恢复。
+ * Vertrise跃升 · 原生主壳
+ *
+ * 底部 5 个 Tab：首页 / 训练 / 分析 / 数据 / 我的。
+ * 分析类与站点功能页作为「全屏子页面」叠在 Tab 之上（隐藏底部导航，返回键逐级回退）：
+ *  - AI 弹跳分析：全原生（本机 MediaPipe，视频不上传）
+ *  - 弹跳测量 / 动作分析 / 杠铃测速 / 训练计划 / 记录 / 排行榜 / 会员 / 登录等：内嵌网页，与网页端同一版本
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    private val homeFragment = HomeFragment()
-    private val settingsFragment = SettingsFragment()
-    private val profileFragment = ProfileFragment()
-    private val analyzeFragment = AnalyzeFragment()
-
-    private var currentTag = TAG_HOME
-    private var analyzeOpen = false
+    private val tabFragments = LinkedHashMap<String, Fragment>()
+    private var currentTab = TAG_HOME
+    private var currentChild: Fragment? = null
     private var lastNight = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,69 +41,127 @@ class MainActivity : AppCompatActivity() {
 
         lastNight = isNightMode()
 
-        supportFragmentManager.beginTransaction()
-            .add(R.id.fragmentContainer, homeFragment, TAG_HOME)
-            .add(R.id.fragmentContainer, settingsFragment, TAG_SETTINGS)
-            .add(R.id.fragmentContainer, profileFragment, TAG_PROFILE)
-            .add(R.id.fragmentContainer, analyzeFragment, TAG_ANALYZE)
-            .hide(settingsFragment).hide(profileFragment).hide(analyzeFragment)
-            .commit()
+        if (savedInstanceState == null) {
+            tabFragments[TAG_HOME] = HomeFragment()
+            tabFragments[TAG_TRAINING] = TrainingFragment()
+            tabFragments[TAG_ANALYZE] = AnalyzeHubFragment()
+            tabFragments[TAG_DATA] = DataFragment()
+            tabFragments[TAG_PROFILE] = ProfileFragment()
+
+            val ft = supportFragmentManager.beginTransaction()
+            tabFragments.forEach { (tag, fragment) ->
+                ft.add(R.id.fragmentContainer, fragment, tag)
+                if (tag != currentTab) ft.hide(fragment)
+            }
+            ft.commitNow()
+        } else {
+            // Activity 重建（如深浅色切换）：保留当前 Tab，关闭全屏子页面，避免两侧状态不一致
+            currentTab = savedInstanceState.getString(STATE_TAB) ?: TAG_HOME
+            supportFragmentManager.findFragmentById(R.id.childContainer)?.let { child ->
+                supportFragmentManager.beginTransaction().remove(child).commitNow()
+            }
+            currentChild = null
+            binding.childContainer.visibility = View.GONE
+            binding.mainContent.visibility = View.VISIBLE
+            for (tag in TAB_TAGS) {
+                supportFragmentManager.findFragmentByTag(tag)?.let { tabFragments[tag] = it }
+            }
+            val ft = supportFragmentManager.beginTransaction()
+            tabFragments.forEach { (tag, fragment) ->
+                if (tag == currentTab) ft.show(fragment) else ft.hide(fragment)
+            }
+            ft.commitNow()
+        }
 
         binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> showTab(TAG_HOME)
-                R.id.nav_settings -> showTab(TAG_SETTINGS)
+                R.id.nav_training -> showTab(TAG_TRAINING)
+                R.id.nav_analyze -> showTab(TAG_ANALYZE)
+                R.id.nav_data -> showTab(TAG_DATA)
                 R.id.nav_profile -> showTab(TAG_PROFILE)
             }
             true
         }
-        // 默认选中主页
-        binding.bottomNav.selectedItemId = R.id.nav_home
+        binding.bottomNav.selectedItemId = tabItemId(currentTab)
     }
 
-    private fun showTab(tag: String) {
-        if (analyzeOpen) return
-        if (tag == currentTag) return
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(STATE_TAB, currentTab)
+    }
+
+    private fun tabItemId(tag: String): Int = when (tag) {
+        TAG_TRAINING -> R.id.nav_training
+        TAG_ANALYZE -> R.id.nav_analyze
+        TAG_DATA -> R.id.nav_data
+        TAG_PROFILE -> R.id.nav_profile
+        else -> R.id.nav_home
+    }
+
+    fun showTab(tag: String) {
+        if (currentChild != null) closeChild()
+        if (tag == currentTab) return
         val fm = supportFragmentManager
-        fm.beginTransaction()
-            .hide(fm.findFragmentByTag(currentTag)!!)
-            .show(fm.findFragmentByTag(tag)!!)
-            .commit()
-        currentTag = tag
+        val to = fm.findFragmentByTag(tag) ?: return
+        val from = fm.findFragmentByTag(currentTab)
+        val ft = fm.beginTransaction().show(to)
+        if (from != null) ft.hide(from)
+        ft.commit()
+        currentTab = tag
     }
 
-    /** 主页卡片点击：全屏打开分析页 */
     fun openAnalyze() {
-        if (analyzeOpen) return
-        analyzeOpen = true
-        binding.bottomNav.visibility = View.GONE
-        supportFragmentManager.beginTransaction()
-            .hide(supportFragmentManager.findFragmentByTag(currentTag)!!)
-            .show(analyzeFragment)
-            .commit()
-        analyzeFragment.onShown()
+        val fragment = AnalyzeFragment()
+        openChild(fragment, TAG_ANALYZE_CHILD)
+        fragment.onShown()
     }
 
-    /** 分析页返回主页 */
-    fun closeAnalyze() {
-        if (!analyzeOpen) return
-        analyzeOpen = false
-        binding.bottomNav.visibility = View.VISIBLE
-        supportFragmentManager.beginTransaction()
-            .hide(analyzeFragment)
-            .show(supportFragmentManager.findFragmentByTag(currentTag)!!)
-            .commit()
+    fun openSettings() {
+        openChild(SettingsFragment(), TAG_SETTINGS_CHILD)
     }
 
-    fun isAnalyzeOpen(): Boolean = analyzeOpen
+    fun openWeb(title: String, page: String) {
+        openChild(WebPageFragment.newInstance(title, page), TAG_WEB_CHILD)
+    }
+
+    fun openNative(key: String) {
+        when (key) {
+            "analyze" -> openAnalyze()
+            "settings" -> openSettings()
+        }
+    }
+
+    private fun openChild(fragment: Fragment, tag: String) {
+        val previous = currentChild
+        if (previous != null) {
+            supportFragmentManager.beginTransaction().remove(previous).commitNow()
+        }
+        currentChild = fragment
+        binding.mainContent.visibility = View.GONE
+        binding.childContainer.visibility = View.VISIBLE
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.childContainer, fragment, tag)
+            .commitNow()
+    }
+
+    fun closeChild() {
+        val child = currentChild ?: return
+        currentChild = null
+        supportFragmentManager.beginTransaction().remove(child).commitNow()
+        binding.childContainer.visibility = View.GONE
+        binding.mainContent.visibility = View.VISIBLE
+    }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (analyzeOpen) {
-            closeAnalyze()
-        } else {
-            super.onBackPressed()
+        val child = currentChild
+        if (child is WebPageFragment && child.handleBack()) return
+        if (child != null) {
+            closeChild()
+            return
         }
+        super.onBackPressed()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -108,7 +169,7 @@ class MainActivity : AppCompatActivity() {
         val night = isNightMode()
         if (night != lastNight) {
             lastNight = night
-            analyzeFragment.onNightModeChanged(night)
+            recreate()
         }
     }
 
@@ -118,9 +179,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val STATE_TAB = "state_tab"
+
+        private val TAB_TAGS = listOf("home", "training", "analyze_hub", "data", "profile")
+
         private const val TAG_HOME = "home"
-        private const val TAG_SETTINGS = "settings"
+        private const val TAG_TRAINING = "training"
+        private const val TAG_ANALYZE = "analyze_hub"
+        private const val TAG_DATA = "data"
         private const val TAG_PROFILE = "profile"
-        private const val TAG_ANALYZE = "analyze"
+        private const val TAG_ANALYZE_CHILD = "analyze_child"
+        private const val TAG_SETTINGS_CHILD = "settings_child"
+        private const val TAG_WEB_CHILD = "web_child"
     }
 }

@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Vertrise跃升</string>
-    <string name="nav_home">主页</string>
-    <string name="nav_settings">设置</string>
+    <string name="nav_home">首页</string>
+    <string name="nav_training">训练</string>
+    <string name="nav_analyze">分析</string>
+    <string name="nav_data">数据</string>
     <string name="nav_profile">我的</string>
+    <string name="nav_settings">设置</string>
+    <string name="action_back">返回</string>
 </resources>
