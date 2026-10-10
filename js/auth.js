@@ -57,7 +57,12 @@
     if (m.indexOf('invalid login credentials') >= 0) return '邮箱或密码错误';
     if (m.indexOf('email not confirmed') >= 0) return '邮箱尚未验证，请先查收确认邮件';
     if (m.indexOf('rate limit') >= 0) return '操作过于频繁，请稍后再试';
-    if (m.indexOf('failed to fetch') >= 0 || m.indexOf('network') >= 0) return '网络异常，无法连接服务器';
+    if (m.indexOf('failed to fetch') >= 0 || m.indexOf('network') >= 0) {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        return '设备未联网，请检查网络连接后重试';
+      }
+      return '无法连接账号服务：服务器暂时不可用（或当前网络访问受限），请稍后重试';
+    }
     return err.message;
   }
 
