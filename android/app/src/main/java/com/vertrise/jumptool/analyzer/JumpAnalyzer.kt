@@ -159,7 +159,7 @@ object JumpAnalyzer {
                     // 触地确认扩展到后续 3 帧保持低速（排除空中减速段误判，与 JS 一致）。
                     // 历史：2 帧会把空中减速段误判为触地（提前 4~14 帧）；4 帧又让真实触地后的
                     // 缓冲微动拖慢判定（晚 2 帧）——折中 3 帧。
-                    if ((dv <= med * 0.6 || dv <= 0.007) && j + 4 < n && rawF[j + 2] != null && rawF[j + 3] != null && rawF[j + 4] != null) {
+                    if ((dv <= med * 0.5 || dv <= 0.015) && j + 4 < n && rawF[j + 2] != null && rawF[j + 3] != null && rawF[j + 4] != null) {
                         val d2 = rawF[j + 2]!! - f1
                         val d3 = rawF[j + 3]!! - rawF[j + 2]!!
                         val d4 = rawF[j + 4]!! - rawF[j + 3]!!
@@ -173,11 +173,22 @@ object JumpAnalyzer {
                 j++
             }
             if (landing < 0 || landing >= n) {
-                for (hc in s0 + 3 until n - 1) {
-                    val a = rawH[hc]; val b = rawH[hc + 1]; val c = rawH[hc - 1]
-                    if (a == null || b == null || c == null) continue
-                    val dc1 = b - a
-                    if (dc1 <= -2.5) { landing = hc; break }
+                // 脚信号失效/末尾确认帧不足：用「下落段内脚最低点」（feetY 最大 = 触地/缓冲最低）定位落地
+                var loF = -1
+                var loV = Double.NEGATIVE_INFINITY
+                for (hc in s0 until n) {
+                    val v = rawF[hc] ?: continue
+                    if (v > loV) { loV = v; loF = hc }
+                }
+                if (loF >= 0 && loF < n) {
+                    landing = loF
+                } else {
+                    for (hc2 in s0 + 3 until n - 1) {
+                        val a = rawH[hc2]; val b = rawH[hc2 + 1]; val c = rawH[hc2 - 1]
+                        if (a == null || b == null || c == null) continue
+                        val dc1 = b - a
+                        if (dc1 <= -1.5) { landing = hc2; break }
+                    }
                 }
                 if (landing < 0 || landing >= n) { rejected++; continue }
             }
@@ -199,17 +210,17 @@ object JumpAnalyzer {
             for (q in m0 + 1 until n - 1) {
                 val v = sH[q]
                 if (v == null) continue
-                if (v > mVal + 0.4 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 0.25) { lo = q; break }
+                if (v > mVal + 0.7 && sH[q + 1] != null && sH[q + 1]!! >= mVal + 0.2) { lo = q; break }
             }
             if (lo < 0 || lo >= landing) { rejected++; continue }
-            // 脚法精修：分离 ≥4 帧才采用（分离 3 帧时脚法反而不如髋法，与 JS 一致）
+            // 脚法校正起跳：取「第一个」脚离地段；分离 ≥2 帧即采用，并取脚法提前 1 帧 max(lo, fDrop-1)。
             var fDrop = -1
-            val fdEnd = min(n - 1, lo + 8)
+            val fdEnd = min(min(n - 1, landing - 1), lo + 14)
             for (fd in lo until fdEnd) {
                 if (fd < 1 || sF[fd - 1] == null || sF[fd] == null || sF[fd + 1] == null) continue
                 if (sF[fd]!! - sF[fd - 1]!! <= -0.003 && sF[fd + 1]!! - sF[fd]!! <= -0.003) { fDrop = fd; break }
             }
-            if (fDrop >= lo + 4) lo = fDrop
+            if (fDrop >= lo + 2) lo = maxOf(lo, fDrop - 1)
 
             var ft = data[landing].t - data[lo].t
             if (ft < minAir || ft > maxAir) { rejected++; continue }
@@ -639,7 +650,7 @@ object JumpAnalyzer {
         // 起跳瞬间（最后 0.07s 内 + 起跳后 2 帧）两脚高度差最大值（与 JS 一致：
         // 单脚起跳摆动腿在离地后 1~2 帧才明显抬起，窗口必须含起跳后帧）
         val lastWin = max(w0, iLo - jsRound(0.07 * fps).toInt())
-        val lastEnd = min(data.size - 1, iLo + 2)
+        val lastEnd = min(data.size - 1, iLo + 3)
         var lastGapMax = 0.0
         for (i in lastWin..lastEnd) {
             val e = data[i] ?: continue

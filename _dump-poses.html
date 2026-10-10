@@ -2,17 +2,34 @@
 <html lang="zh-CN">
 <head><meta charset="UTF-8"><title>dump poses</title></head>
 <body>
+<div id="prog" style="font:16px sans-serif;padding:24px;white-space:pre-wrap;color:#222;">准备开始…</div>
 <!-- 回归夹具生成：对 test video/ 每个视频跑网页版引擎，导出 poseData + computeJumpMetrics 结果 -->
-<script type="module">
-  import { PoseLandmarker, FilesetResolver } from './mediapipe/tasks-vision/vision_bundle.mjs';
-  window.__VT_VISION__ = { PoseLandmarker: PoseLandmarker, FilesetResolver: FilesetResolver };
+<script>
+window.onerror = function (msg, src, line, col, err) {
+  var p = document.getElementById('prog');
+  if (p) p.textContent = 'JS 错误: ' + msg + ' @' + line + ':' + col + (err && err.stack ? '\n' + String(err.stack).split('\n').slice(0, 3).join('\n') : '');
+  return false;
+};
+window.addEventListener('unhandledrejection', function (e) {
+  var p = document.getElementById('prog');
+  if (p) p.textContent = '未处理异常: ' + String((e.reason && e.reason.message) || e.reason);
+});
 </script>
 <script src="js/supabase-config.js"></script>
 <script>try { window.JTConfig.POSE_ANALYZE_MAXDIM = parseInt(new URLSearchParams(location.search).get('dim') || '480', 10); } catch (e) {}</script>
+<script>try { var _dg = (new URLSearchParams(location.search).get('delegate') || 'CPU').toUpperCase(); window.JTConfig.POSE_DELEGATE = (_dg === 'GPU') ? 'GPU' : 'CPU'; } catch (e) {}</script>
 <script src="js/pose.js"></script>
 <script>
-(function () {
+(async function () {
   'use strict';
+  var prog = document.getElementById('prog');
+  try {
+    var _m = await import('./mediapipe/tasks-vision/vision_bundle.mjs');
+    window.__VT_VISION__ = { PoseLandmarker: _m.PoseLandmarker, FilesetResolver: _m.FilesetResolver };
+  } catch (e) {
+    prog.textContent = '模型库加载失败: ' + ((e && e.message) || e) + ' ——请按 F12 看 Console 更多信息';
+    return;
+  }
   var P = window.VTPose;
   var VIDEOS = [
     '单脚，最后一步121到133，离地时刻134，落地时刻183.mp4',
@@ -106,11 +123,15 @@
   } catch (e) {}
 
   var idx = 0;
+  var progEl = document.getElementById('prog');
+  function setProg(txt) { try { progEl.textContent = txt; } catch (e) {} }
   function next() {
-    if (idx >= LIST.length) { console.log('ALL DONE'); return; }
+    if (idx >= LIST.length) { console.log('ALL DONE'); setProg('全部完成！共 ' + LIST.length + ' 个视频，姿态数据已保存到本地。可以关掉此页面了。'); return; }
     var name = LIST[idx];
+    var cur = idx + 1;
     idx++;
     var rel = 'test video/' + encodeURIComponent(name);
+    setProg('正在加载 ' + cur + '/' + LIST.length + ': ' + name);
     fetch(rel).then(function (r) { return r.blob(); }).then(function (blob) {
       var url = URL.createObjectURL(blob);
       var v = document.createElement('video');
@@ -122,6 +143,7 @@
           var fps = (frames && dur > 0) ? frames / dur : 30;
           var sam = 1;
           try { sam = Math.max(1, parseInt(new URLSearchParams(location.search).get('sam') || '1', 10) || 1); } catch (e) {}
+          setProg('正在分析 ' + cur + '/' + LIST.length + '（' + Math.round(sam) + 'x 采样）：' + name + '\n' + Math.round(frames) + ' 帧 / ' + fps.toFixed(1) + 'fps');
           var task = P.analyze({
             video: v,
             fps: fps,
@@ -130,7 +152,7 @@
             clipEnd: dur,
             activity: 'approach-jump',
             onPhase: function (ph) { console.log(name + ' [' + ph + ']'); },
-            onProgress: function (i, total) { if (i % 40 === 0) console.log(name + ' ' + Math.round(i / total * 100) + '%'); }
+            onProgress: function (i, total) { if (i % 40 === 0) { console.log(name + ' ' + Math.round(i / total * 100) + '%'); setProg('正在分析 ' + cur + '/' + LIST.length + '：' + name + '\n' + Math.round(i / total * 100) + '%'); } }
           });
           task.promise.then(function (res) {
             var light = /[?&]light=1/.test(location.search);
@@ -148,7 +170,7 @@
             if (res.data && res.data.length && !res.error && !res.aborted) {
               try { out.metrics = P.computeJumpMetrics(res.data, { fps: fps }); } catch (e) { out.metricsError = String(e); }
             }
-            post('fx_' + idx + '.json', out).then(function () { setTimeout(next, 400); });
+            post('fx_' + idx + '.json', out).then(function () { setProg('已保存 ' + cur + '/' + LIST.length + (out.metrics ? '：' + out.video + '\n≈ ' + ((out.metrics.jumps && out.metrics.jumps[0]) ? out.metrics.jumps[0].heightCm.toFixed(1) + 'cm' : '未识别') : '')); setTimeout(next, 400); });
           });
         });
       };

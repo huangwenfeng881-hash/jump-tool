@@ -10,3 +10,7 @@ server-error.log
 _tmp_compare/
 _fixtures/
 _diag/node_modules/
+# MediaPipe 姿态提取用的 Python venv（体积大，可按 tools/README.md 重建）
+_mp_venv/
+# 宣传片生成的中间产物（幻灯片/分镜/配音临时文件）
+promo_tmp/

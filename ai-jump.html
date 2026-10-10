@@ -867,6 +867,12 @@
             return;
           }
           renderMetrics(metrics.best);
+          // 自动上报本次姿态原始数据到本地接收服务器（用于离线算法校准；无服务器时静默失败）
+          try {
+            var pn = (currentFile && currentFile.name) ? currentFile.name : 'video.mp4';
+            var _pl = { name: 'pose_' + pn.replace(/[\\/:*?"<>|\r\n\s]+/g, '_'), data: { video: pn, fps: videoFps, frames: totalFrames() || 0, duration: duration || 0, poseData: poseData } };
+            fetch('http://127.0.0.1:8936/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(_pl) }).catch(function () {});
+          } catch (e) {}
           if (metrics.best.usedHipFallback) {
             metricsHint.textContent += '（起跳瞬间脚部跟踪丢失，已用髋部法兜底识别）';
           }

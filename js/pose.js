@@ -65,12 +65,18 @@ window.VTPose = (function () {
     });
   }
 
-  // 创建 PoseLandmarker（CPU delegate：不依赖 WebGL/GPU，环境兼容性最好）
+  // 推理委托：默认 CPU（环境兼容最好）；诊断/桌面可经 JTConfig.POSE_DELEGATE='GPU' 提速
+  function poseDelegate() {
+    var d = String(CONFIG.POSE_DELEGATE || 'CPU').toUpperCase();
+    return d === 'GPU' ? 'GPU' : 'CPU';
+  }
+
+  // 创建 PoseLandmarker（默认 CPU delegate：不依赖 WebGL/GPU，环境兼容性最好）
   function createLandmarker(vision, modelPath) {
     var opts = {
       baseOptions: {
         modelAssetPath: modelPath,
-        delegate: 'CPU'
+        delegate: poseDelegate()
       },
       runningMode: 'VIDEO',
       numPoses: 1,
@@ -97,7 +103,7 @@ window.VTPose = (function () {
         usedCdnFallback = true;
         console.log('[Pose] 本地模型加载失败，已自动回退 CDN: ' + (err && err.message || err));
         var cdnOpts = {
-          baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task', delegate: 'CPU' },
+          baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task', delegate: poseDelegate() },
           runningMode: 'VIDEO', numPoses: 1,
           minPoseDetectionConfidence: 0.3, minPosePresenceConfidence: 0.3, minTrackingConfidence: 0.3,
           smoothLandmarks: false
@@ -583,6 +589,7 @@ window.VTPose = (function () {
       var timeoutLost = 0;   // 连续丢失中由推理超时导致的帧数
       var maxLost = Math.max(10, Math.round(total * 0.3));
       var prev = null;
+      var lastT2 = -1;   // 上一个样本的单调化时间（用于强制时间戳严格递增，消除 mediaTime 重复帧）
 
       return new Promise(function (resolve) {
         var boxes = opts.boxes;   // 框选关键帧（可为空）
@@ -592,12 +599,15 @@ window.VTPose = (function () {
           if (i > total) { resolve({ cancelled: false, data: data }); return; }
           var t = cs + i * frameInterval * sampleEvery;
           t = Math.round(t * fps) / fps; // 对齐到精确帧，保证多次运行时间轴一致
-          var actualTime = t;   // 实际抽到帧的真实时间（rVFC mediaTime），优先作样本时间戳
+          // 样本时间戳一律用单调的目标栅格时间（i/fps），保证帧号换算精确、腾空时间自洽。
+          // 抽帧稳定性由 requestVideoFrameCallback 等帧显示保证（不依赖 mediaTime——其有重复帧时间戳，
+          // 会破坏帧号换算（如 0-based47 帧被 round 成 46 而显示 47）。
+          var actualTime = t;
           if (t > ce + 1e-6) { resolve({ cancelled: false, data: data }); return; }
           seekTo(video, t)
             .then(function () { return nextFrame(video); })
             .then(function (mt) {
-              if (mt !== null && mt !== undefined) actualTime = mt;
+              if (mt !== null && mt !== undefined) actualTime = mt; // mediaTime：姿态与该真实帧严格绑定（抽帧稳定）
               if (cancelled) { resolve({ cancelled: true, data: data }); return; }
               // 有框选时按框裁剪放大人物（含外扩），否则整帧分析。
               // 过小的框（误点产生的 8px 小框）视为无效，回退整帧分析，避免裁剪到无人物区域导致全帧丢失
@@ -606,7 +616,8 @@ window.VTPose = (function () {
               frame = box ? makeBoxFrame(video, box, analysisDim()) : makeFrameCanvas(video, analysisDim());
               if (!frame) {
                 var curT0 = Math.max(0, Math.min(actualTime - cs, ce - cs));
-                data.push(entryOf(Math.round(curT0 * 1000) / 1000, prev, true));
+                curT0 = Math.max(curT0, lastT2 + frameInterval * sampleEvery); curT0 = Math.round(curT0 * 1000) / 1000; lastT2 = curT0;
+                data.push(entryOf(curT0, prev, true));
                 lostStreak++;
                 if (lostStreak >= maxLost) { resolve({ cancelled: false, data: data, aborted: true, abortedReason: 'lost' }); return; }
                 if (opts.onProgress) opts.onProgress(i, total, curT0, lostStreak);
@@ -619,7 +630,7 @@ window.VTPose = (function () {
               // 单帧推理超时/异常：按丢失帧处理并继续，避免卡死
               if (r && (r.timedOut || r.error)) {
                 var curT1 = Math.max(0, Math.min(actualTime - cs, ce - cs));
-                curT1 = Math.round(curT1 * 1000) / 1000;
+                curT1 = Math.max(curT1, lastT2 + frameInterval * sampleEvery); curT1 = Math.round(curT1 * 1000) / 1000; lastT2 = curT1;
                 timeoutLost++;
                 lostStreak++;
                 data.push(entryOf(curT1, prev, true));
@@ -634,7 +645,7 @@ window.VTPose = (function () {
               // 框选裁剪时，把关键点从裁剪画布坐标映射回整帧视频坐标
               if (lm && frame && frame._crop) lm = mapBoxLandmarks(lm, frame._crop, video.videoWidth, video.videoHeight);
               var curT = Math.max(0, Math.min(actualTime - cs, ce - cs));
-              curT = Math.round(curT * 1000) / 1000;
+              curT = Math.max(curT, lastT2 + frameInterval * sampleEvery); curT = Math.round(curT * 1000) / 1000; lastT2 = curT;
               var f = computeFrame(lm);
               if (f) {
                 lostStreak = 0;
@@ -841,7 +852,7 @@ window.VTPose = (function () {
         if (deltas.length >= 3) {
           var sorted = deltas.slice().sort(function (a, b) { return a - b; });
           var med = sorted[Math.floor(sorted.length / 2)];
-          if ((dv <= med * 0.6 || dv <= 0.007) && j + 4 < n && rawF[j + 2] !== null && rawF[j + 3] !== null && rawF[j + 4] !== null) {
+          if ((dv <= med * 0.5 || dv <= 0.015) && j + 4 < n && rawF[j + 2] !== null && rawF[j + 3] !== null && rawF[j + 4] !== null) {
             var d2 = rawF[j + 2] - rawF[j + 1];
             var d3 = rawF[j + 3] - rawF[j + 2];
             var d4 = rawF[j + 4] - rawF[j + 3];
@@ -855,12 +866,22 @@ window.VTPose = (function () {
         if (dv >= 0.004) deltas.push(dv);
       }
       if (landing < 0 || landing >= n) {
-        // 脚信号失效（落地后脚 landmark 仍大幅移动，如深蹲缓冲）：用髋部加速下降定位
-        // 落地（深蹲缓冲起点，comH 每帧降 ≥2.5）
-        for (var hc = s0 + 3; hc < n - 1; hc++) {
-          if (rawH[hc] === null || rawH[hc + 1] === null || rawH[hc - 1] === null) continue;
-          var dc1 = rawH[hc + 1] - rawH[hc];
-          if (dc1 <= -2.5) { landing = hc; dInfo.hipFallback = true; break; }
+        // 脚信号失效/末尾确认帧不足：用「下落段内脚最低点」（feetY 最大 = 触地/缓冲最低）定位落地，
+        // 比髋部 comH 下降可靠（comH 在下落段就开始降，会提前判定落地）。
+        var loF = -1, loV = -Infinity;
+        for (var hc = s0; hc < n; hc++) {
+          if (rawF[hc] === null) continue;
+          if (rawF[hc] > loV) { loV = rawF[hc]; loF = hc; }
+        }
+        if (loF >= 0 && loF < n) {
+          landing = loF; dInfo.hipFallback = true;
+        } else {
+          // 无脚数据：退回髋部加速下降定位（深蹲缓冲起点，comH 每帧降 ≥1.5）
+          for (var hc2 = s0 + 3; hc2 < n - 1; hc2++) {
+            if (rawH[hc2] === null || rawH[hc2 + 1] === null || rawH[hc2 - 1] === null) continue;
+            var dc1 = rawH[hc2 + 1] - rawH[hc2];
+            if (dc1 <= -1.5) { landing = hc2; dInfo.hipFallback = true; break; }
+          }
         }
         if (landing < 0 || landing >= n) { dbg.rejected++; dInfo.rejected = 'no-landing'; dbg.descs.push(dInfo); return; }
       }
@@ -880,7 +901,7 @@ window.VTPose = (function () {
       // 1.0 阈值在 49 帧才触发，晚 1 帧）；确认帧阈值 0.6 → 0.5。
       for (var q = m0 + 1; q < n - 1; q++) {
         if (sH[q] === null) continue;
-        if (sH[q] > mVal + 0.4 && sH[q + 1] !== null && sH[q + 1] >= mVal + 0.25) { lo = q; break; }
+        if (sH[q] > mVal + 0.7 && sH[q + 1] !== null && sH[q + 1] >= mVal + 0.2) { lo = q; break; }
       }
       if (lo < 0 || lo >= landing) { dbg.rejected++; dInfo.rejected = 'no-liftoff'; dbg.descs.push(dInfo); return; }
       // 脚法精修起跳：实测校准（test video 10 组标注）——GT「离地时刻」= 脚信号开始
@@ -888,11 +909,13 @@ window.VTPose = (function () {
       // 且脚法必须明显晚于髋升（分离 ≥4 帧）才采用——分离恰为 3 帧时脚信号
       // 只滞后 1-2 帧（倍帧/单脚渐变起跳），脚法反而不如髋法接近 GT（实测 52→54 变晚）。
       var fDrop = -1;
-      for (var fd = lo; fd < Math.min(n - 1, lo + 8); fd++) {
+      var fEnd = Math.min(n - 1, landing - 1, lo + 14);
+      for (var fd = lo; fd < fEnd; fd++) {
         if (fd < 1 || sF[fd - 1] === null || sF[fd] === null || sF[fd + 1] === null) continue;
         if (sF[fd] - sF[fd - 1] <= -0.003 && sF[fd + 1] - sF[fd] <= -0.003) { fDrop = fd; break; }
       }
-      if (fDrop >= lo + 4) lo = fDrop;
+      if (fDrop >= lo + 2) lo = Math.max(lo, fDrop - 1);
+      dInfo.m0 = m0; dInfo.mVal = Math.round(mVal * 1000) / 1000; dInfo.fDrop = fDrop; dInfo.lo = lo;
 
       var ft = data[landing].t - data[lo].t;
       if (ft < minAir || ft > maxAir) { dbg.rejected++; dInfo.rejected = 'ft=' + Math.round(ft * 1000) / 1000; dbg.descs.push(dInfo); return; }
@@ -1557,7 +1580,7 @@ window.VTPose = (function () {
     // 窗口必须含起跳后 1~2 帧：单脚起跳时摆动腿在离地瞬间才明显抬起，
     // 只看到起跳帧时两脚本可能还贴地（尤其 lo 提前 1 帧时），会把单脚误判成双脚。
     var lastWin = Math.max(w0, iLo - Math.round(0.07 * fps));
-    var lastEnd = Math.min(data.length - 1, iLo + 2);
+    var lastEnd = Math.min(data.length - 1, iLo + 3);
     var lastGapMax = 0;
     for (var i2 = lastWin; i2 <= lastEnd; i2++) {
       var e2 = data[i2];
