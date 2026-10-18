@@ -16,3 +16,5 @@ _mp_venv/
 promo_tmp/
 # 数据库改动前的人工备份（含用户数据，不入库）
 backup/
+# 抖音/知识类视频的生成中间产物
+douyin_tmp/
