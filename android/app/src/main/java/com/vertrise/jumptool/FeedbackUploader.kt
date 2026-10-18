@@ -9,9 +9,6 @@ import java.net.URL
 /** 纠错反馈上传：匿名提交到 Supabase analysis_feedback 表（与网页版同一后端） */
 object FeedbackUploader {
 
-    private const val SUPABASE_URL = "https://iszxoejqhjpucczfsdfo.supabase.co"
-    private const val ANON_KEY = "sb_publishable_34izFFx3h1vs_NnJkfBsEw_7rWbpawp"
-
     /** 提交反馈；返回 null 表示成功，否则返回错误信息 */
     fun submit(issue: String, liftoff: Double?, landing: Double?, height: Double?, metricsJson: JSONObject?): String? {
         val row = JSONObject()
@@ -26,14 +23,14 @@ object FeedbackUploader {
         if (height != null) row.put("actual_height_cm", height)
         row.put("issue", issue.ifBlank { "（未填写问题描述）" })
 
-        val conn = URL("$SUPABASE_URL/rest/v1/analysis_feedback").openConnection() as HttpURLConnection
+        val conn = URL(SupabaseConfig.URL + "/rest/v1/analysis_feedback").openConnection() as HttpURLConnection
         return try {
             conn.requestMethod = "POST"
             conn.connectTimeout = 15000
             conn.readTimeout = 15000
             conn.doOutput = true
-            conn.setRequestProperty("apikey", ANON_KEY)
-            conn.setRequestProperty("Authorization", "Bearer $ANON_KEY")
+            conn.setRequestProperty("apikey", SupabaseConfig.ANON_KEY)
+            conn.setRequestProperty("Authorization", "Bearer " + SupabaseConfig.ANON_KEY)
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Prefer", "return=minimal")
             OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { it.write(row.toString()) }

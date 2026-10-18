@@ -6,15 +6,19 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import com.vertrise.jumptool.BackendHealth
 import com.vertrise.jumptool.LocalStore
 import com.vertrise.jumptool.SitePages
 import com.vertrise.jumptool.databinding.FragmentHomeBinding
 
-/** 首页：问候 + 本周进度 + 关键数据 + 快捷入口 + 推荐训练 */
+/** 首页：问候 + 服务状态 + 本周进度 + 关键数据 + 快捷入口 + 推荐训练 */
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
+
+    /** 每个进程只自动探一次，避免来回切 Tab 反复请求 */
+    private var healthChecked = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -28,11 +32,31 @@ class HomeFragment : Fragment() {
         binding.btnBell.setOnClickListener {
             Toast.makeText(requireContext(), "暂无新消息", Toast.LENGTH_SHORT).show()
         }
+        binding.btnServiceRetry.setOnClickListener {
+            healthChecked = false
+            binding.txtServiceStatus.text = "正在重新检测…"
+            checkBackend()
+        }
     }
 
     override fun onResume() {
         super.onResume()
         refresh()
+        checkBackend()
+    }
+
+    private fun checkBackend() {
+        if (healthChecked) return
+        healthChecked = true
+        BackendHealth.check { ok ->
+            val b = _binding ?: return@check
+            if (ok) {
+                b.cardServiceStatus.visibility = View.GONE
+            } else {
+                b.txtServiceStatus.text = "云端服务暂时不可用"
+                b.cardServiceStatus.visibility = View.VISIBLE
+            }
+        }
     }
 
     private fun refresh() {

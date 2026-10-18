@@ -14,3 +14,5 @@ _diag/node_modules/
 _mp_venv/
 # 宣传片生成的中间产物（幻灯片/分镜/配音临时文件）
 promo_tmp/
+# 数据库改动前的人工备份（含用户数据，不入库）
+backup/
