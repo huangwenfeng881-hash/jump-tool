@@ -1,0 +1,4 @@
+# Supabase 同源反向代理
+# 部分网络（尤其国内移动网络）会重置到 *.supabase.co 的直连，导致登录/云端记录全部失败。
+# 通过本站域名转发，前端（web + App 内嵌页）改用 /sb 作为 Supabase Base URL。
+/sb/*  https://iszxoejqhjpucczfsdfo.supabase.co/:splat  200
