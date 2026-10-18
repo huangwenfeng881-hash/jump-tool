@@ -23,7 +23,18 @@ object FeedbackUploader {
         if (height != null) row.put("actual_height_cm", height)
         row.put("issue", issue.ifBlank { "（未填写问题描述）" })
 
-        val conn = URL(SupabaseConfig.URL + "/rest/v1/analysis_feedback").openConnection() as HttpURLConnection
+        var lastError: String? = null
+        for (base in SupabaseConfig.ENDPOINTS) {
+            val err = post(base, row)
+            if (err == null) return null
+            lastError = err
+        }
+        return lastError
+    }
+
+    /** 向指定地址 POST 一条反馈；返回 null 表示成功 */
+    private fun post(base: String, row: JSONObject): String? {
+        val conn = URL(base + "/rest/v1/analysis_feedback").openConnection() as HttpURLConnection
         return try {
             conn.requestMethod = "POST"
             conn.connectTimeout = 15000
@@ -35,7 +46,7 @@ object FeedbackUploader {
             conn.setRequestProperty("Prefer", "return=minimal")
             OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { it.write(row.toString()) }
             val code = conn.responseCode
-            if (code in 200..299) null else "提交失败（HTTP $code）"
+            if (code in 200..299) null else "提交失败（HTTP " + code + "）"
         } catch (e: Exception) {
             "网络异常：" + (e.message ?: "请重试")
         } finally {

@@ -6,14 +6,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 
-/**
- * 云端服务可用性探测。
- *
- * 登录 / 排行榜 / 训练记录同步都依赖 Supabase。免费版项目长时间没人用会被平台自动暂停，
- * 暂停后项目域名直接 NXDOMAIN，网页端只会报「网络异常，无法连接服务器」——
- * 用户很难判断到底是自己断网还是服务停了。这里在首页做一次轻量健康检查，
- * 异常时给出准确提示，避免误导。
- */
+/** 云端服务可用性探测：先走站点同源代理，失败再回退直连。 */
 object BackendHealth {
 
     private val executor = Executors.newSingleThreadExecutor { r ->
@@ -21,29 +14,30 @@ object BackendHealth {
     }
     private val main = Handler(Looper.getMainLooper())
 
-    /** 异步检查，结果回到主线程。true = 服务可达 */
     fun check(callback: (Boolean) -> Unit) {
         executor.execute {
-            val ok = probe()
+            var ok = false
+            for (base in SupabaseConfig.ENDPOINTS) {
+                if (probe(base)) { ok = true; break }
+            }
             main.post { callback(ok) }
         }
     }
 
-    private fun probe(): Boolean {
+    private fun probe(base: String): Boolean {
         var conn: HttpURLConnection? = null
         return try {
-            conn = (URL(SupabaseConfig.URL + "/auth/v1/health").openConnection() as HttpURLConnection).apply {
+            conn = (URL(base + "/auth/v1/health").openConnection() as HttpURLConnection).apply {
                 connectTimeout = 6000
                 readTimeout = 6000
                 requestMethod = "GET"
                 setRequestProperty("apikey", SupabaseConfig.ANON_KEY)
             }
             val code = conn.responseCode
-            android.util.Log.i("BackendHealth", "probe http=" + code)
-            // 200 = 正常；401 = 网关在但缺鉴权，同样说明服务活着
+            android.util.Log.i("BackendHealth", base + " http=" + code)
             code in 200..399 || code == 401
         } catch (e: Exception) {
-            android.util.Log.w("BackendHealth", "probe failed: " + e.javaClass.simpleName + " " + e.message)
+            android.util.Log.w("BackendHealth", base + " failed " + e.javaClass.simpleName)
             false
         } finally {
             try { conn?.disconnect() } catch (e: Exception) { }
