@@ -17,7 +17,8 @@
 ## 功能实现方式
 
 **原生实现（本机运行，视频不上传）**
-- **扣篮潜力自测**：立定跳远 / 原地纵跳 / 助跑摸高 三项达标线与判定（`DunkTest.kt`），
+- **扣篮潜力自测**：立定跳远（≥260cm）/ 摸高差（助跑-原地 ≥15cm）/ 站立摸高（≥220cm）
+  三项达标线与判定（`DunkTest.kt`，口径对齐 B站《3个指标自测扣篮潜力》），
   数据只存本机，三项中 2 项即「起飞线」；原地纵跳自动用最近一次 AI 分析结果预填，少填一项
 - AI 弹跳分析：MediaPipe Tasks（本机 CPU 推理）+ Kotlin 算法移植（`analyzer/JumpAnalyzer.kt`）
 - 首页/训练/数据/我的仪表盘：读取本机记录（`LocalStore`，SharedPreferences）
@@ -55,6 +56,6 @@ $env:ANDROID_HOME = "C:\Users\86134\AppData\Local\Android\Sdk"
 
 ## 应用信息
 - 包名：`com.vertrise.jumptool`
-- 版本：1.3.0（versionCode 4）
+- 版本：1.4.1（versionCode 7）
 - minSdk 24（Android 7.0+）/ targetSdk 35
 - 图标：使用站点 logo 生成（mipmap-mdpi ~ xxxhdpi + 自适应图标）

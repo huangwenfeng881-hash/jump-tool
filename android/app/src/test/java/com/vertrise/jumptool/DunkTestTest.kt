@@ -9,34 +9,40 @@ class DunkTestTest {
 
     @Test
     fun allThreePass() {
-        val r = DunkTest.evaluate(280, 75, 320)
+        // 立定跳远 270 / 站摸 225 / 原地 290 / 助跑 310 -> 差 20
+        val r = DunkTest.evaluate(270, 225, 290, 310)
         assertEquals(3, r.passed)
         assertEquals("随便起飞", r.verdict)
+        assertEquals(20, r.reachGap)
         assertTrue(r.metrics.all { it.passed })
     }
 
     @Test
     fun twoPassIsTakeoffLine() {
-        val r = DunkTest.evaluate(255, 62, 300)
+        // 跳远 270 达标；站摸 225 达标；助跑 300 - 原地 292 = 8 < 15 不达标
+        val r = DunkTest.evaluate(270, 225, 292, 300)
         assertEquals(2, r.passed)
         assertEquals("半步之遥", r.verdict)
-        assertFalse(r.metrics.first { it.key == "run" }.passed)
-        assertTrue(r.plan.contains("助跑摸高"))
+        assertEquals(8, r.reachGap)
+        assertFalse(r.metrics.first { it.key == "gap" }.passed)
+        assertTrue(r.plan.contains("摸高差"))
     }
 
     @Test
     fun boundaryValues() {
-        // 立定跳远刚好 250 达标，其余两项差 1
-        assertEquals(1, DunkTest.evaluate(250, 59, 304).passed)
-        assertEquals(0, DunkTest.evaluate(249, 59, 304).passed)
-        assertEquals(1, DunkTest.evaluate(249, 60, 304).passed)
+        // 立定跳远 260 刚好达标，站摸 219 差 1，助跑差 15 刚好达标
+        assertEquals(2, DunkTest.evaluate(260, 219, 280, 295).passed)
+        // 站摸 220 刚好达标
+        assertEquals(3, DunkTest.evaluate(260, 220, 280, 295).passed)
+        // 跳远 259、差 14 -> 只中站摸
+        assertEquals(1, DunkTest.evaluate(259, 220, 280, 294).passed)
     }
 
     @Test
-    fun weakestMetricIsChoosen() {
-        // 立定跳远 250/250=100%，纵跳 30/60=50%，助跑 305/305=100% -> 短板是纵跳
-        val r = DunkTest.evaluate(250, 30, 305)
+    fun weakestMetricIsChosen() {
+        // 跳远 260 达标，站摸 225 达标，差 5（5/15 最弱）-> 短板是摸高差
+        val r = DunkTest.evaluate(260, 225, 290, 295)
         assertEquals(2, r.passed)
-        assertTrue(r.plan.contains("原地纵跳"))
+        assertTrue(r.plan.contains("摸高差"))
     }
 }

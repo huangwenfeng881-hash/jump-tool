@@ -6,7 +6,6 @@
     android:background="@color/background"
     android:orientation="vertical">
 
-    <!-- 顶栏 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -53,7 +52,6 @@
             android:paddingEnd="18dp"
             android:paddingBottom="28dp">
 
-            <!-- 引子 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -75,13 +73,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:lineSpacingExtra="3dp"
-                    android:text="立定跳远 · 原地纵跳 · 助跑摸高
+                    android:text="立定跳远 · 摸高差 · 站立摸高
 数据只存本机，不用登录"
                     android:textColor="#D9DDFF"
                     android:textSize="13sp" />
             </LinearLayout>
 
-            <!-- 立定跳远 -->
+            <!-- 1 立定跳远 -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.Vertrise.Card"
                 android:layout_width="match_parent"
@@ -113,7 +111,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="下肢爆发力 · 达标 250 cm"
+                            android:text="瞬时爆发力 · 达标 260 cm"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -135,7 +133,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 原地纵跳 -->
+            <!-- 2 站立摸高 -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.Vertrise.Card"
                 android:layout_width="match_parent"
@@ -158,23 +156,22 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="原地纵跳"
+                            android:text="站立摸高"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <TextView
-                            android:id="@+id/txtVerticalHint"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="垂直弹跳 · 达标 60 cm"
+                            android:text="先天硬件 · 达标 220 cm（2.20m 门槛）"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>
 
                     <EditText
-                        android:id="@+id/edtVertical"
+                        android:id="@+id/edtStandingReach"
                         android:layout_width="92dp"
                         android:layout_height="48dp"
                         android:background="@drawable/bg_field"
@@ -190,7 +187,62 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 助跑摸高 -->
+            <!-- 3 原地摸高 -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Vertrise.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="原地摸高"
+                            android:textColor="@color/text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/txtStandReachHint"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="垂直弹跳后的最高点"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/edtStandReach"
+                        android:layout_width="92dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_field"
+                        android:gravity="center"
+                        android:hint="cm"
+                        android:inputType="number"
+                        android:maxLength="3"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_tertiary"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:importantForAutofill="no" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 4 助跑摸高 -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.Vertrise.Card"
                 android:layout_width="match_parent"
@@ -222,7 +274,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="助跑转化 · 达标 305 cm（标准篮筐）"
+                            android:text="与原地摸高差 ≥ 15 cm 才算达标"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -262,7 +314,6 @@
                 android:textSize="12sp"
                 android:visibility="gone" />
 
-            <!-- 结果 -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardResult"
                 style="@style/Widget.Vertrise.Card"
@@ -291,9 +342,17 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text=""
                         android:textColor="@color/text_primary"
                         android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/txtGap"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:textColor="@color/secondary"
+                        android:textSize="13sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -309,7 +368,7 @@
                         android:id="@+id/resultMetrics"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
+                        android:layout_marginTop="12dp"
                         android:orientation="vertical" />
 
                     <TextView

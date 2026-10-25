@@ -18,7 +18,8 @@ object LocalStore {
     private const val K_WEEK_COUNT = "week_count"
 
     private const val K_STAND_JUMP = "dunk_stand_jump"
-    private const val K_VERTICAL = "dunk_vertical"
+    private const val K_STANDING_REACH = "dunk_standing_reach"
+    private const val K_STAND_REACH = "dunk_stand_reach"
     private const val K_RUN_REACH = "dunk_run_reach"
     private const val K_SCORE = "dunk_score"
     private const val K_SCORE_AT = "dunk_score_at"
@@ -35,7 +36,8 @@ object LocalStore {
 
     data class Dunk(
         val standJump: Int,
-        val vertical: Int,
+        val standingReach: Int,
+        val standReach: Int,
         val runReach: Int,
         val score: Int,
         val atMs: Long
@@ -71,10 +73,18 @@ object LocalStore {
         )
     }
 
-    fun saveDunkTest(context: Context, standJump: Int, vertical: Int, runReach: Int, score: Int) {
+    fun saveDunkTest(
+        context: Context,
+        standJump: Int,
+        standingReach: Int,
+        standReach: Int,
+        runReach: Int,
+        score: Int
+    ) {
         prefs(context).edit()
             .putInt(K_STAND_JUMP, standJump)
-            .putInt(K_VERTICAL, vertical)
+            .putInt(K_STANDING_REACH, standingReach)
+            .putInt(K_STAND_REACH, standReach)
             .putInt(K_RUN_REACH, runReach)
             .putInt(K_SCORE, score)
             .putLong(K_SCORE_AT, System.currentTimeMillis())
@@ -85,7 +95,8 @@ object LocalStore {
         val p = prefs(context)
         return Dunk(
             standJump = p.getInt(K_STAND_JUMP, 0),
-            vertical = p.getInt(K_VERTICAL, 0),
+            standingReach = p.getInt(K_STANDING_REACH, 0),
+            standReach = p.getInt(K_STAND_REACH, 0),
             runReach = p.getInt(K_RUN_REACH, 0),
             score = p.getInt(K_SCORE, -1),
             atMs = p.getLong(K_SCORE_AT, 0L)
