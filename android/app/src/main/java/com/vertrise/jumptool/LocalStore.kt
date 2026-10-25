@@ -4,8 +4,8 @@ import android.content.Context
 import java.util.Calendar
 
 /**
- * 本机轻量数据：记录每次 AI 弹跳分析的高度，供首页/数据页展示。
- * 与账号无关、不联网；登录后的云端记录仍在网页端（jump_records）。
+ * 本机轻量数据：AI 弹跳分析结果、扣篮潜力自测结果。
+ * 与账号无关、不联网；登录后的云端记录仍在网页端 jump_records。
  */
 object LocalStore {
 
@@ -17,6 +17,12 @@ object LocalStore {
     private const val K_WEEK = "week_key"
     private const val K_WEEK_COUNT = "week_count"
 
+    private const val K_STAND_JUMP = "dunk_stand_jump"
+    private const val K_VERTICAL = "dunk_vertical"
+    private const val K_RUN_REACH = "dunk_run_reach"
+    private const val K_SCORE = "dunk_score"
+    private const val K_SCORE_AT = "dunk_score_at"
+
     const val WEEK_TARGET = 5
 
     data class Snapshot(
@@ -25,6 +31,14 @@ object LocalStore {
         val bestHeightCm: Int,
         val weekCount: Int,
         val lastAtMs: Long
+    )
+
+    data class Dunk(
+        val standJump: Int,
+        val vertical: Int,
+        val runReach: Int,
+        val score: Int,
+        val atMs: Long
     )
 
     fun recordJump(context: Context, heightCm: Int) {
@@ -54,6 +68,27 @@ object LocalStore {
             bestHeightCm = p.getInt(K_BEST_H, 0),
             weekCount = weekCount,
             lastAtMs = p.getLong(K_LAST_AT, 0L)
+        )
+    }
+
+    fun saveDunkTest(context: Context, standJump: Int, vertical: Int, runReach: Int, score: Int) {
+        prefs(context).edit()
+            .putInt(K_STAND_JUMP, standJump)
+            .putInt(K_VERTICAL, vertical)
+            .putInt(K_RUN_REACH, runReach)
+            .putInt(K_SCORE, score)
+            .putLong(K_SCORE_AT, System.currentTimeMillis())
+            .apply()
+    }
+
+    fun dunk(context: Context): Dunk {
+        val p = prefs(context)
+        return Dunk(
+            standJump = p.getInt(K_STAND_JUMP, 0),
+            vertical = p.getInt(K_VERTICAL, 0),
+            runReach = p.getInt(K_RUN_REACH, 0),
+            score = p.getInt(K_SCORE, -1),
+            atMs = p.getLong(K_SCORE_AT, 0L)
         )
     }
 

@@ -17,6 +17,8 @@
 ## 功能实现方式
 
 **原生实现（本机运行，视频不上传）**
+- **扣篮潜力自测**：立定跳远 / 原地纵跳 / 助跑摸高 三项达标线与判定（`DunkTest.kt`），
+  数据只存本机，三项中 2 项即「起飞线」；原地纵跳自动用最近一次 AI 分析结果预填，少填一项
 - AI 弹跳分析：MediaPipe Tasks（本机 CPU 推理）+ Kotlin 算法移植（`analyzer/JumpAnalyzer.kt`）
 - 首页/训练/数据/我的仪表盘：读取本机记录（`LocalStore`，SharedPreferences）
 - 分析纠错反馈：Supabase `analysis_feedback`（`FeedbackUploader.kt`）

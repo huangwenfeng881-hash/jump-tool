@@ -69,6 +69,13 @@ class HomeFragment : Fragment() {
         val done = minOf(s.weekCount, target)
         binding.txtWeekCount.text = done.toString() + " / " + target
         binding.ringWeek.progress = done * 100 / target
+        val dunk = LocalStore.dunk(requireContext())
+        binding.txtDunkHint.text = if (dunk.score >= 0) {
+            "上次自测 " + dunk.score + " / 3 · 点这里再测一次"
+        } else {
+            "3 个指标，中 2 个就起飞"
+        }
+
         binding.txtWeekHint.text = when {
             s.count == 0 -> "完成一次弹跳分析即可开始记录"
             done >= target -> "本周目标已完成，继续保持！"

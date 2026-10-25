@@ -10,6 +10,7 @@ import com.vertrise.jumptool.databinding.ActivityMainBinding
 import com.vertrise.jumptool.ui.AnalyzeFragment
 import com.vertrise.jumptool.ui.AnalyzeHubFragment
 import com.vertrise.jumptool.ui.DataFragment
+import com.vertrise.jumptool.ui.DunkTestFragment
 import com.vertrise.jumptool.ui.HomeFragment
 import com.vertrise.jumptool.ui.ProfileFragment
 import com.vertrise.jumptool.ui.SettingsFragment
@@ -121,6 +122,10 @@ class MainActivity : AppCompatActivity() {
         openChild(SettingsFragment(), TAG_SETTINGS_CHILD)
     }
 
+    fun openDunkTest() {
+        openChild(DunkTestFragment(), TAG_DUNK_CHILD)
+    }
+
     fun openWeb(title: String, page: String) {
         openChild(WebPageFragment.newInstance(title, page), TAG_WEB_CHILD)
     }
@@ -129,6 +134,7 @@ class MainActivity : AppCompatActivity() {
         when (key) {
             "analyze" -> openAnalyze()
             "settings" -> openSettings()
+            "dunk" -> openDunkTest()
         }
     }
 
@@ -190,6 +196,7 @@ class MainActivity : AppCompatActivity() {
         private const val TAG_PROFILE = "profile"
         private const val TAG_ANALYZE_CHILD = "analyze_child"
         private const val TAG_SETTINGS_CHILD = "settings_child"
+        private const val TAG_DUNK_CHILD = "dunk_child"
         private const val TAG_WEB_CHILD = "web_child"
     }
 }
