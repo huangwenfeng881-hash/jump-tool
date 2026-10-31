@@ -15,6 +15,10 @@
   .stat b{color:#fff}
   .stat .gap{color:var(--warn);font-weight:700}
   .stat .can{color:var(--ok);font-weight:700}
+  #importBar{margin-top:10px}
+  #btnImport{background:rgba(110,140,255,.16);border:1px solid rgba(110,140,255,.5);color:#cdd6ff;
+    border-radius:9px;padding:6px 12px;font-size:12px;font-weight:700}
+  #importTip{font-size:11px;color:#6d7488;margin-left:8px}
   #result{position:fixed;left:0;right:0;top:34%;text-align:center;font-size:40px;font-weight:900;
     letter-spacing:2px;opacity:0;transition:opacity .2s,transform .2s;transform:scale(.85);pointer-events:none;
     text-shadow:0 6px 30px rgba(0,0,0,.85)}
@@ -43,8 +47,22 @@
 <body>
 <canvas id="c"></canvas>
 <div id="loading">加载球员模型…</div>
+<script>
+window.addEventListener('error', e => {
+  const el = document.getElementById('loading');
+  if (el) el.textContent = 'JS 错误：' + (e.message || e.error);
+});
+window.addEventListener('unhandledrejection', e => {
+  const el = document.getElementById('loading');
+  if (el) el.textContent = '模块错误：' + (e.reason && e.reason.message || e.reason);
+});
+</script>
 
-<div class="top"><div class="stat" id="stat"></div></div>
+<div class="top">
+  <div class="stat" id="stat"></div>
+  <div id="importBar"><button id="btnImport">＋ 导入我的扣篮动作（FBX/GLB）</button><span id="importTip">把动捕文件拖到画面里也可以</span></div>
+</div>
+<input type="file" id="fileInput" accept=".fbx,.glb,.gltf" style="display:none">
 <div id="result"></div>
 <div id="flash"></div>
 <div class="hint" id="hint">点「助跑」→ 白线进绿区时点「起跳」</div>
@@ -69,6 +87,8 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { retargetClip } from 'three/addons/utils/SkeletonUtils.js';
 
 const RIM_H = 3.05, NEED = 320, G = 9.81, HOOP_Z = -3.2;  // NEED 单位 cm
 const $ = id => document.getElementById(id);
@@ -357,19 +377,48 @@ function applyHeight(){
 }
 
 // 扣篮姿态：直接驱动 Mixamo 骨骼
-function dunkPose(k, t){
-  const b = mixerRefs.bones;
-  const set = (name, x,y,z) => { const bn = findBone(name); if (bn) bn.rotation.set(x,y,z); };
-  // 双臂上举
-  set('LeftArm',  -0.15, 0.1, -2.55*k);
-  set('RightArm', -0.15, -0.1,  2.55*k);
-  set('LeftForeArm', 0, 0, -0.45*k);
-  set('RightForeArm', 0, 0, 0.45*k);
-  set('LeftUpLeg',  -0.75*k - 0.1, 0, 0);
-  set('RightUpLeg', -0.55*k - 0.1, 0, 0);
-  set('LeftLeg', 0.95*k, 0, 0);
-  set('RightLeg', 0.8*k, 0, 0);
-  set('Spine', -0.12*k, 0, 0);
+// ---------- 扣篮动作：关键帧 + 平滑插值（后续可换成 FBX 动捕文件） ----------
+// 每帧: [时间0~1, {骨骼: [x,y,z]}]
+const DUNK_KEYS = [
+  [0.00, { Spine:[0.06,0,0], LeftArm:[-0.1,0.1,-1.15], RightArm:[-0.1,-0.1,1.15],
+           LeftForeArm:[0,0,-0.7], RightForeArm:[0,0,0.7],
+           LeftUpLeg:[-0.85,0,0], RightUpLeg:[-0.55,0,0], LeftLeg:[1.15,0,0], RightLeg:[0.7,0,0] }],
+  [0.28, { Spine:[-0.16,0,0], LeftArm:[-0.15,0.1,-2.75], RightArm:[-0.15,-0.1,2.75],
+           LeftForeArm:[0,0,-0.15], RightForeArm:[0,0,0.15],
+           LeftUpLeg:[0.25,0,0], RightUpLeg:[0.1,0,0], LeftLeg:[0.55,0,0], RightLeg:[0.4,0,0] }],
+  [0.46, { Spine:[-0.22,0,0], LeftArm:[-0.2,0.1,-3.0], RightArm:[-0.2,-0.1,3.0],
+           LeftForeArm:[0,0,-0.05], RightForeArm:[0,0,0.05],
+           LeftUpLeg:[0.45,0,0], RightUpLeg:[0.3,0,0], LeftLeg:[0.35,0,0], RightLeg:[0.25,0,0] }],
+  [0.64, { Spine:[-0.1,0,0], LeftArm:[-0.25,0.1,-2.6], RightArm:[-0.25,-0.1,2.6],
+           LeftForeArm:[0,0,-0.85], RightForeArm:[0,0,0.85],
+           LeftUpLeg:[-0.35,0,0], RightUpLeg:[-0.2,0,0], LeftLeg:[0.9,0,0], RightLeg:[0.7,0,0] }],
+  [0.82, { Spine:[0.08,0,0], LeftArm:[-0.1,0.1,-1.5], RightArm:[-0.1,-0.1,1.5],
+           LeftForeArm:[0,0,-0.5], RightForeArm:[0,0,0.5],
+           LeftUpLeg:[-1.0,0,0], RightUpLeg:[-0.9,0,0], LeftLeg:[0.5,0,0], RightLeg:[0.45,0,0] }],
+  [1.00, { Spine:[0.12,0,0], LeftArm:[-0.05,0.1,-0.6], RightArm:[-0.05,-0.1,0.6],
+           LeftForeArm:[0,0,-0.3], RightForeArm:[0,0,0.3],
+           LeftUpLeg:[-0.35,0,0], RightUpLeg:[-0.3,0,0], LeftLeg:[0.6,0,0], RightLeg:[0.55,0,0] }],
+];
+const easeIO = x => x*x*(3-2*x);
+
+function dunkPose(progress, t){
+  const p = Math.min(1, Math.max(0, progress));
+  let i = 0;
+  while (i < DUNK_KEYS.length - 2 && p > DUNK_KEYS[i+1][0]) i++;
+  const [t0, A] = DUNK_KEYS[i];
+  const [t1, B] = DUNK_KEYS[Math.min(i+1, DUNK_KEYS.length-1)];
+  const span = Math.max(1e-4, t1 - t0);
+  const k = easeIO(Math.min(1, Math.max(0, (p - t0) / span)));
+  const bones = new Set([...Object.keys(A), ...Object.keys(B)]);
+  bones.forEach(name => {
+    const bn = findBone(name); if (!bn) return;
+    const a = A[name] || [0,0,0], b = B[name] || [0,0,0];
+    bn.rotation.set(
+      THREE.MathUtils.lerp(a[0], b[0], k),
+      THREE.MathUtils.lerp(a[1], b[1], k),
+      THREE.MathUtils.lerp(a[2], b[2], k)
+    );
+  });
 }
 
 function resetPose(){
@@ -416,6 +465,7 @@ function startRunup(){
   applyHeight();
   ball.position.set(0.42,1.05,5.15);
   state = S.RUNUP; runT = 0; pressed = false;
+  if (customAction){ customAction.stop(); }
   play('run');
   $('go').textContent = '起跳！';
   $('hint').textContent = '白线进绿区时点「起跳」';
@@ -446,6 +496,7 @@ function doJump(){
 }
 
 function land(){
+  if (customAction){ customAction.stop(); }
   const s = stats();
   const touch = s.reach + jumpH;
   const gap = NEED - touch;
@@ -475,6 +526,82 @@ $('go').addEventListener('click', ()=>{
 });
 canvas.addEventListener('pointerdown', ()=>{ if (state === S.RUNUP) doJump(); });
 addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); $('go').click(); } });
+
+// ---------------- 导入自己的扣篮动作 ----------------
+let customClip = null, customAction = null;
+
+function boneMapFor(srcClip){
+  // 按骨骼后缀把源轨道的名字映射到我们角色的骨骼
+  const map = {};
+  const names = new Set();
+  mixerRefs.model && mixerRefs.model.traverse(o => { if (o.isBone) names.add(o.name); });
+  const pick = (n) => {
+    for (const k of names){ if (k.replace(/^mixamorig:?/i,'') === n.replace(/^mixamorig:?/i,'')) return k; }
+    return null;
+  };
+  srcClip.tracks.forEach(tr => {
+    const bone = tr.name.split('.')[0];
+    if (!map[bone]) map[bone] = pick(bone) || bone;
+  });
+  return map;
+}
+
+function applyImportedAnimation(animRoot, clips, fileName){
+  if (!clips || !clips.length){ setImportTip('这个文件里没有动画数据', true); return; }
+  const clip = clips[0];
+  customClip = clip;
+  const srcSkinned = (() => { let s=null; animRoot.traverse(o=>{ if(!s && o.isSkinnedMesh) s=o; }); return s; })();
+  const dstSkinned = (() => { let s=null; mixerRefs.model.traverse(o=>{ if(!s && o.isSkinnedMesh) s=o; }); return s; })();
+  let action = null;
+  try {
+    if (srcSkinned && dstSkinned && clip.tracks.some(t => !mixerRefs.bones[t.name.split('.')[0]])){
+      const nameMap = boneMapFor(clip);
+      const retargeted = retargetClip(srcSkinned, dstSkinned, clip, { nameMap, fps: 30 });
+      action = mixerRefs.mixer.clipAction(retargeted);
+    } else {
+      action = mixerRefs.mixer.clipAction(clip);
+    }
+  } catch (e) {
+    try { action = mixerRefs.mixer.clipAction(clip); } catch(e2){ action = null; }
+  }
+  if (!action){ setImportTip('动作骨骼不匹配，已保留内置扣篮动作', true); return; }
+  customAction = action;
+  setImportTip(`已载入「${fileName}」· 起跳时会用这个动作`, false);
+  showResult('动作已载入', '#6E8CFF', 1400);
+}
+
+function setImportTip(text, warn){
+  const el = $('importTip');
+  el.textContent = text;
+  el.style.color = warn ? '#FF7A45' : '#3EE0BE';
+}
+
+function parseAnimFile(file){
+  const name = file.name.toLowerCase();
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      if (name.endsWith('.fbx')){
+        const obj = new FBXLoader().parse(ev.target.result, '');
+        applyImportedAnimation(obj, obj.animations || [], file.name);
+      } else {
+        new GLTFLoader().parse(ev.target.result, '', g => {
+          applyImportedAnimation(g.scene, g.animations || [], file.name);
+        }, err => setImportTip('解析失败：' + err, true));
+      }
+    } catch (e){ setImportTip('解析失败：' + e.message, true); }
+  };
+  if (name.endsWith('.fbx')) reader.readAsArrayBuffer(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+$('btnImport').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', e => { const f = e.target.files[0]; if (f) parseAnimFile(f); });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) parseAnimFile(e.dataTransfer.files[0]);
+});
 
 // ---------------- 主循环 ----------------
 const clock = new THREE.Clock();
@@ -518,7 +645,12 @@ function animate(){
     playerRoot.position.y = Math.max(0, y);
     playerRoot.position.z = THREE.MathUtils.lerp(1.5, 0.5, Math.min(t/airT, 1));
     playerRoot.rotation.y = Math.PI;
-    dunkPose(Math.min(1, t/(airT*0.25)), t);
+    if (customAction){
+      if (!customAction.isRunning()){ customAction.reset().setLoop(THREE.LoopOnce, 1); customAction.clampWhenFinished = true; customAction.play(); }
+      customAction.timeScale = 1 / Math.max(0.35, airT * 1.15);
+    } else {
+      dunkPose(t/airT, t);
+    }
     holdBall(0.02, true);
     if (t >= airT) land();
   } else {
