@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>DunkSim · 扣篮模拟器 v0.2</title>
+<style>
+  :root{--bg:#06070b;--line:#252735;--text:#EDEEF5;--sub:#9AA0B4;--accent:#6E8CFF;--ok:#3EE0BE;--warn:#FF7A45}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .top{position:fixed;top:0;left:0;right:0;padding:14px 16px;pointer-events:none}
+  .stat{font-size:13px;color:var(--sub);line-height:1.75;text-shadow:0 2px 8px rgba(0,0,0,.9)}
+  .stat b{color:#fff}
+  .stat .gap{color:var(--warn);font-weight:700}
+  .stat .can{color:var(--ok);font-weight:700}
+  #result{position:fixed;left:0;right:0;top:34%;text-align:center;font-size:40px;font-weight:900;
+    letter-spacing:2px;opacity:0;transition:opacity .2s,transform .2s;transform:scale(.85);pointer-events:none;
+    text-shadow:0 6px 30px rgba(0,0,0,.85)}
+  #result.show{opacity:1;transform:scale(1)}
+  #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .12s}
+  .bottom{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:560px;
+    padding:12px 14px 18px;background:linear-gradient(to top,rgba(6,7,11,.96),rgba(6,7,11,0))}
+  .row{display:flex;gap:8px;margin-bottom:8px}
+  .field{flex:1;background:#11121a;border:1px solid var(--line);border-radius:10px;padding:7px 9px}
+  .field label{display:block;font-size:11px;color:var(--sub);margin-bottom:2px}
+  .field input{width:100%;background:transparent;border:0;color:#fff;font-size:16px;font-weight:700;outline:none}
+  #go{width:100%;height:54px;border:0;border-radius:14px;background:var(--accent);color:#fff;
+    font-size:19px;font-weight:800;letter-spacing:2px}
+  #go:active{filter:brightness(.9)}
+  #timing{position:fixed;left:50%;bottom:236px;transform:translateX(-50%);width:220px;height:14px;
+    border-radius:8px;background:#1b1d27;overflow:hidden;opacity:0;transition:opacity .15s}
+  #timing.show{opacity:1}
+  #zone{position:absolute;top:0;bottom:0;background:rgba(62,224,190,.35);left:52%;width:26%}
+  #marker{position:absolute;top:-3px;bottom:-3px;width:4px;background:#fff;left:0;border-radius:2px}
+  .hint{position:fixed;left:0;right:0;bottom:268px;text-align:center;font-size:13px;color:var(--sub);
+    padding:0 16px;text-shadow:0 2px 8px rgba(0,0,0,.9)}
+  #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#06070b;
+    color:var(--sub);font-size:15px;z-index:9;transition:opacity .4s}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loading">加载球员模型…</div>
+
+<div class="top"><div class="stat" id="stat"></div></div>
+<div id="result"></div>
+<div id="flash"></div>
+<div class="hint" id="hint">点「助跑」→ 白线进绿区时点「起跳」</div>
+<div id="timing"><div id="zone"></div><div id="marker"></div></div>
+
+<div class="bottom">
+  <div class="row">
+    <div class="field"><label>身高 cm</label><input id="iHeight" value="181" inputmode="decimal"></div>
+    <div class="field"><label>臂展 cm</label><input id="iArm" value="183" inputmode="decimal"></div>
+    <div class="field"><label>体重 kg</label><input id="iWeight" value="70" inputmode="decimal"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>弹跳 cm</label><input id="iJump" value="80" inputmode="decimal"></div>
+    <div class="field"><label>站立摸高 cm（可空）</label><input id="iReach" value="" inputmode="decimal"></div>
+  </div>
+  <button id="go">助跑</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./lib/three.module.js", "three/addons/": "./lib/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const RIM_H = 3.05, NEED = 320, G = 9.81, HOOP_Z = -3.2;  // NEED 单位 cm
+const $ = id => document.getElementById(id);
+
+// ---------------- 渲染器 ----------------
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05060a);
+scene.fog = new THREE.Fog(0x05060a, 16, 40);
+
+const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 120);
+camera.position.set(3.1, 2.55, 5.8);
+
+// ---------------- 灯光 ----------------
+scene.add(new THREE.HemisphereLight(0xa8bcff, 0x3a2612, 1.45));
+
+const key = new THREE.DirectionalLight(0xfff2e0, 3.2);
+key.position.set(6, 10, 7);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+const sc = key.shadow.camera;
+sc.left=-12; sc.right=12; sc.top=12; sc.bottom=-12; sc.near=1; sc.far=40;
+scene.add(key);
+
+const rimSpot = new THREE.SpotLight(0xffb070, 90, 14, 0.62, 0.5, 1.6);
+rimSpot.position.set(0, 5.6, HOOP_Z + 0.4);
+rimSpot.target.position.set(0, 3.0, HOOP_Z - 0.2);
+scene.add(rimSpot); scene.add(rimSpot.target);
+
+const backLight = new THREE.PointLight(0x5f7bff, 26, 16);
+backLight.position.set(-5, 3.4, -3.0);
+scene.add(backLight);
+
+// ---------------- 程序化贴图 ----------------
+function woodTexture(){
+  const s = 1024, c = document.createElement('canvas');
+  c.width = c.height = s;
+  const x = c.getContext('2d');
+  x.fillStyle = '#7a4f2c'; x.fillRect(0,0,s,s);
+  for(let i=0;i<220;i++){
+    const y = Math.random()*s, h = 4+Math.random()*26;
+    x.fillStyle = 'rgba(0,0,0,'+(0.03+Math.random()*0.07)+')';
+    x.fillRect(0, y, s, h);
+    x.fillStyle = 'rgba(255,200,140,'+(0.015+Math.random()*0.03)+')';
+    x.fillRect(0, y+h, s, 2);
+  }
+  for(let i=0;i<12;i++){
+    x.strokeStyle = 'rgba(30,16,6,.35)'; x.lineWidth = 2+Math.random()*2;
+    x.beginPath(); x.moveTo(0, i*s/12); x.lineTo(s, i*s/12); x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6,6);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function ballTexture(){
+  const s = 512, c = document.createElement('canvas');
+  c.width = c.height = s;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(s*0.35,s*0.3,20,s*0.5,s*0.5,s*0.7);
+  g.addColorStop(0,'#ff9a4d'); g.addColorStop(1,'#c1490f');
+  x.fillStyle = g; x.fillRect(0,0,s,s);
+  x.strokeStyle = 'rgba(40,15,5,.85)'; x.lineWidth = 6;
+  x.beginPath(); x.moveTo(0,s/2); x.lineTo(s,s/2); x.stroke();
+  x.beginPath(); x.moveTo(s/2,0); x.lineTo(s/2,s); x.stroke();
+  x.beginPath(); x.arc(s/2, -s*0.15, s*0.62, 0.35, Math.PI-0.35); x.stroke();
+  x.beginPath(); x.arc(s/2, s*1.15, s*0.62, Math.PI+0.35, -0.35); x.stroke();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ---------------- 球场 ----------------
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(44, 44),
+  new THREE.MeshStandardMaterial({map: woodTexture(), roughness:0.62, metalness:0.04})
+);
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene.add(floor);
+
+const lineMat = new THREE.MeshStandardMaterial({color:0xf2f4fa, roughness:0.5, emissive:0x111111});
+function courtLine(w,d,x,z,rot=0){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,0.012,d), lineMat);
+  m.position.set(x,0.008,z); m.rotation.y = rot; scene.add(m); return m;
+}
+for(let i=0;i<72;i++){
+  const a = -Math.PI*0.92 + i*(Math.PI*0.92/71);
+  courtLine(0.16,0.07, Math.cos(a)*6.75, Math.sin(a)*6.75 + HOOP_Z + 0.4, a);
+}
+courtLine(4.9,0.07,0,-4.6);
+courtLine(5.8,0.07,0,-8.6);          // 底线
+courtLine(0.07,30,0,-9.6);           // 边线附近
+
+// ---------------- 看台 ----------------
+const standMat = new THREE.MeshStandardMaterial({color:0x14161f, roughness:0.9});
+const crowdMat = [0x2a3350,0x3d2a3f,0x243b32,0x3a3122].map(c=>new THREE.MeshStandardMaterial({color:c, roughness:0.9}));
+for (let s=0; s<3; s++){
+  const stand = new THREE.Mesh(new THREE.BoxGeometry(30, 1.0+s*0.9, 1.6), standMat);
+  stand.position.set(0, 0.5+s*0.45, -13 + s*2.2);
+  stand.receiveShadow = true;
+  scene.add(stand);
+  for (let i=0;i<26;i++){
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.55,0.5,0.5), crowdMat[i%4]);
+    seat.position.set(-13 + i*1.05, 1.1+s*0.9, -13 + s*2.2);
+    scene.add(seat);
+  }
+}
+
+// ---------------- 篮架 ----------------
+const steel = new THREE.MeshStandardMaterial({color:0x2a2d38, roughness:0.35, metalness:0.75});
+const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,3.7,18), steel);
+pole.position.set(0,1.85,HOOP_Z-1.2); pole.castShadow = true; scene.add(pole);
+const arm = new THREE.Mesh(new THREE.BoxGeometry(0.16,0.16,1.1), steel);
+arm.position.set(0,3.65,HOOP_Z-0.75); scene.add(arm);
+const base = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.5,0.9), steel);
+base.position.set(0,0.25,HOOP_Z-1.4); base.castShadow = true; scene.add(base);
+
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color:0xeaf2ff, transparent:true, opacity:0.22, roughness:0.05, metalness:0,
+  transmission:0.85, thickness:0.4, ior:1.5
+});
+const board = new THREE.Mesh(new THREE.BoxGeometry(1.8,1.05,0.06), glassMat);
+board.position.set(0,3.45,HOOP_Z-0.45); scene.add(board);
+const frameMat = new THREE.MeshStandardMaterial({color:0xe63b2f, roughness:0.45, emissive:0x3a0a06});
+const boardFrame = new THREE.Mesh(new THREE.BoxGeometry(1.84,0.05,0.06), frameMat);
+boardFrame.position.set(0,3.99,HOOP_Z-0.45); scene.add(boardFrame);
+const sq = new THREE.Mesh(new THREE.BoxGeometry(0.59,0.45,0.02), new THREE.MeshBasicMaterial({color:0xff5a3c}));
+sq.position.set(0,3.28,HOOP_Z-0.41); scene.add(sq);
+
+const rimMat = new THREE.MeshStandardMaterial({color:0xff5c14, roughness:0.3, metalness:0.85, emissive:0x4a1500});
+const rim = new THREE.Mesh(new THREE.TorusGeometry(0.225,0.021,12,40), rimMat);
+rim.position.set(0,RIM_H,HOOP_Z-0.15); rim.rotation.x = Math.PI/2; rim.castShadow = true; scene.add(rim);
+
+// 网（用线段，落地会抖动）
+const netPts = [];
+const netSegs = 14;
+for (let i=0;i<netSegs;i++){
+  const a0 = i/netSegs*Math.PI*2, a1 = (i+1)/netSegs*Math.PI*2;
+  const p0 = new THREE.Vector3(Math.cos(a0)*0.215, 0, Math.sin(a0)*0.215);
+  const p1 = new THREE.Vector3(Math.cos(a1)*0.215, 0, Math.sin(a1)*0.215);
+  const m0 = new THREE.Vector3(Math.cos(a0)*0.115, -0.42, Math.sin(a0)*0.115);
+  const m1 = new THREE.Vector3(Math.cos(a1)*0.115, -0.42, Math.sin(a1)*0.115);
+  netPts.push(p0,p1, p0,m0, m0,m1);
+}
+const netGeo = new THREE.BufferGeometry().setFromPoints(netPts);
+const net = new THREE.LineSegments(netGeo, new THREE.LineBasicMaterial({color:0xdfe6f5, transparent:true, opacity:0.7}));
+net.position.set(0, RIM_H, HOOP_Z-0.15);
+scene.add(net);
+
+// ---------------- 球 ----------------
+const ball = new THREE.Mesh(
+  new THREE.SphereGeometry(0.121, 32, 24),
+  new THREE.MeshStandardMaterial({map: ballTexture(), roughness:0.72, metalness:0.02})
+);
+ball.castShadow = true; ball.position.set(0.42,1.05,2.35); scene.add(ball);
+
+// ---------------- 角色 ----------------
+const playerRoot = new THREE.Group();
+scene.add(playerRoot);
+const mixerRefs = { mixers: [], actions: {}, bones: {}, model: null };
+let ready = false;
+
+const loader = new GLTFLoader();
+loader.load('./models/Soldier.glb', gltf => {
+  const model = gltf.scene;
+  model.traverse(o => {
+    if (o.isMesh || o.isSkinnedMesh){
+      o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const names = mats.map(m => m && m.name).join(',');
+      // 隐藏解剖"关节球"层，只保留皮肤
+      if (names.includes('Joints')) { o.visible = false; return; }
+      mats.forEach(m => {
+        if (!m) return;
+        m.roughness = Math.min(0.85, (m.roughness ?? 0.7));
+        m.metalness = 0.0;
+        m.vertexColors = true;
+      });
+      paintUniform(o, new THREE.Color(1,1,1), new THREE.Color(0x1b2ea8), new THREE.Color(0x111318));
+    }
+    if (o.isBone){
+      mixerRefs.bones[o.name] = o;
+    }
+  });
+  mixerRefs.handR = findBone('RightHand');
+  mixerRefs.handL = findBone('LeftHand');
+  playerRoot.add(model);
+  mixerRefs.model = model;
+  mixerRefs.clips = gltf.animations;
+  const mixer = new THREE.AnimationMixer(model);
+  mixerRefs.mixer = mixer;
+
+  const byName = {};
+  gltf.animations.forEach(c => {
+    const a = mixer.clipAction(c);
+    byName[c.name] = a;
+    byName[c.name.toLowerCase()] = a;
+  });
+  mixerRefs.actions = byName;
+  const idleA = byName['idle'];
+  if (idleA) { idleA.play(); mixerRefs.current = 'idle'; }
+
+  // 依据骨架（头顶-脚底）计算模型真实身高，用于缩放
+  model.updateMatrixWorld(true);
+  const headB = findBone('Head') || findBone('HeadTop_End');
+  const footB = findBone('LeftToeBase') || findBone('LeftFoot');
+  let h = 1.8;
+  if (headB && footB){
+    const hv = new THREE.Vector3(), fv = new THREE.Vector3();
+    headB.getWorldPosition(hv); footB.getWorldPosition(fv);
+    h = Math.max(0.5, hv.y - fv.y) * 1.06;   // 头骨到脚趾，补一点余量
+  } else {
+    const box = new THREE.Box3().setFromObject(model);
+    h = Math.max(0.5, box.max.y - box.min.y);
+  }
+  mixerRefs.baseHeight = h;
+
+  ready = true;
+  $('loading').style.opacity = 0;
+  setTimeout(()=>$('loading').remove(), 500);
+  applyHeight();
+}, undefined, err => {
+  $('loading').textContent = '模型加载失败：' + err;
+});
+
+/** 按绑定姿态的坐标给网格"穿"上球衣：躯干=球衣色、髋部=短裤色、其余=肤色 */
+function paintUniform(mesh, skinC, jerseyC, shortC){
+  const g = mesh.geometry;
+  const pos = g.attributes.position;
+  if (!pos) return;
+  g.computeBoundingBox();
+  const bb = g.boundingBox;
+  const h = bb.max.y - bb.min.y;
+  const midX = (bb.max.x + bb.min.x) * 0.5;
+  const colors = new Float32Array(pos.count * 3);
+  const skin = skinC || new THREE.Color(0xe8d3c0);
+  const jersey = jerseyC || new THREE.Color(0x2b3bd6);
+  const short = shortC || new THREE.Color(0x14161f);
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++){
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const rel = (y - bb.min.y) / h;
+    const dx = Math.abs(x - midX) / h;
+    if (rel > 0.86) c.copy(skin);                       // 头颈
+    else if (dx > 0.13) c.copy(skin);                   // 手臂（T-pose 时沿 X 方向）
+    else if (rel > 0.62) c.copy(jersey);                // 躯干
+    else if (rel > 0.47) c.copy(short);                 // 髋/短裤
+    else c.copy(skin);                                  // 腿
+    colors[i*3] = c.r; colors[i*3+1] = c.g; colors[i*3+2] = c.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+
+/** 按后缀找骨骼，兼容 mixamorig 前缀差异 */
+function findBone(suffix){
+  const b = mixerRefs.bones;
+  for (const k in b){ const s = k.replace(/^mixamorig:?/i,''); if (s === suffix) return b[k]; }
+  return null;
+}
+
+function play(name, fade=0.18){
+  const key = name.toLowerCase();
+  const a = mixerRefs.actions[key] || mixerRefs.actions[name];
+  if (!a || mixerRefs.current === key) return;
+  name = key;
+  const prev = mixerRefs.actions[mixerRefs.current];
+  a.reset().setEffectiveWeight(1).fadeIn(fade).play();
+  if (prev && prev !== a) prev.fadeOut(fade);
+  mixerRefs.current = name;
+}
+
+function applyHeight(){
+  if (!mixerRefs.model) return;
+  const target = num('iHeight',181) / 100;
+  const base = mixerRefs.baseHeight || 1.8;
+  const k = target / base;
+  // 只缩放模型（影子等随之）
+  mixerRefs.model.scale.setScalar(k);
+}
+
+// 扣篮姿态：直接驱动 Mixamo 骨骼
+function dunkPose(k, t){
+  const b = mixerRefs.bones;
+  const set = (name, x,y,z) => { const bn = findBone(name); if (bn) bn.rotation.set(x,y,z); };
+  // 双臂上举
+  set('LeftArm',  -0.15, 0.1, -2.55*k);
+  set('RightArm', -0.15, -0.1,  2.55*k);
+  set('LeftForeArm', 0, 0, -0.45*k);
+  set('RightForeArm', 0, 0, 0.45*k);
+  set('LeftUpLeg',  -0.75*k - 0.1, 0, 0);
+  set('RightUpLeg', -0.55*k - 0.1, 0, 0);
+  set('LeftLeg', 0.95*k, 0, 0);
+  set('RightLeg', 0.8*k, 0, 0);
+  set('Spine', -0.12*k, 0, 0);
+}
+
+function resetPose(){
+  // 清掉手改的骨骼，交回动画控制
+  if (mixerRefs.model) mixerRefs.model.traverse(o => { if (o.isBone) o.rotation.set(0,0,0); });
+}
+
+// ---------------- 数值 ----------------
+function num(id, def=0){ const v = $(id).value.trim(); return v === '' ? def : (parseFloat(v) || def); }
+function stats(){
+  const h = num('iHeight',181), arm = num('iArm',183), w = num('iWeight',70), j = num('iJump',80);
+  let reach = num('iReach',0); if(!reach) reach = arm*1.27;
+  return {h, arm, w, j, reach, touch: reach + j, gap: NEED - (reach + j)};
+}
+function refreshStat(){
+  const s = stats();
+  const can = s.touch >= NEED;
+  $('stat').innerHTML =
+    `身高 <b>${s.h.toFixed(0)}</b> · 臂展 <b>${s.arm.toFixed(0)}</b> · 体重 <b>${s.w.toFixed(0)}</b>kg<br>` +
+    `站立摸高 <b>${s.reach.toFixed(0)}</b> ＋ 弹跳 <b>${s.j.toFixed(0)}</b> ＝ 摸高 <b>${s.touch.toFixed(0)}</b>cm<br>` +
+    (can ? `需要 ${NEED}cm → <span class="can">可以扣（富余 ${(-s.gap).toFixed(0)}cm）</span>`
+         : `需要 ${NEED}cm → <span class="gap">还差 ${s.gap.toFixed(0)}cm</span>`);
+}
+['iHeight','iArm','iWeight','iJump','iReach'].forEach(id=>$(id).addEventListener('input', ()=>{ refreshStat(); applyHeight(); }));
+refreshStat();
+
+// ---------------- 状态机 ----------------
+const S = {IDLE:'idle', RUNUP:'runup', AIR:'air', RESULT:'result'};
+let state = S.IDLE, t = 0, v0 = 0, airT = 0, quality = 0.8, jumpH = 0, runT = 0, pressed = false;
+const RUN_DUR = 1.05;
+let flashLevel = 0;
+const camState = {shake:0};
+
+function showResult(text, color, ms=2200){
+  const r = $('result');
+  r.textContent = text; r.style.color = color; r.classList.add('show');
+  clearTimeout(showResult._t);
+  showResult._t = setTimeout(()=>r.classList.remove('show'), ms);
+}
+
+function startRunup(){
+  const s = stats();
+  playerRoot.position.set(0,0,4.6);
+  applyHeight();
+  ball.position.set(0.42,1.05,5.15);
+  state = S.RUNUP; runT = 0; pressed = false;
+  play('run');
+  $('go').textContent = '起跳！';
+  $('hint').textContent = '白线进绿区时点「起跳」';
+  $('timing').classList.add('show');
+  $('result').classList.remove('show');
+}
+
+function doJump(){
+  if (state !== S.RUNUP) return;
+  pressed = true;
+  const s = stats();
+  const now = Math.min(runT / RUN_DUR, 1);
+  let q;
+  if (now >= 0.5 && now <= 0.78) {
+    const c = 0.64; q = 1 - Math.abs(now - c) / 0.14 * 0.25;
+  } else {
+    q = 0.92 - Math.abs(now - 0.64) * 1.5;
+  }
+  quality = Math.max(0.6, Math.min(1.0, q));
+  jumpH = s.j * quality;
+  v0 = Math.sqrt(2*G*jumpH/100);
+  airT = 2*v0/G;
+  t = 0;
+  state = S.AIR;
+  $('go').textContent = '助跑';
+  $('timing').classList.remove('show');
+  $('hint').textContent = '起跳中…';
+}
+
+function land(){
+  const s = stats();
+  const touch = s.reach + jumpH;
+  const gap = NEED - touch;
+  state = S.RESULT;
+  playerRoot.position.y = 0;
+  if (gap <= 0){
+    showResult('扣进！', '#3EE0BE', 2600);
+    flashLevel = 1;
+    camState.shake = 0.35;
+    ball.position.set(0, RIM_H-0.02, HOOP_Z-0.15);
+    $('hint').textContent = `摸高 ${touch.toFixed(0)}cm · 时机 ${Math.round(quality*100)}% · 富余 ${(-gap).toFixed(0)}cm`;
+  } else {
+    showResult(`差 ${gap.toFixed(0)}cm`, '#FF7A45');
+    $('hint').textContent = `摸高 ${touch.toFixed(0)}cm（时机 ${Math.round(quality*100)}%）· 弹跳再加 ${gap.toFixed(0)}cm 就能扣`;
+  }
+  setTimeout(()=>{
+    if (state === S.RESULT){
+      playerRoot.position.set(0,0,3.2);
+      resetPose(); play('idle', 0.2);
+    }
+  }, 900);
+}
+
+$('go').addEventListener('click', ()=>{
+  if (state === S.RUNUP) doJump();
+  else if (state === S.IDLE || state === S.RESULT) startRunup();
+});
+canvas.addEventListener('pointerdown', ()=>{ if (state === S.RUNUP) doJump(); });
+addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); $('go').click(); } });
+
+// ---------------- 主循环 ----------------
+const clock = new THREE.Clock();
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+/** 球跟随手部骨骼 */
+function holdBall(offset=0.05, both=false){
+  const R = mixerRefs.handR, L = mixerRefs.handL;
+  if (!R) return;
+  R.getWorldPosition(_v1);
+  if (both && L){
+    L.getWorldPosition(_v2);
+    _v1.add(_v2).multiplyScalar(0.5);
+  }
+  ball.position.copy(_v1);
+  ball.position.y += offset;
+}
+const camLook = new THREE.Vector3(0, 2.0, 0.2);
+
+function animate(){
+  requestAnimationFrame(animate);
+  const raw = Math.min(clock.getDelta(), 0.05);
+  const dt = raw;
+
+  if (mixerRefs.mixer) mixerRefs.mixer.update(dt);
+
+  if (state === S.RUNUP){
+    runT += dt;
+    const p = Math.min(runT / RUN_DUR, 1);
+    playerRoot.position.z = THREE.MathUtils.lerp(5.4, 1.5, p);
+    playerRoot.position.y = Math.abs(Math.sin(p*Math.PI*2))*0.03;
+    playerRoot.rotation.y = Math.PI;
+    ball.position.z = playerRoot.position.z - 0.15;
+    ball.position.y = 1.05 + Math.abs(Math.sin(p*Math.PI*3))*0.1;
+    $('marker').style.left = (p*100) + '%';
+    holdBall(0.06);
+    if (p >= 1 && !pressed) doJump();
+  } else if (state === S.AIR){
+    t += dt;
+    const slow = (t > airT*0.32 && t < airT*0.68) ? 0.45 : 1.0;
+    const y = v0*t - 0.5*G*t*t;
+    playerRoot.position.y = Math.max(0, y);
+    playerRoot.position.z = THREE.MathUtils.lerp(1.5, 0.5, Math.min(t/airT, 1));
+    playerRoot.rotation.y = Math.PI;
+    dunkPose(Math.min(1, t/(airT*0.25)), t);
+    holdBall(0.02, true);
+    if (t >= airT) land();
+  } else {
+    playerRoot.rotation.y = Math.PI;
+    holdBall(0.06);
+  }
+
+  // 相机：跑动跟随 / 腾空拉远看向篮筐
+  let camTarget = new THREE.Vector3(3.1, 2.35, 5.4);
+  let lookTarget = camLook;
+  if (state === S.AIR){
+    const p = Math.min(t/airT, 1);
+    camTarget.set(3.4, 2.9 + 0.4*p, 5.6 - 1.2*p);
+    lookTarget = new THREE.Vector3(0, 2.6, HOOP_Z + 0.6);
+  } else if (state === S.RUNUP){
+    camTarget.set(4.0, 2.6, 7.0);
+    lookTarget = new THREE.Vector3(0, 1.6, 1.5);
+  }
+  camera.position.lerp(camTarget, 0.06);
+  if (camState.shake > 0){
+    camera.position.x += (Math.random()-0.5)*camState.shake*0.35;
+    camera.position.y += (Math.random()-0.5)*camState.shake*0.35;
+    camState.shake *= 0.9;
+  }
+  camera.lookAt(lookTarget);
+
+  // 白闪
+  if (flashLevel > 0){ flashLevel = Math.max(0, flashLevel - 0.05); }
+  $('flash').style.opacity = flashLevel * 0.85;
+
+  renderer.render(scene, camera);
+}
+
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+  if (w/h < 0.85){ camera.position.set(2.9, 2.6, 6.4); }
+  camera.lookAt(camLook);
+}
+addEventListener('resize', resize);
+resize();
+animate();
+</script>
+</body>
+</html>
