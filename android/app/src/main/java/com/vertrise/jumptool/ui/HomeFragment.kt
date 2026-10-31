@@ -53,7 +53,7 @@ class HomeFragment : Fragment() {
             if (ok) {
                 b.cardServiceStatus.visibility = View.GONE
             } else {
-                b.txtServiceStatus.text = "云端服务暂时不可用"
+                b.txtServiceStatus.text = "离线模式"
                 b.cardServiceStatus.visibility = View.VISIBLE
             }
         }
