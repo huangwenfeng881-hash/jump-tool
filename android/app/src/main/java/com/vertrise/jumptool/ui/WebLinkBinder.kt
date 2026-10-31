@@ -2,6 +2,7 @@ package com.vertrise.jumptool.ui
 
 import android.view.View
 import android.view.ViewGroup
+import com.vertrise.jumptool.CloudFeatures
 
 /**
  * 通过布局里的 android:tag 统一绑定点击行为，避免为每个入口写一份监听代码。
@@ -23,7 +24,11 @@ object WebLinkBinder {
                     val cut = raw.indexOf('|')
                     val page = if (cut >= 0) raw.substring(0, cut) else raw
                     val title = if (cut >= 0) raw.substring(cut + 1) else page
-                    v.setOnClickListener { openWeb(title, page) }
+                    if (CloudFeatures.isCloudPage(page)) {
+                        hideWithDivider(v)
+                    } else {
+                        v.setOnClickListener { openWeb(title, page) }
+                    }
                 }
                 tag.startsWith("native:") -> {
                     val key = tag.removePrefix("native:")
@@ -34,5 +39,16 @@ object WebLinkBinder {
         if (v is ViewGroup) {
             for (i in 0 until v.childCount) walk(v.getChildAt(i), openWeb, openNative)
         }
+    }
+
+    /** 隐藏入口本身，并顺手隐藏它上方那条 1dp 分隔线，避免留下空行 */
+    private fun hideWithDivider(v: View) {
+        v.visibility = View.GONE
+        val parent = v.parent as? ViewGroup ?: return
+        val idx = parent.indexOfChild(v)
+        if (idx <= 0) return
+        val prev = parent.getChildAt(idx - 1)
+        val lp = prev.layoutParams ?: return
+        if (prev.tag == null && lp.height in 1..8) prev.visibility = View.GONE
     }
 }

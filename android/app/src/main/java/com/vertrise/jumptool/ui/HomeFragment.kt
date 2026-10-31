@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.vertrise.jumptool.BackendHealth
+import com.vertrise.jumptool.CloudFeatures
 import com.vertrise.jumptool.LocalStore
 import com.vertrise.jumptool.SitePages
 import com.vertrise.jumptool.databinding.FragmentHomeBinding
@@ -46,6 +47,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun checkBackend() {
+        if (!CloudFeatures.ENABLED) return
         if (healthChecked) return
         healthChecked = true
         BackendHealth.check { ok ->

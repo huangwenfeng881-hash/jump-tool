@@ -3,6 +3,7 @@ package com.vertrise.jumptool
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.Fragment
@@ -127,6 +128,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun openWeb(title: String, page: String) {
+        if (CloudFeatures.isCloudPage(page)) {
+            Toast.makeText(this, "该功能暂未开放", Toast.LENGTH_SHORT).show()
+            return
+        }
         openChild(WebPageFragment.newInstance(title, page), TAG_WEB_CHILD)
     }
 

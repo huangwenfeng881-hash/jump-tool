@@ -340,7 +340,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
                     android:lineSpacingExtra="4dp"
-                    android:text="弹跳高度为估算值，建议与卷尺/摸高实测对照。曲线页与排行榜需要联网并登录后同步数据。"
+                    android:text="弹跳高度为估算值，建议与卷尺/摸高实测对照。所有数据保存在本机，无需联网。"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
             </LinearLayout>
