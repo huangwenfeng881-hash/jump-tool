@@ -43,6 +43,24 @@
     padding:0 16px;text-shadow:0 2px 8px rgba(0,0,0,.9)}
   #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#06070b;
     color:var(--sub);font-size:15px;z-index:9;transition:opacity .4s}
+
+  #btnTune{background:rgba(255,180,70,.14);border:1px solid rgba(255,180,70,.5);color:#ffd79a;margin-left:8px}
+  #tune{position:fixed;right:14px;top:120px;width:290px;max-height:calc(100vh - 150px);overflow:auto;
+        background:rgba(16,18,26,.94);border:1px solid rgba(110,140,255,.35);border-radius:14px;
+        padding:12px;font-size:12px;color:#cfd6e6;display:none;z-index:30;pointer-events:auto;
+        box-shadow:0 12px 40px rgba(0,0,0,.5);backdrop-filter:blur(8px)}
+  #tune.show{display:block}
+  #tune h4{margin:0 0 8px;font-size:13px;color:#8fa4ff;font-weight:600}
+  #tune .row{display:flex;align-items:center;gap:6px;margin:5px 0}
+  #tune .row label{width:62px;color:#9aa5bd;flex:none}
+  #tune input[type=range]{flex:1;min-width:0;accent-color:#6E8CFF}
+  #tune .val{width:46px;text-align:right;color:#3EE0BE;font-variant-numeric:tabular-nums}
+  #tune .frame{display:flex;gap:6px;margin-bottom:8px}
+  #tune .frame button{flex:1;padding:5px 0;font-size:11px}
+  #tune textarea{width:100%;height:64px;margin-top:8px;background:#0c0e14;color:#9fe8d8;
+                 border:1px solid rgba(110,140,255,.3);border-radius:8px;font-size:11px;padding:6px;resize:vertical}
+  #tune .btns{display:flex;gap:6px;margin-top:8px}
+  #tune .btns button{flex:1;padding:6px 0;font-size:11px}
 </style>
 </head>
 <body>
@@ -61,7 +79,7 @@ window.addEventListener('unhandledrejection', e => {
 
 <div class="top">
   <div class="stat" id="stat"></div>
-  <div id="importBar"><button id="btnImport">＋ 导入我的扣篮动作（FBX/GLB）</button><button id="btnPreview">▶ 预览动作</button><span id="importTip">把动捕文件拖到画面里也可以</span></div>
+  <div id="importBar"><button id="btnImport">＋ 导入我的扣篮动作（FBX/GLB）</button><button id="btnPreview">▶ 预览动作</button><button id="btnTune">🎛 调参</button><span id="importTip">把动捕文件拖到画面里也可以</span></div>
 </div>
 <input type="file" id="fileInput" accept=".fbx,.glb,.gltf" style="display:none">
 <div id="result"></div>
@@ -333,6 +351,8 @@ loader.load(MODEL_URL, gltf => {
       armIn: parseFloat(q.get('in') || '0'),
       elbow: parseFloat(q.get('el') || '0'),
       wrist: parseFloat(q.get('wr') || '0'),
+      wristRoll: parseFloat(q.get('wrr') || '0'),
+      wristYaw: parseFloat(q.get('wry') || '0'),
       hipL: parseFloat(q.get('hip') || '0'),
       hipR: parseFloat(q.get('hipR') || q.get('hip') || '0'),
       kneeL: parseFloat(q.get('knee') || '0'),
@@ -495,7 +515,7 @@ function rot(boneName, cal, amount){
 }
 
 // 语义参数：armRaise(抬臂) elbow(屈肘) hipL/hipR(抬腿) kneeL/kneeR(屈膝) lean(前倾) twist(转体)
-const Z = { armRaise: 0, armIn: 0, elbow: 0, wrist: 0, hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, lean: 0, twist: 0 };
+const Z = { armRaise: 0, armIn: 0, armInL: 0, armInR: 0, elbow: 0, wrist: 0, wristRoll: 0, wristYaw: 0, hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, lean: 0, twist: 0 };
 
 function applyPose(v){
   const p = Object.assign({}, Z, v);
@@ -503,10 +523,17 @@ function applyPose(v){
   rot('RightArm', CAL.armR, -p.armRaise);
   rot('LeftForeArm', CAL.elbowL, -p.elbow);
   rot('RightForeArm', CAL.elbowR, -p.elbow);
-  rot('LeftArm', CAL.armInL, p.armIn);
-  rot('RightArm', CAL.armInR, p.armIn);
+  const _inL = (p.armInL !== undefined && p.armInL !== 0) ? p.armInL : p.armIn;
+  const _inR = (p.armInR !== undefined && p.armInR !== 0) ? p.armInR : p.armIn;
+  rot('LeftArm', CAL.armInL, _inL);
+  rot('RightArm', CAL.armInR, _inR);
   rot('LeftHand', CAL.wristL, -p.wrist);
   rot('RightHand', CAL.wristR, p.wrist);
+  // 手腕旋转：roll = 前臂轴自转（掌心转向），yaw = 左右摆
+  rot('LeftHand', { axis: 1, sign: 1 }, p.wristRoll);
+  rot('RightHand', { axis: 1, sign: -1 }, p.wristRoll);
+  rot('LeftHand', { axis: 2, sign: 1 }, p.wristYaw);
+  rot('RightHand', { axis: 2, sign: -1 }, p.wristYaw);
   rot('LeftUpLeg', CAL.hipL, p.hipL);
   rot('RightUpLeg', CAL.hipR, p.hipR);
   rot('LeftLeg', CAL.kneeL, p.kneeL);
@@ -527,19 +554,19 @@ const KEYS = [
   // 0.08 蹬地：腿伸直、手臂快速上摆
   { t: 0.08, ease: 'io',  v: { armRaise: 0.85, armIn: 0.04, elbow: 0.15, wrist: 0.00, hipL: 0.20, hipR: 0.15, kneeL: 0.35, kneeR: 0.30, lean: -0.05, twist: 0.00 } },
   // 0.24 上升：身体拉长、手臂上举
-  { t: 0.24, ease: 'out', v: { armRaise: 1.90, armIn: 0.06, elbow: 0.10, wrist: 0.05, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12, twist: 0.02 } },
+  { t: 0.24, ease: 'out', v: { armRaise: 1.75, armIn: -0.06, elbow: 0.10, wrist: 0.05, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12, twist: 0.02 } },
   // 0.42 最高点：双手举球过顶并靠拢
-  { t: 0.42, ease: 'io',  v: { armRaise: 2.72, armIn: 0.08, elbow: 0.00, wrist: 0.10, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16, twist: 0.06 } },
+  { t: 0.42, ease: 'io',  v: { armRaise: 2.35, armIn: -0.12, elbow: 0.00, wrist: 0.10, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16, twist: 0.06 } },
   // 0.54 砸筐：前臂下压 + 手腕前甩，肩部带转
-  { t: 0.54, ease: 'in',  v: { armRaise: 2.05, armIn: 0.06, elbow: 0.95, wrist: 0.90, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22, twist: 0.28 } },
+  { t: 0.54, ease: 'in',  v: { armRaise: 1.95, armIn: -0.10, elbow: 0.95, wrist: 0.90, wristRoll: 0.55, wristYaw: 0.00, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22, twist: 0.28 } },
   // 0.62 挂筐：手仍抓住篮筐、身体吊住
-  { t: 0.62, ease: 'out', v: { armRaise: 2.45, armIn: 0.06, elbow: 0.30, wrist: 0.55, hipL: 0.45, hipR: 0.60, kneeL: 0.75, kneeR: 0.85, lean: 0.10, twist: 0.20 } },
+  { t: 0.62, ease: 'out', v: { armRaise: 2.15, armIn: -0.10, elbow: 0.30, wrist: 0.55, wristRoll: 0.30, hipL: 0.45, hipR: 0.60, kneeL: 0.75, kneeR: 0.85, lean: 0.10, twist: 0.20 } },
   // 0.74 松手下落：手臂松开、腿开始放
-  { t: 0.74, ease: 'in',  v: { armRaise: 1.30, armIn: 0.30, elbow: 0.45, wrist: 0.20, hipL: 0.30, hipR: 0.35, kneeL: 0.55, kneeR: 0.60, lean: 0.02, twist: 0.10 } },
+  { t: 0.74, ease: 'in',  v: { armRaise: 1.30, armIn: -0.02, elbow: 0.45, wrist: 0.20, hipL: 0.30, hipR: 0.35, kneeL: 0.55, kneeR: 0.60, lean: 0.02, twist: 0.10 } },
   // 0.88 下落：伸腿找地、手臂张开平衡
-  { t: 0.88, ease: 'in',  v: { armRaise: 0.45, armIn: 0.03, elbow: 0.25, wrist: 0.05, hipL: 0.05, hipR: 0.02, kneeL: 0.20, kneeR: 0.15, lean: -0.02, twist: 0.00 } },
+  { t: 0.88, ease: 'in',  v: { armRaise: 0.45, armIn: -0.02, elbow: 0.25, wrist: 0.05, hipL: 0.05, hipR: 0.02, kneeL: 0.20, kneeR: 0.15, lean: -0.02, twist: 0.00 } },
   // 1.00 落地缓冲：深屈膝、手臂下垂
-  { t: 1.00, ease: 'out', v: { armRaise: 0.15, armIn: 0.02, elbow: 0.35, wrist: -0.05, hipL: 0.80, hipR: 0.72, kneeL: 1.30, kneeR: 1.22, lean: 0.20, twist: 0.02 } },
+  { t: 1.00, ease: 'out', v: { armRaise: 0.15, armIn: 0.00, elbow: 0.35, wrist: -0.05, hipL: 0.80, hipR: 0.72, kneeL: 1.30, kneeR: 1.22, lean: 0.20, twist: 0.02 } },
 ];
 
 const EASE = { linear: x => x, io: x => x * x * (3 - 2 * x), out: x => 1 - (1 - x) ** 2, in: x => x * x };
@@ -886,6 +913,109 @@ function resize(){
 addEventListener('resize', resize);
 resize();
 animate();
+
+// ================= 调参面板 =================
+const TP = [
+  ['armRaise', -0.6, 3.2, 0.01],
+  ['armInL',   -0.5, 0.7, 0.01],
+  ['armInR',   -0.5, 0.7, 0.01],
+  ['elbow',    -0.2, 1.6, 0.01],
+  ['wrist',    -0.8, 1.6, 0.01],
+  ['wristRoll', -1.6, 1.6, 0.01],
+  ['wristYaw',  -1.0, 1.0, 0.01],
+  ['lean',     -0.5, 0.6, 0.01],
+  ['twist',    -0.8, 0.8, 0.01],
+  ['hipL',     -0.3, 1.3, 0.01],
+  ['hipR',     -0.3, 1.3, 0.01],
+  ['kneeL',    -0.3, 1.9, 0.01],
+  ['kneeR',    -0.3, 1.9, 0.01],
+];
+let tuneIdx = 3;
+
+function tuneBuild(){
+  const box = document.getElementById('tuneSliders');
+  if (!box || box.dataset.built) return;
+  box.innerHTML = TP.map(([n, lo, hi, st]) =>
+    '<div class="row"><label>' + n + '</label>' +
+    '<input type="range" id="tn_' + n + '" min="' + lo + '" max="' + hi + '" step="' + st + '">' +
+    '<span class="val" id="tv_' + n + '">0</span></div>').join('');
+  TP.forEach(([n]) => {
+    const el = document.getElementById('tn_' + n);
+    el.addEventListener('input', () => { document.getElementById('tv_' + n).textContent = (+el.value).toFixed(2); tuneApply(); });
+  });
+  box.dataset.built = '1';
+}
+
+function tuneLoad(i){
+  tuneIdx = Math.max(0, Math.min(KEYS.length - 1, i));
+  const key = KEYS[tuneIdx];
+  const v = Object.assign({ armInL: 0, armInR: 0 }, key.v);
+  TP.forEach(([n]) => {
+    const el = document.getElementById('tn_' + n);
+    const val = (v[n] !== undefined) ? v[n] : (v.armIn !== undefined ? v.armIn : 0);
+    el.value = val;
+    document.getElementById('tv_' + n).textContent = (+val).toFixed(2);
+  });
+  document.getElementById('tuneTitle').textContent = '第 ' + (tuneIdx + 1) + '/' + KEYS.length + ' 帧 · t=' + key.t.toFixed(2);
+  tuneApply();
+}
+
+function tuneApply(){
+  const p = {};
+  TP.forEach(([n]) => { p[n] = parseFloat(document.getElementById('tn_' + n).value) || 0; });
+  frozenPose = null;
+  customPose = p;
+}
+
+function tuneOut(){
+  const p = {};
+  TP.forEach(([n]) => { p[n] = +parseFloat(document.getElementById('tn_' + n).value).toFixed(2); });
+  const key = KEYS[tuneIdx];
+  const line = "{ t: " + key.t.toFixed(2) + ", ease: '" + key.ease + "', v: " +
+    JSON.stringify(p).replace(/"([a-zA-Z]+)":/g, '$1: ').replace(/,/g, ', ') + " },";
+  document.getElementById('tuneOut').value = line;
+  return line;
+}
+
+function tuneInit(){
+  tuneBuild();
+  document.getElementById('btnTune').addEventListener('click', () => {
+    document.getElementById('tune').classList.toggle('show');
+    if (document.getElementById('tune').classList.contains('show')) tuneLoad(tuneIdx);
+  });
+  document.getElementById('tnPrev').addEventListener('click', () => tuneLoad(tuneIdx - 1));
+  document.getElementById('tnNext').addEventListener('click', () => tuneLoad(tuneIdx + 1));
+  document.getElementById('tnCopy').addEventListener('click', () => {
+    const t = tuneOut();
+    const ta = document.getElementById('tuneOut');
+    ta.select();
+    try { navigator.clipboard.writeText(t); } catch(e){}
+  });
+  document.getElementById('tnReset').addEventListener('click', () => tuneLoad(tuneIdx));
+  if (new URLSearchParams(location.search).has('tune')){
+    document.getElementById('tune').classList.add('show');
+    tuneLoad(3);
+  }
+  if (autoJump && new URLSearchParams(location.search).has('tune')){
+    tuneLoad(3);
+  }
+}
+tuneInit();
+
 </script>
+
+<div id="tune">
+  <h4>逐帧调参 <span id="tuneTitle" style="color:#6d7488;font-weight:400"></span></h4>
+  <div class="frame">
+    <button id="tnPrev">‹ 上一帧</button>
+    <button id="tnNext">下一帧 ›</button>
+  </div>
+  <div id="tuneSliders"></div>
+  <textarea id="tuneOut" spellcheck="false" placeholder="点「生成代码」复制这段贴给我"></textarea>
+  <div class="btns">
+    <button id="tnCopy">生成代码</button>
+    <button id="tnReset">恢复原值</button>
+  </div>
+</div>
 </body>
 </html>
