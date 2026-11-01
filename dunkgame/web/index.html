@@ -525,21 +525,21 @@ const KEYS = [
   // 0.00 蓄力：深蹲、手臂后摆
   { t: 0.00, ease: 'out', v: { armRaise: -0.20, armIn: 0.00, elbow: 0.25, wrist: -0.20, hipL: 0.95, hipR: 0.88, kneeL: 1.40, kneeR: 1.32, lean: 0.22, twist: 0.00 } },
   // 0.08 蹬地：腿伸直、手臂快速上摆
-  { t: 0.08, ease: 'io',  v: { armRaise: 0.85, armIn: 0.15, elbow: 0.15, wrist: 0.00, hipL: 0.20, hipR: 0.15, kneeL: 0.35, kneeR: 0.30, lean: -0.05, twist: 0.00 } },
+  { t: 0.08, ease: 'io',  v: { armRaise: 0.85, armIn: 0.04, elbow: 0.15, wrist: 0.00, hipL: 0.20, hipR: 0.15, kneeL: 0.35, kneeR: 0.30, lean: -0.05, twist: 0.00 } },
   // 0.24 上升：身体拉长、手臂上举
-  { t: 0.24, ease: 'out', v: { armRaise: 1.90, armIn: 0.22, elbow: 0.10, wrist: 0.05, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12, twist: 0.02 } },
+  { t: 0.24, ease: 'out', v: { armRaise: 1.90, armIn: 0.06, elbow: 0.10, wrist: 0.05, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12, twist: 0.02 } },
   // 0.42 最高点：双手举球过顶并靠拢
-  { t: 0.42, ease: 'io',  v: { armRaise: 2.72, armIn: 0.28, elbow: 0.00, wrist: 0.10, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16, twist: 0.06 } },
+  { t: 0.42, ease: 'io',  v: { armRaise: 2.72, armIn: 0.08, elbow: 0.00, wrist: 0.10, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16, twist: 0.06 } },
   // 0.54 砸筐：前臂下压 + 手腕前甩，肩部带转
-  { t: 0.54, ease: 'in',  v: { armRaise: 2.05, armIn: 0.24, elbow: 0.95, wrist: 0.90, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22, twist: 0.28 } },
+  { t: 0.54, ease: 'in',  v: { armRaise: 2.05, armIn: 0.06, elbow: 0.95, wrist: 0.90, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22, twist: 0.28 } },
   // 0.62 挂筐：手仍抓住篮筐、身体吊住
-  { t: 0.62, ease: 'out', v: { armRaise: 2.45, armIn: 0.26, elbow: 0.30, wrist: 0.55, hipL: 0.45, hipR: 0.60, kneeL: 0.75, kneeR: 0.85, lean: 0.10, twist: 0.20 } },
+  { t: 0.62, ease: 'out', v: { armRaise: 2.45, armIn: 0.06, elbow: 0.30, wrist: 0.55, hipL: 0.45, hipR: 0.60, kneeL: 0.75, kneeR: 0.85, lean: 0.10, twist: 0.20 } },
   // 0.74 松手下落：手臂松开、腿开始放
   { t: 0.74, ease: 'in',  v: { armRaise: 1.30, armIn: 0.30, elbow: 0.45, wrist: 0.20, hipL: 0.30, hipR: 0.35, kneeL: 0.55, kneeR: 0.60, lean: 0.02, twist: 0.10 } },
   // 0.88 下落：伸腿找地、手臂张开平衡
-  { t: 0.88, ease: 'in',  v: { armRaise: 0.45, armIn: 0.12, elbow: 0.25, wrist: 0.05, hipL: 0.05, hipR: 0.02, kneeL: 0.20, kneeR: 0.15, lean: -0.02, twist: 0.00 } },
+  { t: 0.88, ease: 'in',  v: { armRaise: 0.45, armIn: 0.03, elbow: 0.25, wrist: 0.05, hipL: 0.05, hipR: 0.02, kneeL: 0.20, kneeR: 0.15, lean: -0.02, twist: 0.00 } },
   // 1.00 落地缓冲：深屈膝、手臂下垂
-  { t: 1.00, ease: 'out', v: { armRaise: 0.15, armIn: 0.05, elbow: 0.35, wrist: -0.05, hipL: 0.80, hipR: 0.72, kneeL: 1.30, kneeR: 1.22, lean: 0.20, twist: 0.02 } },
+  { t: 1.00, ease: 'out', v: { armRaise: 0.15, armIn: 0.02, elbow: 0.35, wrist: -0.05, hipL: 0.80, hipR: 0.72, kneeL: 1.30, kneeR: 1.22, lean: 0.20, twist: 0.02 } },
 ];
 
 const EASE = { linear: x => x, io: x => x * x * (3 - 2 * x), out: x => 1 - (1 - x) ** 2, in: x => x * x };
