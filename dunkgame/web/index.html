@@ -346,6 +346,10 @@ loader.load(MODEL_URL, gltf => {
     if (mixerRefs.actions['idle']) { mixerRefs.actions['idle'].reset().play(); mixerRefs.current = 'idle'; }
   } else if (q.has('preview')){
     setTimeout(() => startPreview(), 600);
+  } else if (q.has('auto')){
+    // 自动演示：助跑 → 0.66 时机自动起跳（调试用）
+    autoJump = true;
+    setTimeout(() => startRunup(), 900);
   }
   $('loading').style.opacity = 0;
   setTimeout(()=>$('loading').remove(), 500);
@@ -523,13 +527,13 @@ const KEYS = [
   // 0.08 蹬地：腿伸直、手臂快速上摆
   { t: 0.08, ease: 'io',  v: { armRaise: 0.85, armIn: 0.15, elbow: 0.15, wrist: 0.00, hipL: 0.20, hipR: 0.15, kneeL: 0.35, kneeR: 0.30, lean: -0.05, twist: 0.00 } },
   // 0.24 上升：身体拉长、手臂上举
-  { t: 0.24, ease: 'out', v: { armRaise: 1.80, armIn: 0.35, elbow: 0.10, wrist: 0.05, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12, twist: 0.02 } },
+  { t: 0.24, ease: 'out', v: { armRaise: 1.90, armIn: 0.22, elbow: 0.10, wrist: 0.05, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12, twist: 0.02 } },
   // 0.42 最高点：双手举球过顶并靠拢
-  { t: 0.42, ease: 'io',  v: { armRaise: 2.45, armIn: 0.55, elbow: 0.02, wrist: 0.10, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16, twist: 0.06 } },
+  { t: 0.42, ease: 'io',  v: { armRaise: 2.72, armIn: 0.28, elbow: 0.00, wrist: 0.10, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16, twist: 0.06 } },
   // 0.54 砸筐：前臂下压 + 手腕前甩，肩部带转
-  { t: 0.54, ease: 'in',  v: { armRaise: 1.95, armIn: 0.45, elbow: 0.95, wrist: 0.90, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22, twist: 0.28 } },
+  { t: 0.54, ease: 'in',  v: { armRaise: 2.05, armIn: 0.24, elbow: 0.95, wrist: 0.90, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22, twist: 0.28 } },
   // 0.62 挂筐：手仍抓住篮筐、身体吊住
-  { t: 0.62, ease: 'out', v: { armRaise: 2.15, armIn: 0.50, elbow: 0.35, wrist: 0.55, hipL: 0.45, hipR: 0.60, kneeL: 0.75, kneeR: 0.85, lean: 0.10, twist: 0.20 } },
+  { t: 0.62, ease: 'out', v: { armRaise: 2.45, armIn: 0.26, elbow: 0.30, wrist: 0.55, hipL: 0.45, hipR: 0.60, kneeL: 0.75, kneeR: 0.85, lean: 0.10, twist: 0.20 } },
   // 0.74 松手下落：手臂松开、腿开始放
   { t: 0.74, ease: 'in',  v: { armRaise: 1.30, armIn: 0.30, elbow: 0.45, wrist: 0.20, hipL: 0.30, hipR: 0.35, kneeL: 0.55, kneeR: 0.60, lean: 0.02, twist: 0.10 } },
   // 0.88 下落：伸腿找地、手臂张开平衡
@@ -560,6 +564,7 @@ function dunkPose(progress){
 // 预览：原地播放一遍
 const dunkPreview = { on: false, t: 0 };
 let frozenPose = null;
+let autoJump = false;
 let customPose = null;
 
 function startPreview(){
@@ -599,9 +604,13 @@ refreshStat();
 // ---------------- 状态机 ----------------
 const S = {IDLE:'idle', RUNUP:'runup', AIR:'air', RESULT:'result'};
 let state = S.IDLE, t = 0, v0 = 0, airT = 0, quality = 0.8, jumpH = 0, runT = 0, pressed = false;
-const RUN_DUR = 1.05;
+const RUN_DUR = 1.15;
+const HOME_Z = 4.8;        // 站位（助跑起点）
+const TAKEOFF_Z = -1.4;    // 起跳点（助跑终点）
+const RIM_APPROACH_Z = -3.15; // 腾空到达的位置（篮下）
 let flashLevel = 0;
 const camState = {shake:0};
+const SLOWMO = (parseFloat(new URLSearchParams(location.search).get('slowmo')) || 1);
 
 function showResult(text, color, ms=2200){
   const r = $('result');
@@ -610,9 +619,11 @@ function showResult(text, color, ms=2200){
   showResult._t = setTimeout(()=>r.classList.remove('show'), ms);
 }
 
+let runStartZ = HOME_Z;
+
 function startRunup(){
   const s = stats();
-  playerRoot.position.set(0,0,4.6);
+  runStartZ = playerRoot.position.z;
   applyHeight();
   ball.position.set(0.42,1.05,5.15);
   state = S.RUNUP; runT = 0; pressed = false;
@@ -641,6 +652,7 @@ function doJump(){
   airT = 2*v0/G;
   t = 0;
   state = S.AIR;
+  if (mixerRefs.mixer) play('idle', 0.1);
   $('go').textContent = '助跑';
   $('timing').classList.remove('show');
   $('hint').textContent = '起跳中…';
@@ -665,8 +677,7 @@ function land(){
   }
   setTimeout(()=>{
     if (state === S.RESULT){
-      playerRoot.position.set(0,0,3.2);
-      resetPose(); play('idle', 0.2);
+      resetPose();
     }
   }, 900);
 }
@@ -775,27 +786,29 @@ const camLook = new THREE.Vector3(0, 2.0, 0.2);
 function animate(){
   requestAnimationFrame(animate);
   const raw = Math.min(clock.getDelta(), 0.05);
-  const dt = raw;
+  const dt = raw * SLOWMO;
 
   if (mixerRefs.mixer) mixerRefs.mixer.update(dt);
 
   if (state === S.RUNUP){
     runT += dt;
     const p = Math.min(runT / RUN_DUR, 1);
-    playerRoot.position.z = THREE.MathUtils.lerp(5.4, 1.5, p);
+    playerRoot.position.z = THREE.MathUtils.lerp(runStartZ, TAKEOFF_Z, p);
     playerRoot.position.y = Math.abs(Math.sin(p*Math.PI*2))*0.03;
     playerRoot.rotation.y = Math.PI;
     ball.position.z = playerRoot.position.z - 0.15;
     ball.position.y = 1.05 + Math.abs(Math.sin(p*Math.PI*3))*0.1;
     $('marker').style.left = (p*100) + '%';
     holdBall(0.06);
+    if (autoJump && !pressed && p >= 0.66) doJump();
     if (p >= 1 && !pressed) doJump();
   } else if (state === S.AIR){
     t += dt;
     const slow = (t > airT*0.32 && t < airT*0.68) ? 0.45 : 1.0;
     const y = v0*t - 0.5*G*t*t;
     playerRoot.position.y = Math.max(0, y);
-    playerRoot.position.z = THREE.MathUtils.lerp(1.5, 0.5, Math.min(t/airT, 1));
+    const ap = Math.min(t/airT, 1);
+    playerRoot.position.z = THREE.MathUtils.lerp(TAKEOFF_Z, RIM_APPROACH_Z, 1 - Math.pow(1 - ap, 2.4));
     playerRoot.rotation.y = Math.PI;
     if (customAction){
       if (!customAction.isRunning()){ customAction.reset().setLoop(THREE.LoopOnce, 1); customAction.clampWhenFinished = true; customAction.play(); }
@@ -807,6 +820,16 @@ function animate(){
     if (t >= airT) land();
   } else {
     playerRoot.rotation.y = Math.PI;
+    // 走回站位
+    const dz = HOME_Z - playerRoot.position.z;
+    if (Math.abs(dz) > 0.03 && !dunkPreview.on && frozenPose === null){
+      const step = Math.sign(dz) * Math.min(Math.abs(dz), 4.5 * dt);
+      playerRoot.position.z += step;
+      if (state === S.RESULT) { state = S.IDLE; }
+      if (mixerRefs.current !== 'run') play('run', 0.2);
+    } else if (Math.abs(dz) <= 0.03 && mixerRefs.current === 'run' && state === S.IDLE){
+      play('idle', 0.25);
+    }
     holdBall(0.06);
     if (customPose){
       applyPose(customPose);
@@ -827,15 +850,16 @@ function animate(){
   }
 
   // 相机：跑动跟随 / 腾空拉远看向篮筐
-  let camTarget = new THREE.Vector3(3.1, 2.35, 5.4);
-  let lookTarget = camLook;
+  const pz = playerRoot.position.z;
+  let camTarget = new THREE.Vector3(2.9, 2.45, pz + 6.2);
+  let lookTarget = new THREE.Vector3(0, 1.9, pz - 0.4);
   if (state === S.AIR){
     const p = Math.min(t/airT, 1);
-    camTarget.set(3.4, 2.9 + 0.4*p, 5.6 - 1.2*p);
-    lookTarget = new THREE.Vector3(0, 2.6, HOOP_Z + 0.6);
-  } else if (state === S.RUNUP){
-    camTarget.set(4.0, 2.6, 7.0);
-    lookTarget = new THREE.Vector3(0, 1.6, 1.5);
+    camTarget.set(4.0, 3.15 + 0.35*p, pz + 4.6);
+    lookTarget = new THREE.Vector3(0, 2.55 + 0.25*p, HOOP_Z + 1.0);
+  } else if (state === S.RUNUP || state === S.RESULT){
+    camTarget.set(3.1, 2.5, pz + 6.0);
+    lookTarget = new THREE.Vector3(0, 1.8, pz - 1.2);
   }
   camera.position.lerp(camTarget, 0.06);
   if (camState.shake > 0){
