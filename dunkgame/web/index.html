@@ -15,10 +15,11 @@
   .stat b{color:#fff}
   .stat .gap{color:var(--warn);font-weight:700}
   .stat .can{color:var(--ok);font-weight:700}
-  #importBar{margin-top:10px}
-  #btnImport{background:rgba(110,140,255,.16);border:1px solid rgba(110,140,255,.5);color:#cdd6ff;
+  #importBar{margin-top:10px;pointer-events:auto}
+  #btnImport,#btnPreview{background:rgba(110,140,255,.16);border:1px solid rgba(110,140,255,.5);color:#cdd6ff;
     border-radius:9px;padding:6px 12px;font-size:12px;font-weight:700}
   #importTip{font-size:11px;color:#6d7488;margin-left:8px}
+  #btnPreview{margin-left:8px;border:1px solid rgba(62,224,190,.5);color:#b6f5e5;background:rgba(62,224,190,.10)}
   #result{position:fixed;left:0;right:0;top:34%;text-align:center;font-size:40px;font-weight:900;
     letter-spacing:2px;opacity:0;transition:opacity .2s,transform .2s;transform:scale(.85);pointer-events:none;
     text-shadow:0 6px 30px rgba(0,0,0,.85)}
@@ -60,7 +61,7 @@ window.addEventListener('unhandledrejection', e => {
 
 <div class="top">
   <div class="stat" id="stat"></div>
-  <div id="importBar"><button id="btnImport">＋ 导入我的扣篮动作（FBX/GLB）</button><span id="importTip">把动捕文件拖到画面里也可以</span></div>
+  <div id="importBar"><button id="btnImport">＋ 导入我的扣篮动作（FBX/GLB）</button><button id="btnPreview">▶ 预览动作</button><span id="importTip">把动捕文件拖到画面里也可以</span></div>
 </div>
 <input type="file" id="fileInput" accept=".fbx,.glb,.gltf" style="display:none">
 <div id="result"></div>
@@ -298,6 +299,7 @@ loader.load('./models/Soldier.glb', gltf => {
   const idleA = byName['idle'];
   if (idleA) { idleA.play(); mixerRefs.current = 'idle'; }
 
+  calibrateRig();
   // 依据骨架（头顶-脚底）计算模型真实身高，用于缩放
   model.updateMatrixWorld(true);
   const headB = findBone('Head') || findBone('HeadTop_End');
@@ -314,6 +316,13 @@ loader.load('./models/Soldier.glb', gltf => {
   mixerRefs.baseHeight = h;
 
   ready = true;
+  const q = new URLSearchParams(location.search);
+  if (q.has('pose')){
+    frozenPose = Math.max(0, Math.min(1, parseFloat(q.get('pose')) || 0));
+    if (mixerRefs.actions['idle']) { mixerRefs.actions['idle'].reset().play(); mixerRefs.current = 'idle'; }
+  } else if (q.has('preview')){
+    setTimeout(() => startPreview(), 600);
+  }
   $('loading').style.opacity = 0;
   setTimeout(()=>$('loading').remove(), 500);
   applyHeight();
@@ -376,50 +385,149 @@ function applyHeight(){
   mixerRefs.model.scale.setScalar(k);
 }
 
-// 扣篮姿态：直接驱动 Mixamo 骨骼
-// ---------- 扣篮动作：关键帧 + 平滑插值（后续可换成 FBX 动捕文件） ----------
-// 每帧: [时间0~1, {骨骼: [x,y,z]}]
-const DUNK_KEYS = [
-  [0.00, { Spine:[0.06,0,0], LeftArm:[-0.1,0.1,-1.15], RightArm:[-0.1,-0.1,1.15],
-           LeftForeArm:[0,0,-0.7], RightForeArm:[0,0,0.7],
-           LeftUpLeg:[-0.85,0,0], RightUpLeg:[-0.55,0,0], LeftLeg:[1.15,0,0], RightLeg:[0.7,0,0] }],
-  [0.28, { Spine:[-0.16,0,0], LeftArm:[-0.15,0.1,-2.75], RightArm:[-0.15,-0.1,2.75],
-           LeftForeArm:[0,0,-0.15], RightForeArm:[0,0,0.15],
-           LeftUpLeg:[0.25,0,0], RightUpLeg:[0.1,0,0], LeftLeg:[0.55,0,0], RightLeg:[0.4,0,0] }],
-  [0.46, { Spine:[-0.22,0,0], LeftArm:[-0.2,0.1,-3.0], RightArm:[-0.2,-0.1,3.0],
-           LeftForeArm:[0,0,-0.05], RightForeArm:[0,0,0.05],
-           LeftUpLeg:[0.45,0,0], RightUpLeg:[0.3,0,0], LeftLeg:[0.35,0,0], RightLeg:[0.25,0,0] }],
-  [0.64, { Spine:[-0.1,0,0], LeftArm:[-0.25,0.1,-2.6], RightArm:[-0.25,-0.1,2.6],
-           LeftForeArm:[0,0,-0.85], RightForeArm:[0,0,0.85],
-           LeftUpLeg:[-0.35,0,0], RightUpLeg:[-0.2,0,0], LeftLeg:[0.9,0,0], RightLeg:[0.7,0,0] }],
-  [0.82, { Spine:[0.08,0,0], LeftArm:[-0.1,0.1,-1.5], RightArm:[-0.1,-0.1,1.5],
-           LeftForeArm:[0,0,-0.5], RightForeArm:[0,0,0.5],
-           LeftUpLeg:[-1.0,0,0], RightUpLeg:[-0.9,0,0], LeftLeg:[0.5,0,0], RightLeg:[0.45,0,0] }],
-  [1.00, { Spine:[0.12,0,0], LeftArm:[-0.05,0.1,-0.6], RightArm:[-0.05,-0.1,0.6],
-           LeftForeArm:[0,0,-0.3], RightForeArm:[0,0,0.3],
-           LeftUpLeg:[-0.35,0,0], RightUpLeg:[-0.3,0,0], LeftLeg:[0.6,0,0], RightLeg:[0.55,0,0] }],
-];
-const easeIO = x => x*x*(3-2*x);
+// ================= 手动关键帧动画系统 =================
+// 思路：不同模型的骨骼"静止朝向"不一样，直接写欧拉角会扭成麻花。
+// 所以先在加载时自动标定每个骨骼"抬臂/屈肘/抬腿/屈膝/前倾"对应的轴和方向，
+// 之后只写语义参数（armRaise / elbow / hip / knee / lean），换角色也能用。
 
-function dunkPose(progress, t){
-  const p = Math.min(1, Math.max(0, progress));
-  let i = 0;
-  while (i < DUNK_KEYS.length - 2 && p > DUNK_KEYS[i+1][0]) i++;
-  const [t0, A] = DUNK_KEYS[i];
-  const [t1, B] = DUNK_KEYS[Math.min(i+1, DUNK_KEYS.length-1)];
-  const span = Math.max(1e-4, t1 - t0);
-  const k = easeIO(Math.min(1, Math.max(0, (p - t0) / span)));
-  const bones = new Set([...Object.keys(A), ...Object.keys(B)]);
-  bones.forEach(name => {
-    const bn = findBone(name); if (!bn) return;
-    const a = A[name] || [0,0,0], b = B[name] || [0,0,0];
-    bn.rotation.set(
-      THREE.MathUtils.lerp(a[0], b[0], k),
-      THREE.MathUtils.lerp(a[1], b[1], k),
-      THREE.MathUtils.lerp(a[2], b[2], k)
-    );
-  });
+const CAL = {};
+const _q1 = new THREE.Quaternion();
+const _e1 = new THREE.Euler();
+
+function boneWorld(bone){
+  bone.updateWorldMatrix(true, false);
+  return new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
 }
+
+function calibrate(boneName, score){
+  const bone = findBone(boneName);
+  if (!bone) return null;
+  const base = bone.quaternion.clone();
+  bone.updateWorldMatrix(true, true);
+  const s0 = score();
+  let best = null;
+  for (let axis = 0; axis < 3; axis++){
+    for (const sign of [-1, 1]){
+      bone.quaternion.copy(base);
+      _e1.set(axis === 0 ? 0.7 * sign : 0, axis === 1 ? 0.7 * sign : 0, axis === 2 ? 0.7 * sign : 0);
+      bone.quaternion.multiply(_q1.setFromEuler(_e1));
+      bone.updateWorldMatrix(true, true);
+      let d = score() - s0;
+      if (Math.abs(d) < 0.02){
+        bone.quaternion.copy(base);
+        _e1.set(axis === 0 ? 1.3 * sign : 0, axis === 1 ? 1.3 * sign : 0, axis === 2 ? 1.3 * sign : 0);
+        bone.quaternion.multiply(_q1.setFromEuler(_e1));
+        bone.updateWorldMatrix(true, true);
+        d = score() - s0;
+      }
+      if (!best || d > best.d) best = { axis, sign, d };
+      bone.quaternion.copy(base);
+    }
+  }
+  bone.updateWorldMatrix(true, true);
+  return best;
+}
+
+function calibrateRig(){
+  const handL = () => boneWorld(findBone('LeftHand') || findBone('LeftForeArm')).y;
+  const handR = () => boneWorld(findBone('RightHand') || findBone('RightForeArm')).y;
+  const handLz = () => boneWorld(findBone('LeftHand') || findBone('LeftForeArm')).z;
+  const handRz = () => boneWorld(findBone('RightHand') || findBone('RightForeArm')).z;
+  const footL = () => boneWorld(findBone('LeftFoot') || findBone('LeftLeg'));
+  const footR = () => boneWorld(findBone('RightFoot') || findBone('RightLeg'));
+  const head = () => boneWorld(findBone('Head')).z;
+
+  CAL.armL = calibrate('LeftArm', handL);
+  CAL.armR = calibrate('RightArm', handR);
+  CAL.elbowL = calibrate('LeftForeArm', handLz);
+  CAL.elbowR = calibrate('RightForeArm', handRz);
+  CAL.hipL = calibrate('LeftUpLeg', () => -footL().z);   // 腿往前 → 脚 z 变小
+  CAL.hipR = calibrate('RightUpLeg', () => -footR().z);
+  CAL.kneeL = calibrate('LeftLeg', () => -footL().y);   // 屈膝 → 脚抬高
+  CAL.kneeR = calibrate('RightLeg', () => -footR().y);
+  CAL.lean = calibrate('Spine', () => -head());          // 前倾 → 头往前
+  console.log('CAL', JSON.stringify(CAL));
+  try { const t = document.getElementById('importTip'); if (t) t.textContent = 'CAL: ' + Object.entries(CAL).map(([k,v]) => k + '=' + (v ? v.axis + (v.sign>0?'+':'-') + v.d.toFixed(2) : 'x')).join(' '); } catch(e){}
+}
+
+function rot(boneName, cal, amount){
+  const bone = findBone(boneName);
+  if (!bone || !cal || Math.abs(amount) < 1e-4) return;
+  _e1.set(0, 0, 0);
+  if (cal.axis === 0) _e1.x = amount * cal.sign;
+  else if (cal.axis === 1) _e1.y = amount * cal.sign;
+  else _e1.z = amount * cal.sign;
+  bone.quaternion.multiply(_q1.setFromEuler(_e1));
+}
+
+// 语义参数：armRaise(抬臂) elbow(屈肘) hipL/hipR(抬腿) kneeL/kneeR(屈膝) lean(前倾) twist(转体)
+const Z = { armRaise: 0, armBack: 0, elbow: 0, hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, lean: 0, twist: 0 };
+
+function applyPose(v){
+  const p = Object.assign({}, Z, v);
+  rot('LeftArm', CAL.armL, -p.armRaise);
+  rot('RightArm', CAL.armR, -p.armRaise);
+  rot('LeftForeArm', CAL.elbowL, -p.elbow);
+  rot('RightForeArm', CAL.elbowR, -p.elbow);
+  rot('LeftUpLeg', CAL.hipL, p.hipL);
+  rot('RightUpLeg', CAL.hipR, p.hipR);
+  rot('LeftLeg', CAL.kneeL, p.kneeL);
+  rot('RightLeg', CAL.kneeR, p.kneeR);
+  rot('Spine', CAL.lean, -p.lean);
+}
+
+// ---- 关键帧（语义参数，单位：弧度，约 1 弧度 ≈ 57°） ----
+const KEYS = [
+  // 0.00 起跳前：屈髋屈膝蓄力，手臂后摆
+  { t: 0.00, ease: 'out', v: { armRaise: -0.25, elbow: 0.25, hipL: 0.60, hipR: 0.55, kneeL: 0.85, kneeR: 0.80, lean: 0.18 } },
+  // 0.10 蹬地：腿伸直、手臂快速前上摆
+  { t: 0.10, ease: 'io',  v: { armRaise: 0.40, elbow: 0.15, hipL: 0.20, hipR: 0.15, kneeL: 0.35, kneeR: 0.30, lean: -0.05 } },
+  // 0.26 上升：手臂继续上举、身体拉长
+  { t: 0.26, ease: 'out', v: { armRaise: 1.00, elbow: 0.10, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12 } },
+  // 0.46 最高点：双臂完全伸展（这就是"摸到最高"的那一帧）
+  { t: 0.46, ease: 'io',  v: { armRaise: 1.35, elbow: 0.02, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16 } },
+  // 0.60 砸筐：屈肘下压、躯干前屈、收腿
+  { t: 0.60, ease: 'in',  v: { armRaise: 1.10, elbow: 0.95, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22 } },
+  // 0.72 滞空余势
+  { t: 0.72, ease: 'io',  v: { armRaise: 0.65, elbow: 0.55, hipL: 0.35, hipR: 0.40, kneeL: 0.60, kneeR: 0.65, lean: 0.10 } },
+  // 0.86 下落：伸腿找地、手臂张开
+  { t: 0.86, ease: 'in',  v: { armRaise: 0.25, elbow: 0.25, hipL: 0.10, hipR: 0.05, kneeL: 0.25, kneeR: 0.20, lean: -0.04 } },
+  // 1.00 落地缓冲
+  { t: 1.00, ease: 'out', v: { armRaise: 0.10, elbow: 0.30, hipL: 0.55, hipR: 0.50, kneeL: 0.85, kneeR: 0.80, lean: 0.14 } },
+];
+
+const EASE = { linear: x => x, io: x => x * x * (3 - 2 * x), out: x => 1 - (1 - x) ** 2, in: x => x * x };
+
+function poseAt(p){
+  const t = Math.min(1, Math.max(0, p));
+  let i = 0;
+  while (i < KEYS.length - 2 && t > KEYS[i + 1].t) i++;
+  const A = KEYS[i], B = KEYS[Math.min(i + 1, KEYS.length - 1)];
+  const span = Math.max(1e-4, B.t - A.t);
+  const k = (EASE[B.ease] || EASE.io)(Math.min(1, Math.max(0, (t - A.t) / span)));
+  const out = {};
+  const names = new Set([...Object.keys(A.v), ...Object.keys(B.v)]);
+  names.forEach(n => { out[n] = THREE.MathUtils.lerp(A.v[n] || 0, B.v[n] || 0, k); });
+  return out;
+}
+
+function dunkPose(progress){
+  applyPose(poseAt(progress));
+}
+
+// 预览：原地播放一遍
+const dunkPreview = { on: false, t: 0 };
+let frozenPose = null;
+
+function startPreview(){
+  dunkPreview.on = true;
+  dunkPreview.t = 0;
+  state = S.IDLE;
+  if (mixerRefs.actions['idle']) { mixerRefs.actions['idle'].reset().play(); mixerRefs.current = 'idle'; }
+  showResult('预览动作', '#6E8CFF', 1200);
+}
+
+
 
 function resetPose(){
   // 清掉手改的骨骼，交回动画控制
@@ -596,6 +704,7 @@ function parseAnimFile(file){
 }
 
 $('btnImport').addEventListener('click', () => $('fileInput').click());
+$('btnPreview').addEventListener('click', startPreview);
 $('fileInput').addEventListener('change', e => { const f = e.target.files[0]; if (f) parseAnimFile(f); });
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => {
@@ -649,13 +758,24 @@ function animate(){
       if (!customAction.isRunning()){ customAction.reset().setLoop(THREE.LoopOnce, 1); customAction.clampWhenFinished = true; customAction.play(); }
       customAction.timeScale = 1 / Math.max(0.35, airT * 1.15);
     } else {
-      dunkPose(t/airT, t);
+      dunkPose(t/airT);
     }
     holdBall(0.02, true);
     if (t >= airT) land();
   } else {
     playerRoot.rotation.y = Math.PI;
     holdBall(0.06);
+    if (frozenPose !== null){
+      dunkPose(frozenPose);
+    } else if (dunkPreview.on){
+      dunkPreview.t += dt / 1.5;
+      dunkPose(Math.min(1, dunkPreview.t));
+      if (dunkPreview.t >= 1){
+        dunkPreview.on = false;
+        resetPose();
+        if (mixerRefs.mixer) play('idle', 0.25);
+      }
+    }
   }
 
   // 相机：跑动跟随 / 腾空拉远看向篮筐
