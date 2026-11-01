@@ -330,7 +330,9 @@ loader.load(MODEL_URL, gltf => {
   if (q.has('pr')){
     customPose = {
       armRaise: parseFloat(q.get('pr') || '0'),
+      armIn: parseFloat(q.get('in') || '0'),
       elbow: parseFloat(q.get('el') || '0'),
+      wrist: parseFloat(q.get('wr') || '0'),
       hipL: parseFloat(q.get('hip') || '0'),
       hipR: parseFloat(q.get('hipR') || q.get('hip') || '0'),
       kneeL: parseFloat(q.get('knee') || '0'),
@@ -467,6 +469,12 @@ function calibrateRig(){
   CAL.kneeL = calibrate('LeftLeg', () => -footL().y);   // 屈膝 → 脚抬高
   CAL.kneeR = calibrate('RightLeg', () => -footR().y);
   CAL.lean = calibrate('Spine', () => -head());          // 前倾 → 头往前
+  // 内收：让左右手都往身体中线靠
+  CAL.armInL = calibrate('LeftArm', () => boneWorld(findBone('LeftHand') || findBone('LeftForeArm')).x);
+  CAL.armInR = calibrate('RightArm', () => -boneWorld(findBone('RightHand') || findBone('RightForeArm')).x);
+  // 手腕：复用肘部弯曲轴
+  CAL.wristL = CAL.elbowL;
+  CAL.wristR = CAL.elbowR;
   console.log('CAL', JSON.stringify(CAL));
   try { const t = document.getElementById('importTip'); if (t) t.textContent = 'CAL: ' + Object.entries(CAL).map(([k,v]) => k + '=' + (v ? v.axis + (v.sign>0?'+':'-') + v.d.toFixed(2) : 'x')).join(' '); } catch(e){}
 }
@@ -482,7 +490,7 @@ function rot(boneName, cal, amount){
 }
 
 // 语义参数：armRaise(抬臂) elbow(屈肘) hipL/hipR(抬腿) kneeL/kneeR(屈膝) lean(前倾) twist(转体)
-const Z = { armRaise: 0, armBack: 0, elbow: 0, hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, lean: 0, twist: 0 };
+const Z = { armRaise: 0, armIn: 0, elbow: 0, wrist: 0, hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, lean: 0 };
 
 function applyPose(v){
   const p = Object.assign({}, Z, v);
@@ -490,6 +498,10 @@ function applyPose(v){
   rot('RightArm', CAL.armR, -p.armRaise);
   rot('LeftForeArm', CAL.elbowL, -p.elbow);
   rot('RightForeArm', CAL.elbowR, -p.elbow);
+  rot('LeftArm', CAL.armInL, p.armIn);
+  rot('RightArm', CAL.armInR, p.armIn);
+  rot('LeftHand', CAL.wristL, -p.wrist);
+  rot('RightHand', CAL.wristR, p.wrist);
   rot('LeftUpLeg', CAL.hipL, p.hipL);
   rot('RightUpLeg', CAL.hipR, p.hipR);
   rot('LeftLeg', CAL.kneeL, p.kneeL);
@@ -499,22 +511,22 @@ function applyPose(v){
 
 // ---- 关键帧（语义参数，单位：弧度，约 1 弧度 ≈ 57°） ----
 const KEYS = [
-  // 0.00 起跳前：屈髋屈膝蓄力，手臂后摆
-  { t: 0.00, ease: 'out', v: { armRaise: -0.20, elbow: 0.25, hipL: 0.60, hipR: 0.55, kneeL: 0.85, kneeR: 0.80, lean: 0.18 } },
+  // 0.00 蓄力：深蹲、手臂后摆
+  { t: 0.00, ease: 'out', v: { armRaise: -0.20, armIn: 0.0, elbow: 0.25, wrist: -0.15, hipL: 0.95, hipR: 0.88, kneeL: 1.40, kneeR: 1.32, lean: 0.22 } },
   // 0.10 蹬地：腿伸直、手臂快速前上摆
-  { t: 0.10, ease: 'io',  v: { armRaise: 0.85, elbow: 0.15, hipL: 0.20, hipR: 0.15, kneeL: 0.35, kneeR: 0.30, lean: -0.05 } },
+  { t: 0.10, ease: 'io',  v: { armRaise: 0.85, armIn: 0.15, elbow: 0.15, wrist: 0.0, hipL: 0.20, hipR: 0.15, kneeL: 0.35, kneeR: 0.30, lean: -0.05 } },
   // 0.26 上升：手臂继续上举、身体拉长
-  { t: 0.26, ease: 'out', v: { armRaise: 1.80, elbow: 0.10, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12 } },
-  // 0.46 最高点：双臂完全伸展（这就是"摸到最高"的那一帧）
-  { t: 0.46, ease: 'io',  v: { armRaise: 2.45, elbow: 0.02, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16 } },
-  // 0.60 砸筐：屈肘下压、躯干前屈、收腿
-  { t: 0.60, ease: 'in',  v: { armRaise: 1.95, elbow: 0.95, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22 } },
+  { t: 0.26, ease: 'out', v: { armRaise: 1.80, armIn: 0.35, elbow: 0.10, wrist: 0.05, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12 } },
+  // 0.46 最高点：双手举过头顶并靠拢
+  { t: 0.46, ease: 'io',  v: { armRaise: 2.45, armIn: 0.55, elbow: 0.02, wrist: 0.10, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16 } },
+  // 0.60 砸筐：屈肘 + 压手腕，躯干前屈、收腿
+  { t: 0.60, ease: 'in',  v: { armRaise: 1.95, armIn: 0.45, elbow: 0.95, wrist: 0.55, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22 } },
   // 0.72 滞空余势
-  { t: 0.72, ease: 'io',  v: { armRaise: 1.20, elbow: 0.55, hipL: 0.35, hipR: 0.40, kneeL: 0.60, kneeR: 0.65, lean: 0.10 } },
+  { t: 0.72, ease: 'io',  v: { armRaise: 1.20, armIn: 0.35, elbow: 0.55, wrist: 0.30, hipL: 0.35, hipR: 0.40, kneeL: 0.60, kneeR: 0.65, lean: 0.10 } },
   // 0.86 下落：伸腿找地、手臂张开
-  { t: 0.86, ease: 'in',  v: { armRaise: 0.55, elbow: 0.25, hipL: 0.10, hipR: 0.05, kneeL: 0.25, kneeR: 0.20, lean: -0.04 } },
+  { t: 0.86, ease: 'in',  v: { armRaise: 0.55, armIn: 0.15, elbow: 0.25, wrist: 0.05, hipL: 0.10, hipR: 0.05, kneeL: 0.25, kneeR: 0.20, lean: -0.04 } },
   // 1.00 落地缓冲
-  { t: 1.00, ease: 'out', v: { armRaise: 0.20, elbow: 0.30, hipL: 0.55, hipR: 0.50, kneeL: 0.85, kneeR: 0.80, lean: 0.14 } },
+  { t: 1.00, ease: 'out', v: { armRaise: 0.20, armIn: 0.05, elbow: 0.30, wrist: 0.0, hipL: 0.90, hipR: 0.82, kneeL: 1.35, kneeR: 1.28, lean: 0.20 } },
 ];
 
 const EASE = { linear: x => x, io: x => x * x * (3 - 2 * x), out: x => 1 - (1 - x) ** 2, in: x => x * x };
