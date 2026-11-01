@@ -338,6 +338,7 @@ loader.load(MODEL_URL, gltf => {
       kneeL: parseFloat(q.get('knee') || '0'),
       kneeR: parseFloat(q.get('kneeR') || q.get('knee') || '0'),
       lean: parseFloat(q.get('lean') || '0'),
+      twist: parseFloat(q.get('tw') || '0'),
     };
     if (mixerRefs.actions['idle']) { mixerRefs.actions['idle'].reset().play(); mixerRefs.current = 'idle'; }
   } else if (q.has('pose')){
@@ -490,7 +491,7 @@ function rot(boneName, cal, amount){
 }
 
 // 语义参数：armRaise(抬臂) elbow(屈肘) hipL/hipR(抬腿) kneeL/kneeR(屈膝) lean(前倾) twist(转体)
-const Z = { armRaise: 0, armIn: 0, elbow: 0, wrist: 0, hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, lean: 0 };
+const Z = { armRaise: 0, armIn: 0, elbow: 0, wrist: 0, hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, lean: 0, twist: 0 };
 
 function applyPose(v){
   const p = Object.assign({}, Z, v);
@@ -507,6 +508,12 @@ function applyPose(v){
   rot('LeftLeg', CAL.kneeL, p.kneeL);
   rot('RightLeg', CAL.kneeR, p.kneeR);
   rot('Spine', CAL.lean, -p.lean);
+  // 转体：直接绕 Spine 局部 Y 轴
+  const sp = findBone('Spine');
+  if (sp && Math.abs(p.twist) > 1e-4){
+    _e1.set(0, p.twist, 0);
+    sp.quaternion.multiply(_q1.setFromEuler(_e1));
+  }
 }
 
 // ---- 关键帧（语义参数，单位：弧度，约 1 弧度 ≈ 57°） ----
@@ -518,11 +525,11 @@ const KEYS = [
   // 0.26 上升：手臂继续上举、身体拉长
   { t: 0.26, ease: 'out', v: { armRaise: 1.80, armIn: 0.35, elbow: 0.10, wrist: 0.05, hipL: 0.05, hipR: 0.25, kneeL: 0.45, kneeR: 0.70, lean: -0.12 } },
   // 0.46 最高点：双手举过头顶并靠拢
-  { t: 0.46, ease: 'io',  v: { armRaise: 2.45, armIn: 0.55, elbow: 0.02, wrist: 0.10, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16 } },
+  { t: 0.46, ease: 'io',  v: { armRaise: 2.45, armIn: 0.55, elbow: 0.02, wrist: 0.10, twist: 0.06, hipL: 0.20, hipR: 0.45, kneeL: 0.55, kneeR: 0.85, lean: -0.16 } },
   // 0.60 砸筐：屈肘 + 压手腕，躯干前屈、收腿
-  { t: 0.60, ease: 'in',  v: { armRaise: 1.95, armIn: 0.45, elbow: 0.95, wrist: 0.55, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22 } },
+  { t: 0.60, ease: 'in',  v: { armRaise: 1.95, armIn: 0.45, elbow: 0.95, wrist: 0.55, twist: 0.28, hipL: 0.55, hipR: 0.70, kneeL: 0.80, kneeR: 0.90, lean: 0.22 } },
   // 0.72 滞空余势
-  { t: 0.72, ease: 'io',  v: { armRaise: 1.20, armIn: 0.35, elbow: 0.55, wrist: 0.30, hipL: 0.35, hipR: 0.40, kneeL: 0.60, kneeR: 0.65, lean: 0.10 } },
+  { t: 0.72, ease: 'io',  v: { armRaise: 1.20, armIn: 0.35, elbow: 0.55, wrist: 0.30, twist: 0.18, hipL: 0.35, hipR: 0.40, kneeL: 0.60, kneeR: 0.65, lean: 0.10 } },
   // 0.86 下落：伸腿找地、手臂张开
   { t: 0.86, ease: 'in',  v: { armRaise: 0.55, armIn: 0.15, elbow: 0.25, wrist: 0.05, hipL: 0.10, hipR: 0.05, kneeL: 0.25, kneeR: 0.20, lean: -0.04 } },
   // 1.00 落地缓冲
@@ -801,11 +808,14 @@ function animate(){
     holdBall(0.06);
     if (customPose){
       applyPose(customPose);
+      holdBall(0.05, true);
     } else if (frozenPose !== null){
       dunkPose(frozenPose);
+      holdBall(0.05, true);
     } else if (dunkPreview.on){
       dunkPreview.t += dt / 1.5;
       dunkPose(Math.min(1, dunkPreview.t));
+      holdBall(0.05, true);
       if (dunkPreview.t >= 1){
         dunkPreview.on = false;
         resetPose();
