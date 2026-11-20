@@ -884,6 +884,18 @@
   JT.init = function (cb) {
     if (typeof cb === 'function') _listeners.push(cb);
     if (CONFIG.FORCE_LOCAL_AUTH) { LOCAL_MODE = true; Local.init(); return; }
+    // supabase 的 CDN 改成 async 加载了，这里最多等 1.8 秒，避免误判成"没配置"
+    var waited = 0;
+    var timer0 = setInterval(function () {
+      waited += 100;
+      if (window.supabase || waited >= 1800) {
+        clearInterval(timer0);
+        JT._startCloud(cb);
+      }
+    }, 100);
+  };
+
+  JT._startCloud = function (cb) {
     var c = getClient();
     if (!c) { LOCAL_MODE = true; Local.init(); return; }
     var base = (BASE_URL || '').replace(/\/+$/, '');
