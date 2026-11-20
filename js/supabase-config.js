@@ -81,12 +81,17 @@ window.JTConfig = {
   // 同源反向代理：Netlify 的 _redirects 已把 /sb/* 转发到 Supabase。
   // 部分网络（尤其国内移动网络）会重置到 supabase.co 的直连，走本站域名可绕开。
   // 本地调试（localhost / file://）保持直连。
-  PROXY_URL: (typeof location !== 'undefined' && location.search && location.search.indexOf('proxy=1') >= 0)
-    ? 'https://jumptool.netlify.app/sb'
-    : ((typeof location !== 'undefined' && location.protocol === 'https:' &&
-        location.hostname !== 'localhost' && location.hostname !== '127.0.0.1')
-        ? location.origin + '/sb' : ''),
-
+  PROXY_URL: (function () {
+    try {
+      if (typeof location === "undefined") return "";
+      if (location.search && location.search.indexOf("proxy=1") >= 0) return "https://jumptool.netlify.app/sb";
+      var h = location.hostname || "";
+      if (location.protocol !== "https:" || h === "localhost" || h === "127.0.0.1") return "";
+      // App 内网页是包内资源域名（没有 /sb 反代），统一走线上代理
+      if (h.indexOf("appassets.androidplatform.net") >= 0) return "https://jumptool.netlify.app/sb";
+      return location.origin + "/sb";
+    } catch (e) { return ""; }
+  })(),
   // 忘记密码邮件中的跳转地址（可选）。需先在 Supabase 后台
   // Authentication → URL Configuration 中把该地址加入白名单。
   AUTH_REDIRECT: '',

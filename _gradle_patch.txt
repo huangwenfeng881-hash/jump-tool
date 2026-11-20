@@ -1,0 +1,19 @@
+// ---- 把仓库根目录的网站资源同步进 APK（App 离线也能用）----
+val siteAssetsOut = layout.buildDirectory.dir("generated/siteAssets")
+val syncSiteAssets by tasks.registering(Sync::class) {
+    val repoRoot = projectDir.parentFile.parentFile
+    from(repoRoot) {
+        include("*.html")
+        include("css/**")
+        include("js/**")
+        include("img/**")
+        include("mediapipe/**")
+        exclude("**/*.map")
+    }
+    into(siteAssetsOut.map { it.dir("site") })
+    doLast {
+        val f = siteAssetsOut.get().dir("site/_asset_version.json").asFile
+        f.writeText("{\"versionName\":\"" + android.defaultConfig.versionName + "\",\"builtAt\":\"" + System.currentTimeMillis() + "\"}")
+    }
+}
+tasks.named("preBuild") { dependsOn(syncSiteAssets) }

@@ -11,10 +11,12 @@ import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.webkit.WebViewAssetLoader
 import androidx.fragment.app.Fragment
 import com.vertrise.jumptool.BuildConfig
 import com.vertrise.jumptool.MainActivity
@@ -97,7 +99,14 @@ class WebPageFragment : Fragment() {
             WebView.setWebContentsDebuggingEnabled(true)
         }
 
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(requireContext()))
+            .build()
+
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+                assetLoader.shouldInterceptRequest(request.url)
+
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                 handleUrl(request.url)
 
@@ -151,7 +160,8 @@ class WebPageFragment : Fragment() {
         val scheme = uri.scheme ?: return false
         if (scheme != "http" && scheme != "https") return openExternal(uri)
         val host = uri.host ?: return false
-        val ours = host.endsWith("netlify.app") ||
+        val ours = host == "appassets.androidplatform.net" ||
+            host.endsWith("netlify.app") ||
             host.endsWith("pages.dev") ||
             host.contains("jumptool") ||
             host == "localhost" ||
