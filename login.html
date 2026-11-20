@@ -395,5 +395,19 @@
       }
     })();
   </script>
+
+<script>
+// 云端不可用时，auth.js 会自动降级为「本机账号」，这里同步更新说明文案
+(function () {
+  function paint() {
+    if (!window.JTAuth || typeof JTAuth.isLocal !== 'function') return;
+    if (!JTAuth.isLocal()) return;
+    var sub = document.getElementById('authSub');
+    if (sub) sub.textContent = '离线模式：账号与训练记录只保存在这台设备上（不跨设备同步）';
+  }
+  setTimeout(paint, 1200);
+  setTimeout(paint, 3500);
+})();
+</script>
 </body>
 </html>

@@ -576,5 +576,335 @@
   // 所有页面导航默认跟随登录状态变化
   _listeners.push(function (session) { Auth.updateNavUI(session); });
 
-  window.JTAuth = Auth;
+
+  // ===================== 本机账号后端（云端不可用时自动降级） =====================
+  // 设计：云端健康 -> 用原 Supabase；云端不可用 -> 自动切到本机账号（localStorage）。
+  // 本机账号不跨设备同步，数据只保存在这台设备上；云端恢复后自动切回。
+  var LOCAL_MODE = false;
+  var DB_KEY = 'vt_local_db_v1';
+
+  function dbShape(){
+    var db = null;
+    try { db = JSON.parse(localStorage.getItem(DB_KEY) || 'null'); } catch (e) { db = null; }
+    if (!db || typeof db !== 'object') db = {};
+    db.users = db.users || {};
+    db.data = db.data || {};
+    db.session = db.session || null;
+    return db;
+  }
+  function dbSave(db){ try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch (e) {} }
+  function newId(p){ return (p || 'id') + '-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+
+  function hashPw(pw, salt){
+    if (window.crypto && crypto.subtle && crypto.subtle.digest && window.TextEncoder){
+      try {
+        var buf = new TextEncoder().encode(salt + '|' + pw);
+        return crypto.subtle.digest('SHA-256', buf).then(function (h) {
+          var s = '';
+          var arr = new Uint8Array(h);
+          for (var i = 0; i < arr.length; i++) s += ('0' + arr[i].toString(16)).slice(-2);
+          return s;
+        });
+      } catch (e) {}
+    }
+    var str = salt + '|' + pw, h = 5381;
+    for (var i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+    return Promise.resolve('w' + (h >>> 0).toString(16));
+  }
+
+  function storeOf(db, user){
+    if (!db.data[user.id]) {
+      db.data[user.id] = { jump_records: [], barbell_records: [], training_plans: [], checkins: [], user_profiles: null, feedback: [] };
+    }
+    return db.data[user.id];
+  }
+
+  var Local = {
+    configured: function () { return true; },
+    isLocal: function () { return true; },
+
+    init: function () {
+      var db = dbShape();
+      notify(db.session || null);
+    },
+
+    onAuthStateChange: function (cb) {
+      var any = false;
+      dbShape();
+      return function () {};
+    },
+
+    getSession: function () {
+      var db = dbShape();
+      return Promise.resolve(db.session || null);
+    },
+
+    current: function () {
+      var db = dbShape();
+      return db.session || null;
+    },
+
+    getPlan: function () {
+      var s = Local.current();
+      return (s && s.user && s.user.user_metadata && s.user.user_metadata.plan) || 'free';
+    },
+
+    getCurrentUser: function () {
+      var s = Local.current();
+      return Promise.resolve(s ? s.user : null);
+    },
+
+    getToken: function () { return Promise.resolve('local'); },
+
+    signUp: function (email, password) {
+      email = (email || '').trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Promise.resolve({ ok: false, msg: '邮箱格式不正确' });
+      if ((password || '').length < 6) return Promise.resolve({ ok: false, msg: '密码至少 6 位' });
+      var db = dbShape();
+      if (db.users[email]) return Promise.resolve({ ok: false, msg: '该邮箱已在本机注册，请直接登录' });
+      var salt = newId('s');
+      return hashPw(password, salt).then(function (hash) {
+        var id = newId('u');
+        db.users[email] = { id: id, email: email, salt: salt, hash: hash, created_at: new Date().toISOString() };
+        db.session = { access_token: 'local', user: { id: id, email: email, user_metadata: { plan: 'free' } } };
+        storeOf(db, { id: id });
+        dbSave(db);
+        notify(db.session);
+        return { ok: true, msg: '注册成功，已自动登录（本机账号）' };
+      });
+    },
+
+    signIn: function (email, password) {
+      email = (email || '').trim().toLowerCase();
+      if (!password) return Promise.resolve({ ok: false, msg: '请输入密码' });
+      var db = dbShape();
+      var u = db.users[email];
+      if (!u) return Promise.resolve({ ok: false, msg: '本机没有这个邮箱，请先注册' });
+      return hashPw(password, u.salt).then(function (hash) {
+        if (hash !== u.hash) return { ok: false, msg: '密码不正确' };
+        db.session = { access_token: 'local', user: { id: u.id, email: u.email, user_metadata: u.meta || { plan: 'free' } } };
+        dbSave(db);
+        notify(db.session);
+        return { ok: true, msg: '登录成功（本机账号）' };
+      });
+    },
+
+    signOut: function () {
+      var db = dbShape();
+      db.session = null;
+      dbSave(db);
+      notify(null);
+      return Promise.resolve();
+    },
+
+    resetPassword: function () {
+      return Promise.resolve({ ok: false, msg: '本机账号无法通过邮箱重置密码；忘记密码可重新注册一个账号' });
+    },
+
+    updatePassword: function (pw) {
+      if ((pw || '').length < 6) return Promise.resolve({ ok: false, msg: '密码至少 6 位' });
+      var db = dbShape();
+      if (!db.session) return Promise.resolve({ ok: false, msg: '请先登录' });
+      var u = db.users[(db.session.user.email || '').toLowerCase()];
+      if (!u) return Promise.resolve({ ok: false, msg: '账号不存在' });
+      var salt = newId('s');
+      return hashPw(pw, salt).then(function (hash) {
+        u.salt = salt; u.hash = hash;
+        db.users[u.email] = u;
+        dbSave(db);
+        return { ok: true, msg: '密码已更新' };
+      });
+    },
+
+    _insert: function (table, row) {
+      var s = Local.current();
+      if (!s) return Promise.resolve({ error: { message: '未登录，请先登录' } });
+      var db = dbShape();
+      var st = storeOf(db, s.user);
+      var rec = Object.assign({}, row, { id: newId('r'), user_id: s.user.id, created_at: new Date().toISOString() });
+      if (!st[table]) st[table] = [];
+      st[table].unshift(rec);
+      dbSave(db);
+      return Promise.resolve({ data: rec, error: null });
+    },
+
+    saveJumpRecord: function (d) {
+      return Local._insert('jump_records', {
+        height_cm: d.height_cm, flight_time: d.flight_time,
+        test_type: d.test_type || '助跑起跳', box_height: d.box_height || null
+      });
+    },
+
+    saveBarbellRecord: function (d) {
+      return Local._insert('barbell_records', {
+        peak_speed: d.peak_speed, avg_concentric: d.avg_concentric, avg_eccentric: d.avg_eccentric,
+        concentric_time: d.concentric_time, eccentric_time: d.eccentric_time,
+        total_displacement: d.total_displacement, weight: d.weight || null, curve_data: d.curve_data || []
+      });
+    },
+
+    saveTouchRecord: function (cm) {
+      return Local.saveJumpRecord({ height_cm: cm, flight_time: 0, test_type: '摸高' });
+    },
+
+    saveTrainingPlan: function (d) {
+      return Local._insert('training_plans', { title: d.title, summary: d.summary, plan_json: d.plan_json || {} });
+    },
+
+    fetchRecords: function () {
+      var s = Local.current();
+      if (!s) return Promise.resolve({ jumps: [], barbells: [], error: { message: '未登录，请先登录' } });
+      var db = dbShape();
+      var st = storeOf(db, s.user);
+      return Promise.resolve({ jumps: st.jump_records.slice(), barbells: st.barbell_records.slice(), error: null });
+    },
+
+    fetchTrainingPlans: function () {
+      var s = Local.current();
+      if (!s) return Promise.resolve({ plans: [], error: { message: '未登录，请先登录' } });
+      var db = dbShape();
+      return Promise.resolve({ plans: storeOf(db, s.user).training_plans.slice(), error: null });
+    },
+
+    deleteRecord: function (table, id) {
+      var s = Local.current();
+      if (!s) return Promise.resolve({ error: { message: '未登录，请先登录' } });
+      var db = dbShape();
+      var st = storeOf(db, s.user);
+      var list = st[table] || [];
+      st[table] = list.filter(function (r) { return r.id !== id; });
+      dbSave(db);
+      return Promise.resolve({ error: null });
+    },
+
+    submitFeedback: function (d) {
+      var s = Local.current();
+      var db = dbShape();
+      var box = s ? storeOf(db, s.user) : (db.data.__anon = db.data.__anon || { feedback: [] });
+      (box.feedback = box.feedback || []).unshift({
+        id: newId('f'), user_id: s ? s.user.id : null, fb_type: d.fb_type || '问题反馈',
+        title: d.title || '', content: d.content || '', contact: d.contact || null, created_at: new Date().toISOString()
+      });
+      dbSave(db);
+      return Promise.resolve({ error: null });
+    },
+
+    submitAnalysisFeedback: function (d) {
+      var s = Local.current();
+      var db = dbShape();
+      var box = s ? storeOf(db, s.user) : (db.data.__anon = db.data.__anon || { feedback: [] });
+      (box.feedback = box.feedback || []).unshift({
+        id: newId('f'), user_id: s ? s.user.id : null, fb_type: 'AI分析纠错',
+        title: d.videoName || 'AI分析纠错', content: d.issue || '', created_at: new Date().toISOString()
+      });
+      dbSave(db);
+      return Promise.resolve({ ok: true, msg: '已保存到本机（本机账号不同步到服务器）' });
+    },
+
+    getProfile: function () {
+      var s = Local.current();
+      if (!s) return Promise.resolve(null);
+      var db = dbShape();
+      return Promise.resolve(storeOf(db, s.user).user_profiles || null);
+    },
+
+    saveProfile: function (d) {
+      var s = Local.current();
+      if (!s) return Promise.resolve({ error: { message: '未登录，请先登录' } });
+      var db = dbShape();
+      var st = storeOf(db, s.user);
+      st.user_profiles = {
+        user_id: s.user.id,
+        nickname: d.nickname || null,
+        height_cm: d.height_cm != null ? d.height_cm : null,
+        reach_cm: d.reach_cm != null ? d.reach_cm : null,
+        weight_kg: d.weight_kg != null ? d.weight_kg : null,
+        wingspan_cm: d.wingspan_cm != null ? d.wingspan_cm : null,
+        public_show: !!d.public_show,
+        updated_at: new Date().toISOString()
+      };
+      dbSave(db);
+      return Promise.resolve({ error: null });
+    },
+
+    fetchCheckins: function () {
+      var s = Local.current();
+      if (!s) return Promise.resolve([]);
+      var db = dbShape();
+      return Promise.resolve(storeOf(db, s.user).checkins.slice());
+    },
+
+    toggleCheckin: function (date) {
+      var s = Local.current();
+      if (!s) return Promise.resolve({ error: { message: '未登录，请先登录' } });
+      var db = dbShape();
+      var st = storeOf(db, s.user);
+      var i = st.checkins.indexOf(date);
+      if (i >= 0) st.checkins.splice(i, 1); else st.checkins.push(date);
+      dbSave(db);
+      return Promise.resolve({ error: null });
+    },
+
+    getAiStatus: function () {
+      return Promise.resolve({ plan: 'free', is_vip: false, credits: 0, remaining_free: 3 });
+    },
+    consumeAI: function (type) { return Promise.resolve({ ok: true, used_kind: type || 'analyze', remaining_free: 3 }); },
+    refundAI: function () { return Promise.resolve(); },
+    redeemInvite: function () { return Promise.resolve({ ok: false, msg: '本机账号暂不支持邀请码（联网后可用）' }); },
+    redeemPendingInvite: function () { return Promise.resolve(null); },
+    fetchPlans: function () { return Promise.resolve([]); },
+    fetchOrders: function () { return Promise.resolve([]); },
+    fetchLeaderboard: function () { return Promise.resolve([]); },
+    generatePlanWithLLM: function () { return Promise.resolve({ ok: false, msg: '本机模式使用本地模板生成计划' }); }
+  };
+
+  // ===================== 分发层：云端可用就云端，否则本机 =====================
+  var CLOUD_METHODS = ['configured','onAuthStateChange','getSession','current','getPlan','getCurrentUser','getToken','signUp','signIn','signOut','logout','resetPassword','updatePassword','saveJumpRecord','saveBarbellRecord','_insert','fetchRecords','deleteRecord','submitFeedback','submitAnalysisFeedback','saveTrainingPlan','fetchTrainingPlans','generatePlanWithLLM','getAiStatus','consumeAI','refundAI','redeemInvite','redeemPendingInvite','fetchPlans','fetchOrders','getProfile','saveProfile','fetchCheckins','toggleCheckin','saveTouchRecord','fetchLeaderboard'];
+
+  var JT = {};
+  CLOUD_METHODS.forEach(function (name) {
+    JT[name] = function () {
+      var impl = LOCAL_MODE ? Local : Auth;
+      var fn = impl[name];
+      if (typeof fn !== 'function') fn = Local[name];
+      if (typeof fn !== 'function') return Promise.resolve(null);
+      return fn.apply(impl, arguments);
+    };
+  });
+
+  JT.isLocal = function () { return LOCAL_MODE; };
+
+  JT.updateNavUI = function (session) {
+    Auth.updateNavUI(session);
+    var p = document.getElementById('navPlan');
+    if (p && LOCAL_MODE && session) p.textContent = '本机';
+  };
+
+  /** 初始化：先探测云端（3 秒超时），失败自动切本机账号 */
+  JT.init = function (cb) {
+    if (typeof cb === 'function') _listeners.push(cb);
+    if (CONFIG.FORCE_LOCAL_AUTH) { LOCAL_MODE = true; Local.init(); return; }
+    var c = getClient();
+    if (!c) { LOCAL_MODE = true; Local.init(); return; }
+    var base = (BASE_URL || '').replace(/\/+$/, '');
+    var settled = false;
+    var timer = setTimeout(function () {
+      if (settled) return;
+      settled = true; LOCAL_MODE = true; Local.init();
+    }, 3000);
+    if (typeof fetch !== 'function' || !base) { settled = true; clearTimeout(timer); LOCAL_MODE = true; Local.init(); return; }
+    fetch(base + '/auth/v1/health', { headers: { apikey: ANON_KEY }, cache: 'no-store' })
+      .then(function (r) {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        if (r && r.ok) { Auth.init(); } else { LOCAL_MODE = true; Local.init(); }
+      })
+      .catch(function () {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        LOCAL_MODE = true; Local.init();
+      });
+  };
+
+  window.JTAuth = JT;
 })();

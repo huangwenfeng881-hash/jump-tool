@@ -244,11 +244,13 @@ class AnalyzeFragment : Fragment() {
         binding.txtFbMsg.text = "正在提交…"
         Thread {
             val metrics = if (outcome.metrics.ok) FeedbackUploader.metricsOf(outcome.metrics, outcome.fps) else null
-            val err = FeedbackUploader.submit(issue, lo, ld, h, metrics)
+            val err = FeedbackUploader.submit(issue, lo, ld, h, metrics, requireContext().applicationContext)
             mainHandler.post {
                 binding.btnFbSubmit.isEnabled = true
                 if (err == null) {
-                    binding.txtFbMsg.text = "✅ 已提交反馈，感谢帮助改进算法！"
+                    binding.txtFbMsg.text = if (FeedbackUploader.lastSavedLocally)
+                        "✅ 已保存到本机（服务器暂不可用，恢复后会自动上传）"
+                    else "✅ 已提交反馈，感谢帮助改进算法！"
                     binding.edtFbIssue.text.clear()
                     binding.edtFbLiftoff.text.clear()
                     binding.edtFbLanding.text.clear()

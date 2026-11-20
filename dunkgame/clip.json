@@ -1,0 +1,170 @@
+[
+ {
+  "t": 0.0,
+  "armRaise": 1.89,
+  "elbow": 2.84,
+  "knee": 0.98,
+  "lean": 0.0
+ },
+ {
+  "t": 0.043,
+  "armRaise": 1.79,
+  "elbow": 2.95,
+  "knee": 0.98,
+  "lean": 0.01
+ },
+ {
+  "t": 0.087,
+  "armRaise": 1.61,
+  "elbow": 2.98,
+  "knee": 0.98,
+  "lean": 0.03
+ },
+ {
+  "t": 0.13,
+  "armRaise": 1.48,
+  "elbow": 2.98,
+  "knee": 0.82,
+  "lean": 0.13
+ },
+ {
+  "t": 0.174,
+  "armRaise": 1.48,
+  "elbow": 1.29,
+  "knee": 0.96,
+  "lean": 0.22
+ },
+ {
+  "t": 0.217,
+  "armRaise": 1.68,
+  "elbow": 1.29,
+  "knee": 0.96,
+  "lean": 0.22
+ },
+ {
+  "t": 0.261,
+  "armRaise": 2.05,
+  "elbow": 1.32,
+  "knee": 0.57,
+  "lean": 0.12
+ },
+ {
+  "t": 0.304,
+  "armRaise": 2.29,
+  "elbow": 1.34,
+  "knee": 0.32,
+  "lean": 0.06
+ },
+ {
+  "t": 0.348,
+  "armRaise": 2.29,
+  "elbow": 1.37,
+  "knee": 0.32,
+  "lean": 0.06
+ },
+ {
+  "t": 0.391,
+  "armRaise": 2.15,
+  "elbow": 1.34,
+  "knee": 0.58,
+  "lean": 0.03
+ },
+ {
+  "t": 0.435,
+  "armRaise": 1.91,
+  "elbow": 1.37,
+  "knee": 0.89,
+  "lean": 0.03
+ },
+ {
+  "t": 0.478,
+  "armRaise": 1.83,
+  "elbow": 1.49,
+  "knee": 0.94,
+  "lean": 0.03
+ },
+ {
+  "t": 0.522,
+  "armRaise": 1.71,
+  "elbow": 1.49,
+  "knee": 1.01,
+  "lean": 0.04
+ },
+ {
+  "t": 0.565,
+  "armRaise": 1.7,
+  "elbow": 1.46,
+  "knee": 0.97,
+  "lean": 0.04
+ },
+ {
+  "t": 0.609,
+  "armRaise": 1.69,
+  "elbow": 1.37,
+  "knee": 0.97,
+  "lean": 0.06
+ },
+ {
+  "t": 0.652,
+  "armRaise": 1.95,
+  "elbow": 1.27,
+  "knee": 0.87,
+  "lean": 0.21
+ },
+ {
+  "t": 0.696,
+  "armRaise": 2.18,
+  "elbow": 1.63,
+  "knee": 0.82,
+  "lean": 0.23
+ },
+ {
+  "t": 0.739,
+  "armRaise": 2.34,
+  "elbow": 2.29,
+  "knee": 0.67,
+  "lean": 0.23
+ },
+ {
+  "t": 0.783,
+  "armRaise": 2.34,
+  "elbow": 2.34,
+  "knee": 0.61,
+  "lean": 0.2
+ },
+ {
+  "t": 0.826,
+  "armRaise": 2.25,
+  "elbow": 2.29,
+  "knee": 0.6,
+  "lean": 0.2
+ },
+ {
+  "t": 0.87,
+  "armRaise": 2.0,
+  "elbow": 1.51,
+  "knee": 0.53,
+  "lean": 0.2
+ },
+ {
+  "t": 0.913,
+  "armRaise": 1.98,
+  "elbow": 1.26,
+  "knee": 0.44,
+  "lean": 0.33
+ },
+ {
+  "t": 0.957,
+  "armRaise": 1.8,
+  "elbow": 1.26,
+  "knee": 0.38,
+  "lean": 0.33
+ },
+ {
+  "t": 1.0,
+  "armRaise": 1.8,
+  "elbow": 0.62,
+  "knee": 0.21,
+  "lean": 0.37
+ }
+]
