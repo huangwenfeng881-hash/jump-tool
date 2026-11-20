@@ -64,6 +64,19 @@ object PoseAnalyzer {
             return Outcome(emptyList(), fps, durationSec, MetricsResult(false, "视频过短", emptyList(), null, emptyMap()), "视频过短")
         }
 
+        // 解码尺寸上限：姿态识别不需要原始分辨率，缩小 3~6 倍能显著提速
+        val srcW = try { mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0 } catch (e: Exception) { 0 }
+        val srcH = try { mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0 } catch (e: Exception) { 0 }
+        val maxDim = 480
+        var outW = srcW
+        var outH = srcH
+        if (srcW > 0 && srcH > 0 && maxOf(srcW, srcH) > maxDim) {
+            val k = maxDim.toDouble() / maxOf(srcW, srcH)
+            outW = (srcW * k).toInt().coerceAtLeast(2)
+            outH = (srcH * k).toInt().coerceAtLeast(2)
+        }
+        val canScale = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && outW > 0 && outH > 0
+
         onPhase("loading-model")
         val landmarker = try {
             PoseLandmarker.createFromOptions(
@@ -96,8 +109,12 @@ object PoseAnalyzer {
             if (t > durationSec + 1e-6) break
 
             val frame = try {
-                val bmp = mmr.getFrameAtTime((t * 1_000_000L).toLong(), MediaMetadataRetriever.OPTION_CLOSEST)
-                bmp
+                if (canScale) {
+                    @Suppress("NewApi")
+                    mmr.getScaledFrameAtTime((t * 1_000_000L).toLong(), MediaMetadataRetriever.OPTION_CLOSEST_SYNC, outW, outH)
+                } else {
+                    mmr.getFrameAtTime((t * 1_000_000L).toLong(), MediaMetadataRetriever.OPTION_CLOSEST)
+                }
             } catch (e: Exception) { null }
             if (frame == null) {
                 lostStreak++

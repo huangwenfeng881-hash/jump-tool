@@ -229,11 +229,11 @@
   <input type="file" id="fileInput" accept="video/*" style="display:none;">
   <div class="jt-toast" id="toast"></div>
 
-  <script src="js/vendor/supabase.js"></script>
-  <script src="js/supabase-config.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/ui.js?v=15"></script>
-  <script src="js/pose.js"></script>
+  <script src="js/vendor/supabase.js?v=20261120"></script>
+  <script src="js/supabase-config.js?v=20261120"></script>
+  <script src="js/auth.js?v=20261120"></script>
+  <script src="js/ui.js?v=20261120"></script>
+  <script src="js/pose.js?v=20261120"></script>
   <script>
     (function () {
       'use strict';
@@ -688,12 +688,8 @@
 
       async function save() {
         if (!jumps.length) return toast('暂无弹跳数据', 'err');
+        // 本地优先：未登录 / 断网也能保存，登录后可在「数据」页看到本机记录
         var user = await window.JTAuth.getCurrentUser();
-        if (!user) {
-          toast('未登录，无法保存。即将跳转登录…', 'err');
-          setTimeout(function () { location.href = 'login.html?next=' + encodeURIComponent('jump.html'); }, 900);
-          return;
-        }
         // 保存前取历史最高高度（只对比同类型记录，摸高类大数值不参与），用于“相比上次提升”反馈
         var oldMax = 0;
         var curType = el.testType.value;
@@ -720,9 +716,10 @@
           saved++;
         }
         var diff = newMax - oldMax;
+        var tip = !user ? '（未登录，已存本机）' : '';
         toast(diff > 0 && oldMax > 0
-          ? '记录保存成功！相比上次提升 ' + diff.toFixed(1) + 'cm，继续加油'
-          : '记录保存成功', 'ok');
+          ? '记录保存成功！相比上次提升 ' + diff.toFixed(1) + 'cm，继续加油' + tip
+          : '记录保存成功' + tip, 'ok');
         // 通知「数据」页图表自动刷新（跨标签页 storage 事件）
         try { localStorage.setItem('vertrise-jump-saved', String(Date.now())); } catch (e) {}
       }

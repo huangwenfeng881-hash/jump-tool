@@ -915,5 +915,93 @@
     location.reload();
   };
 
+
+  // ===================== 本地优先：保存失败自动落本机，读取时合并 =====================
+  function localBucket(db) {
+    var s = db.session;
+    var uid = (s && s.user && s.user.id) ? s.user.id : '__anon';
+    if (!db.data[uid]) db.data[uid] = { jump_records: [], barbell_records: [], training_plans: [], checkins: [], user_profiles: null, feedback: [] };
+    return { uid: uid, st: db.data[uid] };
+  }
+  function localInsert(table, row) {
+    var db = dbShape();
+    var b = localBucket(db);
+    if (!b.st[table]) b.st[table] = [];
+    var rec = Object.assign({}, row, {
+      id: 'local-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      user_id: b.uid,
+      created_at: new Date().toISOString(),
+      _local: true
+    });
+    b.st[table].unshift(rec);
+    dbSave(db);
+    return rec;
+  }
+  function localRows(table) {
+    var db = dbShape();
+    return localBucket(db).st[table] || [];
+  }
+
+  function withLocalFallback(orig, table, row) {
+    return Promise.resolve(orig()).then(function (r) {
+      if (r && !r.error) return r;
+      return { data: localInsert(table, row), error: null, local: true };
+    }).catch(function () {
+      return { data: localInsert(table, row), error: null, local: true };
+    });
+  }
+
+  var _saveJump = JT.saveJumpRecord;
+  JT.saveJumpRecord = function (d) {
+    return withLocalFallback(function () { return _saveJump(d); }, 'jump_records', {
+      height_cm: d.height_cm, flight_time: d.flight_time,
+      test_type: d.test_type || '助跑起跳', box_height: d.box_height || null
+    });
+  };
+  var _saveBarbell = JT.saveBarbellRecord;
+  JT.saveBarbellRecord = function (d) {
+    return withLocalFallback(function () { return _saveBarbell(d); }, 'barbell_records', {
+      peak_speed: d.peak_speed, avg_concentric: d.avg_concentric, avg_eccentric: d.avg_eccentric,
+      concentric_time: d.concentric_time, eccentric_time: d.eccentric_time,
+      total_displacement: d.total_displacement, weight: d.weight || null, curve_data: d.curve_data || []
+    });
+  };
+  var _saveTouch = JT.saveTouchRecord;
+  JT.saveTouchRecord = function (cm) {
+    return JT.saveJumpRecord({ height_cm: cm, flight_time: 0, test_type: '摸高' });
+  };
+  var _savePlan = JT.saveTrainingPlan;
+  JT.saveTrainingPlan = function (d) {
+    return withLocalFallback(function () { return _savePlan(d); }, 'training_plans', {
+      title: d.title, summary: d.summary, plan_json: d.plan_json || {}
+    });
+  };
+
+  var _fetchRecords = JT.fetchRecords;
+  JT.fetchRecords = function () {
+    return Promise.resolve(_fetchRecords()).then(function (r) {
+      r = r || {};
+      function merge(cloudRows, localList) {
+        var out = (cloudRows || []).slice();
+        var seen = {};
+        out.forEach(function (x) { seen[x.id] = 1; });
+        localList.forEach(function (x) { if (!seen[x.id]) out.push(x); });
+        out.sort(function (a, b) { return String(b.created_at || '').localeCompare(String(a.created_at || '')); });
+        return out;
+      }
+      return {
+        jumps: merge(r.jumps, localRows('jump_records')),
+        barbells: merge(r.barbells, localRows('barbell_records')),
+        error: r.error || null
+      };
+    });
+  };
+
+  /** 未同步到云端的本机记录条数（页面可用来提示） */
+  JT.pendingCount = function () {
+    return localRows('jump_records').filter(function (r) { return r._local; }).length +
+      localRows('barbell_records').filter(function (r) { return r._local; }).length;
+  };
+
   window.JTAuth = JT;
 })();

@@ -138,12 +138,9 @@ window.JTConfig = {
   // 故排在最前（glm-4.7-flash 当前经常过载，作为后备）。
   GLM_MODELS: ['glm-4-flash', 'glm-4.7-flash', 'glm-4.5-flash'],
 
-  // GLM API Key：不存明文，以 AES-256-GCM 密文保存（运行时由 js/glm-crypto.js 解密）。
-  // 密文 = base64(iv || ciphertext || tag)。如需更换 key，运行:
-  //   node tools/encrypt-glm-key.js "<明文key>" "<口令>"  → 粘贴结果到下方。
-  GLM_API_KEY_ENC: 'SQqZ4FfEdJ2z+XKOmho0uby8fmSWrYLPRsyKq0PB377Dr1nzY6xOPJtvpIdJ7Y0DDjWR7+9adez7GjHinQ1pK3B+2xfs3CGRhktESvE=',
-  GLM_CRYPTO_PASSPHRASE: 'V3rtr1se.GLm.K3y#2026',
-  // 兼容字段（已弃用）：如需旧版直连明文 key，请改用上方密文方式。
-  GLM_API_KEY: 'd56cac79e59e4296b3239370560041cf.jSD9s7lYXAIZmc4r',
-  GLM_API_URL: 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
+  // 已改为服务端代理（Edge Function），前端不再持有任何密钥
+  GLM_API_URL: ''
 };
+
+// 代理地址：默认走站内 /sb 反代到 Supabase Edge Function
+window.JTConfig.GLM_PROXY_URL = (window.JTConfig.PROXY_URL || 'https://jumptool.netlify.app/sb') + '/functions/v1/glm-proxy';

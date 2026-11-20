@@ -15,10 +15,10 @@ window.addEventListener('unhandledrejection', function (e) {
   if (p) p.textContent = '未处理异常: ' + String((e.reason && e.reason.message) || e.reason);
 });
 </script>
-<script src="js/supabase-config.js"></script>
+<script src="js/supabase-config.js?v=20261120"></script>
 <script>try { window.JTConfig.POSE_ANALYZE_MAXDIM = parseInt(new URLSearchParams(location.search).get('dim') || '480', 10); } catch (e) {}</script>
 <script>try { var _dg = (new URLSearchParams(location.search).get('delegate') || 'CPU').toUpperCase(); window.JTConfig.POSE_DELEGATE = (_dg === 'GPU') ? 'GPU' : 'CPU'; } catch (e) {}</script>
-<script src="js/pose.js"></script>
+<script src="js/pose.js?v=20261120"></script>
 <script>
 (async function () {
   'use strict';

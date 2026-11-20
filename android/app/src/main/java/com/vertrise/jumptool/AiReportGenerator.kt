@@ -14,8 +14,8 @@ import java.net.URL
  */
 object AiReportGenerator {
 
-    private const val GLM_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-    private const val GLM_KEY = "d56cac79e59e4296b3239370560041cf.jSD9s7lYXAIZmc4r"
+    /** 服务端代理：真正的智谱 Key 只存在于 Supabase Edge Function 的环境变量里 */
+    private val PROXY_URL = SupabaseConfig.DIRECT + "/functions/v1/glm-proxy"
     private const val GLM_MODEL = "glm-4-flash"
 
     /** 生成中文数据摘要（与 js/pose.js buildMetricsText 对齐） */
@@ -87,13 +87,14 @@ object AiReportGenerator {
                 .put(JSONObject().put("role", "system").put("content", sys))
                 .put(JSONObject().put("role", "user").put("content", user)))
 
-        val conn = URL(GLM_URL).openConnection() as HttpURLConnection
+        val conn = URL(PROXY_URL).openConnection() as HttpURLConnection
         return try {
             conn.requestMethod = "POST"
             conn.connectTimeout = 30000
             conn.readTimeout = 90000
             conn.doOutput = true
-            conn.setRequestProperty("Authorization", "Bearer $GLM_KEY")
+            conn.setRequestProperty("apikey", SupabaseConfig.ANON_KEY)
+            conn.setRequestProperty("Authorization", "Bearer " + SupabaseConfig.ANON_KEY)
             conn.setRequestProperty("Content-Type", "application/json")
             OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { it.write(body.toString()) }
             val code = conn.responseCode
@@ -103,7 +104,9 @@ object AiReportGenerator {
             } else {
                 val resp = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
                 val json = JSONObject(resp)
-                val content = json.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
+                // 代理返回 {ok, model, data:{choices:[{message:{content}}]}}
+                val payload = json.optJSONObject("data") ?: json
+                val content = payload.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
                 if (content.isNullOrBlank()) Pair(null, "AI 返回内容为空") else Pair(content, "")
             }
         } catch (e: Exception) {

@@ -12,8 +12,13 @@ window.GLM = (function () {
 
   var CONFIG = window.JTConfig || {};
 
+  function useProxy() {
+    return !!(CONFIG.GLM_PROXY_URL && String(CONFIG.GLM_PROXY_URL).trim());
+  }
+
+  /** 配置判断：有服务端代理即可（Key 不再出现在前端） */
   function isConfigured() {
-    return !!(CONFIG.GLM_API_KEY && CONFIG.GLM_API_KEY.trim() && CONFIG.GLM_API_URL && CONFIG.GLM_API_URL.trim());
+    return useProxy() || !!(CONFIG.GLM_API_KEY && CONFIG.GLM_API_KEY.trim() && CONFIG.GLM_API_URL && CONFIG.GLM_API_URL.trim());
   }
 
   function modelName() {
@@ -63,7 +68,8 @@ window.GLM = (function () {
   }
 
   function doChat(model, messages, opts, onChunk) {
-    var url = CONFIG.GLM_API_URL;
+    var proxy = useProxy();
+    var url = proxy ? String(CONFIG.GLM_PROXY_URL).trim() : CONFIG.GLM_API_URL;
     var stream = !!(opts && opts.stream);
     var body = {
       model: model,
@@ -80,10 +86,16 @@ window.GLM = (function () {
     function settle() { if (timer) { clearTimeout(timer); timer = null; } }
     var fetchOpts = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + CONFIG.GLM_API_KEY.trim()
-      },
+      headers: proxy
+        ? {
+            'Content-Type': 'application/json',
+            'apikey': CONFIG.SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
+          }
+        : {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + String(CONFIG.GLM_API_KEY || '').trim()
+          },
       body: JSON.stringify(body)
     };
     if (ctrl) fetchOpts.signal = ctrl.signal;
@@ -99,6 +111,8 @@ window.GLM = (function () {
       }
       if (!stream) {
         return r.json().then(function (d) {
+          // 代理返回 {ok, model, data:{choices:[...]}}，直连则是 choices 本体
+          if (d && d.data) d = d.data;
           var m = d && d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message : null;
           var txt = m ? m.content : '';
           if (txt && String(txt).trim()) return { ok: true, text: String(txt) };
