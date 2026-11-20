@@ -905,11 +905,13 @@
       settled = true; LOCAL_MODE = true; Local.init();
     }, 3000);
     if (typeof fetch !== 'function' || !base) { settled = true; clearTimeout(timer); LOCAL_MODE = true; Local.init(); return; }
-    fetch(base + '/auth/v1/health', { headers: { apikey: ANON_KEY }, cache: 'no-store' })
+    fetch(base + '/auth/v1/settings', { headers: { apikey: ANON_KEY }, cache: 'no-store' })
       .then(function (r) {
         if (settled) return;
         settled = true; clearTimeout(timer);
-        if (r && r.ok) { Auth.init(); } else { LOCAL_MODE = true; Local.init(); }
+        // 只要服务器有响应（200/401/403）就说明云端在线；只有 5xx / 网络失败才降级
+        var reachable = r && (r.ok || r.status === 401 || r.status === 403 || r.status === 404);
+        if (reachable) { Auth.init(); } else { LOCAL_MODE = true; Local.init(); }
       })
       .catch(function () {
         if (settled) return;

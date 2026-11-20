@@ -18,13 +18,12 @@ object CloudFeatures {
     const val ENABLED = true
 
     /** 云端同步 / 会员 / 榜单是否可用 */
-    const val CLOUD_SYNC = false
+    const val CLOUD_SYNC = true
 
     /** 必须依赖云端、当前仍要隐藏的页面 */
     private val CLOUD_ONLY_PAGES = setOf(
-        SitePages.MEMBERSHIP,
-        SitePages.LEADERBOARD,
-        SitePages.PROGRESS
+        // 会员/支付链路仍依赖未部署的支付函数，先不放开
+        SitePages.MEMBERSHIP
     )
 
     fun isCloudPage(page: String): Boolean {
