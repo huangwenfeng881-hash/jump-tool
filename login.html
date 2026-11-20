@@ -227,7 +227,7 @@
 
   <div class="jt-toast" id="toast"></div>
 
-  <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/vendor/supabase.js"></script>
   <script src="js/supabase-config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/ui.js?v=15"></script>
@@ -397,16 +397,21 @@
   </script>
 
 <script>
-// 云端不可用时，auth.js 会自动降级为「本机账号」，这里同步更新说明文案
+// 云端不可用时 auth.js 会自动降级为「本机账号」，这里同步更新说明并提供切换入口
 (function () {
   function paint() {
-    if (!window.JTAuth || typeof JTAuth.isLocal !== 'function') return;
-    if (!JTAuth.isLocal()) return;
-    var sub = document.getElementById('authSub');
-    if (sub) sub.textContent = '离线模式：账号与训练记录只保存在这台设备上（不跨设备同步）';
+    if (!window.JTAuth || typeof JTAuth.isLocal !== "function") return;
+    var sub = document.getElementById("authSub");
+    var local = JTAuth.isLocal();
+    if (sub) {
+      sub.innerHTML = local
+        ? '当前是<b>本机模式</b>：账号与记录只存在这台设备上（不跨设备同步）。' +
+          '<a class="jt-link" style="margin-left:6px" href="javascript:JTAuth.setLocalMode(false)">重试云端</a>'
+        : '登录后训练记录会同步到云端，换手机也能看到。';
+    }
   }
-  setTimeout(paint, 1200);
-  setTimeout(paint, 3500);
+  setTimeout(paint, 1000);
+  setTimeout(paint, 2600);
 })();
 </script>
 </body>

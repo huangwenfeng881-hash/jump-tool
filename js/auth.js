@@ -880,44 +880,39 @@
     if (p && LOCAL_MODE && session) p.textContent = '本机';
   };
 
-  /** 初始化：先探测云端（3 秒超时），失败自动切本机账号 */
+  /**
+   * 初始化：
+   *   - 页面带了 js/vendor/supabase.js（已打包进 APK / 站点自带）→ 直接用云端
+   *   - SDK 缺失、配置为空、或用户手动选过「本机模式」→ 用本机账号
+   * 不再做 HTTP 探活：探活受 CORS 与网络抖动影响，会把可用的云端误判成宕机。
+   */
   JT.init = function (cb) {
-    if (typeof cb === 'function') _listeners.push(cb);
-    if (CONFIG.FORCE_LOCAL_AUTH) { LOCAL_MODE = true; Local.init(); return; }
-    // supabase 的 CDN 改成 async 加载了，这里最多等 1.8 秒，避免误判成"没配置"
+    if (typeof cb === "function") _listeners.push(cb);
+    var forced = false;
+    try { forced = localStorage.getItem("vt_force_local") === "1"; } catch (e) {}
+    if (CONFIG.FORCE_LOCAL_AUTH || forced) { LOCAL_MODE = true; Local.init(); return; }
     var waited = 0;
     var timer0 = setInterval(function () {
       waited += 100;
-      if (window.supabase || waited >= 1800) {
+      if (window.supabase || waited >= 1500) {
         clearInterval(timer0);
-        JT._startCloud(cb);
+        if (window.supabase && isConfigured()) {
+          Auth.init();
+        } else {
+          LOCAL_MODE = true;
+          Local.init();
+        }
       }
     }, 100);
   };
 
-  JT._startCloud = function (cb) {
-    var c = getClient();
-    if (!c) { LOCAL_MODE = true; Local.init(); return; }
-    var base = (BASE_URL || '').replace(/\/+$/, '');
-    var settled = false;
-    var timer = setTimeout(function () {
-      if (settled) return;
-      settled = true; LOCAL_MODE = true; Local.init();
-    }, 3000);
-    if (typeof fetch !== 'function' || !base) { settled = true; clearTimeout(timer); LOCAL_MODE = true; Local.init(); return; }
-    fetch(base + '/auth/v1/settings', { headers: { apikey: ANON_KEY }, cache: 'no-store' })
-      .then(function (r) {
-        if (settled) return;
-        settled = true; clearTimeout(timer);
-        // 只要服务器有响应（200/401/403）就说明云端在线；只有 5xx / 网络失败才降级
-        var reachable = r && (r.ok || r.status === 401 || r.status === 403 || r.status === 404);
-        if (reachable) { Auth.init(); } else { LOCAL_MODE = true; Local.init(); }
-      })
-      .catch(function () {
-        if (settled) return;
-        settled = true; clearTimeout(timer);
-        LOCAL_MODE = true; Local.init();
-      });
+  /** 页面用它切换：true = 强制本机模式，false = 回到云端 */
+  JT.setLocalMode = function (on) {
+    try {
+      if (on) localStorage.setItem("vt_force_local", "1");
+      else localStorage.removeItem("vt_force_local");
+    } catch (e) {}
+    location.reload();
   };
 
   window.JTAuth = JT;
