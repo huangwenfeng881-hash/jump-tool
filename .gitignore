@@ -18,3 +18,4 @@ promo_tmp/
 backup/
 # 抖音/知识类视频的生成中间产物
 douyin_tmp/
+.supabase-token
