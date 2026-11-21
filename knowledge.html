@@ -21,6 +21,8 @@
     .kv-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; cursor:pointer; transition:transform .15s, box-shadow .15s; }
     .kv-card:active { transform:scale(.99); }
     .kv-cover { width:100%; aspect-ratio:16/9; object-fit:cover; background:#0c1220; display:block; }
+    .kv-card { position:relative; }
+    .kv-badge { position:absolute; top:8px; left:8px; background:#FB7299; color:#fff; font-size:.68rem; padding:2px 8px; border-radius:999px; font-weight:700; }
     .kv-cover.placeholder { display:flex; align-items:center; justify-content:center; font-size:34px; color:var(--text2); }
     .kv-body { padding:10px 12px 12px; }
     .kv-title { font-size:.92rem; font-weight:700; line-height:1.35; }
@@ -74,6 +76,7 @@
     <div class="kv-bar">
       <input class="jt-input kv-search" id="kvSearch" type="search" placeholder="搜索标题…">
       <button class="jt-btn jt-btn-accent jt-btn-sm" id="kvUploadBtn">⬆️ 上传视频</button>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="kvBiliBtn">🔗 添加 B 站视频</button>
     </div>
   </div>
 
@@ -91,6 +94,7 @@
 <div class="kv-modal" id="kvPlayer">
   <div class="kv-sheet">
     <video id="kvVideo" controls playsinline></video>
+    <div id="kvEmbed" style="display:none;width:100%;aspect-ratio:16/9;background:#000"><iframe id="kvIframe" style="width:100%;height:100%;border:0" allowfullscreen scrolling="no" frameborder="0"></iframe></div>
     <div class="inner">
       <h3 id="kvTitle">—</h3>
       <div class="kv-meta" id="kvMeta" style="font-size:.76rem;color:var(--text2);margin-top:6px"></div>
@@ -174,9 +178,11 @@
     list.forEach(function (r) {
       var card = document.createElement('div');
       card.className = 'kv-card';
-      var cover = r.cover_path
-        ? '<img class="kv-cover" loading="lazy" src="' + K.publicUrl(r.cover_path) + '" alt="">'
+      var cu = K.coverUrl ? K.coverUrl(r) : '';
+      var cover = cu
+        ? '<img class="kv-cover" loading="lazy" src="' + cu + '" alt="" onerror="this.style.display=\'none\';this.parentNode.insertAdjacentHTML(\'afterbegin\',\'<div class=&quot;kv-cover placeholder&quot;>🎬</div>\')">'
         : '<div class="kv-cover placeholder">🎬</div>';
+      if (r.platform === 'bilibili') cover = cover + '<div class="kv-badge">B站</div>';
       card.innerHTML = cover +
         '<div class="kv-body">' +
           '<div class="kv-title">' + esc(r.title) + '</div>' +
@@ -190,7 +196,15 @@
 
   function openPlayer(r) {
     current = r;
-    $('kvVideo').src = K.publicUrl(r.video_path);
+    var isBili = r.platform === 'bilibili' && r.ext_id;
+    $('kvVideo').style.display = isBili ? 'none' : 'block';
+    $('kvEmbed').style.display = isBili ? 'block' : 'none';
+    if (isBili) {
+      $('kvIframe').src = K.biliEmbed(r.ext_id, 1);
+    } else {
+      $('kvIframe').src = 'about:blank';
+      $('kvVideo').src = K.publicUrl(r.video_path);
+    }
     $('kvTitle').textContent = r.title || '';
     $('kvMeta').textContent = (r.creator_name || '创作者') + ' · ' + fmtDate(r.created_at);
     $('kvNote').textContent = r.note || '';
@@ -204,6 +218,7 @@
     $('kvPlayer').classList.remove('show');
     var v = $('kvVideo');
     try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {}
+    try { $('kvIframe').src = 'about:blank'; } catch (e) {}
   }
 
   $('kvCloseBtn').addEventListener('click', closePlayer);
@@ -217,6 +232,26 @@
       return;
     }
     $('kvFile').click();
+  });
+
+  $('kvBiliBtn').addEventListener('click', function () {
+    if (!me) {
+      toast('请先登录后再发布');
+      setTimeout(function () { location.href = 'login.html?next=knowledge.html'; }, 900);
+      return;
+    }
+    var link = prompt('粘贴 B 站视频链接（含 BV 号），例如 https://www.bilibili.com/video/BV1xx411c7mD');
+    if (!link) return;
+    var parsed = K.parseBili(link);
+    if (!parsed) { toast('没认出 BV 号，请粘贴完整链接'); return; }
+    if (parsed.type === 'short') { toast('b23.tv 短链请先在浏览器打开，复制跳转后的完整链接'); return; }
+    var title = prompt('视频标题', '');
+    if (title === null) return;
+    var cover = prompt('封面图地址（可留空，留空自动用 B 站封面）', '') || null;
+    K.addBilibili(link, { title: title || '未命名', cover: cover }).then(function () {
+      toast('已添加，B 站视频公开可见');
+      load();
+    }).catch(function (e) { toast(e.message || '添加失败'); });
   });
 
   $('kvFile').addEventListener('change', function () {

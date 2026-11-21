@@ -1,20 +1,21 @@
 /**
  * Vertrise 跃升 · 弹跳知识科普（公开视频库）
- * 视频存 Supabase Storage 公共桶 knowledge，元信息在 knowledge_videos 表。
- * 浏览：任何人；上传：白名单创作者（需登录）；编辑/删除：仅本人。
- * 上传前会自动压到 720p / ~2.2Mbps（webm），控制体积。
+ * 两种来源：
+ *   1) storage  上传到 Supabase Storage（自动压 720p），适合短视频
+ *   2) bilibili 只存 B 站链接（BV 号），播放用官方 iframe 播放器，不吃存储额度
+ * 浏览：任何人；发布/编辑/删除：白名单创作者本人。
  */
 window.JTKnowledge = (function () {
   'use strict';
   var CFG = window.JTConfig || {};
   var BASE = (CFG.PROXY_URL || CFG.SUPABASE_URL || '').replace(/\/+$/, '');      // REST：走代理
-  var STORE = (CFG.SUPABASE_URL || BASE).replace(/\/+$/, '');                      // Storage：直连，避免代理体积上限
+  var STORE = (CFG.SUPABASE_URL || BASE).replace(/\/+$/, '');                      // Storage：直连
   var KEY = CFG.SUPABASE_ANON_KEY || '';
   var CACHE_KEY = 'vt_kv_cache_v1';
-  var COMPRESS_OVER = 18 * 1024 * 1024;   // 超过 18MB 才压缩
+  var COMPRESS_OVER = 18 * 1024 * 1024;
   var TARGET_H = 720, BITRATE = 2200000;
 
-  function api(path) { return BASE + path; }
+  function api(p) { return BASE + p; }
   function authHeaders(token, json) {
     var h = { apikey: KEY };
     if (json) h['Content-Type'] = 'application/json';
@@ -30,6 +31,30 @@ window.JTKnowledge = (function () {
     if (!p) return '';
     return STORE + '/storage/v1/object/public/knowledge/' + p.split('/').map(encodeURIComponent).join('/');
   }
+
+  // ---------- B 站链接解析 ----------
+  /** 支持 BV1xx411c7mD / av12345 / 完整链接 / b23.tv 短链（短链需展开） */
+  function parseBili(input) {
+    var s = String(input || '').trim();
+    var m = s.match(/BV[0-9A-Za-z]{10}/);
+    if (m) return { type: 'bvid', id: m[0], url: 'https://www.bilibili.com/video/' + m[0] };
+    m = s.match(/av(\d+)/i);
+    if (m) return { type: 'aid', id: m[1], url: 'https://www.bilibili.com/video/av' + m[1] };
+    if (/^b23\.tv|^https?:\/\/b23\.tv/.test(s)) return { type: 'short', id: s, url: s.indexOf('http') === 0 ? s : 'https://' + s };
+    return null;
+  }
+  function playerUrl(rec, page) {
+    var p = '1';
+    if (rec && rec.ext_id) p = String(rec.ext_id);
+    return 'https://player.bilibili.com/player.html?bvid=' + encodeURIComponent(rec.ext_url || '') +
+      '&page=' + (page || p) + '&high_quality=1&danmaku=0&autoplay=0';
+  }
+  /** 用 BV/av 号拼 iframe 播放器 */
+  function biliEmbed(bvid, page) {
+    return 'https://player.bilibili.com/player.html?bvid=' + encodeURIComponent(bvid) +
+      '&page=' + (page || 1) + '&high_quality=1&danmaku=0&autoplay=0';
+  }
+
   function permError(status, body) {
     var t = String(body || '').toLowerCase();
     var denied = (status === 401 || status === 403 ||
@@ -43,7 +68,7 @@ window.JTKnowledge = (function () {
   }
 
   function list() {
-    var url = api('/rest/v1/knowledge_videos?select=id,user_id,creator_name,title,note,video_path,cover_path,created_at,size_bytes&published=eq.true&order=created_at.desc&limit=200');
+    var url = api('/rest/v1/knowledge_videos?select=id,user_id,creator_name,title,note,platform,ext_url,ext_id,cover_url,video_path,cover_path,created_at,size_bytes&published=eq.true&order=created_at.desc&limit=200');
     return fetch(url, { headers: authHeaders(null, true) }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -58,7 +83,18 @@ window.JTKnowledge = (function () {
     });
   }
 
-  /** 用 canvas + MediaRecorder 压到 720p；失败/不支持则返回原文件 */
+  /** 封面：storage 用公共桶；B 站用 cover_url 或官方图床；都没有返回空 */
+  function coverUrl(rec) {
+    if (!rec) return '';
+    if (rec.cover_path) return publicUrl(rec.cover_path);
+    if (rec.cover_url) return rec.cover_url;
+    if (rec.platform === 'bilibili' && rec.ext_id) {
+      return 'https://i0.hdslb.com/bfs/archive/' + rec.ext_id + '.jpg'; // 可能 404，img onerror 兜底
+    }
+    return '';
+  }
+
+  // ---------- 上传（Storage） ----------
   function compressVideo(file, onStage) {
     return new Promise(function (resolve) {
       if (file.size <= COMPRESS_OVER) return resolve(file);
@@ -107,7 +143,7 @@ window.JTKnowledge = (function () {
             try { if (vtrack && vtrack.requestFrame) vtrack.requestFrame(); } catch (e) {}
             if (v.ended) { if (drawTick) clearInterval(drawTick); return; }
           };
-          drawTick = setInterval(draw, 33);   // 不依赖 rAF（后台/无头也能持续出帧）
+          drawTick = setInterval(draw, 33);
           draw();
           v.addEventListener('timeupdate', function () {
             if (onStage && v.duration) onStage({ stage: 'compress', p: Math.min(1, v.currentTime / v.duration) });
@@ -168,7 +204,21 @@ window.JTKnowledge = (function () {
     });
   }
 
-  /** onStage({stage:'compress'|'upload', p:0..1}) */
+  function insertRow(token, row) {
+    return fetch(api('/rest/v1/knowledge_videos'), {
+      method: 'POST',
+      headers: authHeaders(token, true),
+      body: JSON.stringify(row)
+    }).then(function (r) {
+      if (!r.ok) return r.text().then(function (t) {
+        var err = permError(r.status, t);
+        err.message = err.message + (t ? '（' + t.slice(0, 80) + '）' : '');
+        throw err;
+      });
+      return row;
+    });
+  }
+
   function upload(file, meta, onStage) {
     return session().then(function (s) {
       if (!s || !s.user) {
@@ -186,39 +236,51 @@ window.JTKnowledge = (function () {
           return uploadBlob(videoPath, out, contentType, token, function (p) {
             if (onStage) onStage({ stage: 'upload', p: p });
           }).then(function () {
-            var coverPath = null, pChain = Promise.resolve();
+            var coverPath = null, chain = Promise.resolve();
             if (coverBlob) {
               coverPath = uid + '/c' + ts + '.jpg';
-              pChain = uploadBlob(coverPath, coverBlob, 'image/jpeg', token).catch(function () { coverPath = null; });
+              chain = uploadBlob(coverPath, coverBlob, 'image/jpeg', token).catch(function () { coverPath = null; });
             }
-            return pChain.then(function () {
-              var row = {
+            return chain.then(function () {
+              return insertRow(token, {
                 user_id: uid,
                 creator_name: (meta.creator || (s.user.email || '').split('@')[0] || '创作者'),
                 title: meta.title || '未命名',
                 note: meta.note || '',
+                platform: 'storage',
                 video_path: videoPath,
                 cover_path: coverPath,
                 size_bytes: out.size || null,
                 published: true
-              };
-              return fetch(api('/rest/v1/knowledge_videos'), {
-                method: 'POST',
-                headers: authHeaders(token, true),
-                body: JSON.stringify(row)
-              }).then(function (r) {
-                if (!r.ok) return r.text().then(function (t) {
-                  var err = permError(r.status, t);
-                  err.message = err.message + (t ? '（' + t.slice(0, 80) + '）' : '');
-                  throw err;
-                });
-                row.compressed = isWebm;
-                row.originalSize = file.size;
-                return row;
               });
             });
           });
         });
+      });
+    });
+  }
+
+  /** 添加 B 站外链视频：不吃存储额度，播放走官方播放器 */
+  function addBilibili(input, meta) {
+    return session().then(function (s) {
+      if (!s || !s.user) {
+        var e = new Error('需要先登录才能发布视频');
+        e.needLogin = true;
+        throw e;
+      }
+      var parsed = parseBili(input);
+      if (!parsed) throw new Error('没认出 BV 号，请粘贴完整视频链接');
+      if (parsed.type === 'short') throw new Error('b23.tv 短链请在浏览器打开后，复制跳转后的完整链接（含 BV 号）');
+      return insertRow(s.access_token, {
+        user_id: s.user.id,
+        creator_name: (meta.creator || (s.user.email || '').split('@')[0] || '创作者'),
+        title: meta.title || '未命名',
+        note: meta.note || '',
+        platform: 'bilibili',
+        ext_url: parsed.id,
+        ext_id: parsed.id,
+        cover_url: meta.cover || null,
+        published: true
       });
     });
   }
@@ -253,7 +315,9 @@ window.JTKnowledge = (function () {
 
   return {
     configured: !!(BASE && KEY),
-    list: list, upload: upload, update: update, remove: remove,
-    publicUrl: publicUrl, session: session, makeCover: makeCover, compressVideo: compressVideo
+    list: list, upload: upload, addBilibili: addBilibili, update: update, remove: remove,
+    publicUrl: publicUrl, coverUrl: coverUrl, session: session,
+    makeCover: makeCover, compressVideo: compressVideo,
+    parseBili: parseBili, biliEmbed: biliEmbed
   };
 })();

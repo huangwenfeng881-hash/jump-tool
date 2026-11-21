@@ -1,0 +1,52 @@
+{
+  "format": "dsh-drawai",
+  "schemaVersion": 1,
+  "id": "a0c480f7-becc-4e7e-b6d4-3b74c907730e",
+  "pages": [
+    {
+      "id": "19d8edf9-2277-4740-805d-5a93d1fadec4",
+      "name": "1",
+      "doc": {
+        "version": 2,
+        "meta": {
+          "pinned": true,
+          "pageIndex": 0,
+          "pageCount": 1,
+          "pageNames": [
+            "1"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "n1",
+            "x": -590,
+            "y": -450,
+            "w": 300,
+            "h": 120,
+            "label": "整片风格\n像素 8-bit·横版卷轴",
+            "style": "rounded=1;arcSize=10;whiteSpace=wrap;fontSize=14;fontColor=#5a4a1a;fillColor=#fdf6e3;strokeColor=#c9a227;",
+            "data": {
+              "drawaiMgStyle": "1",
+              "mgStyleSlug": "20-pixel",
+              "mgStyleCommit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c"
+            },
+            "layer": "1"
+          }
+        ],
+        "edges": [],
+        "layers": [
+          {
+            "id": "1",
+            "name": "",
+            "visible": true,
+            "locked": false
+          }
+        ],
+        "labels": [],
+        "drawOrder": [
+          "n1"
+        ]
+      }
+    }
+  ]
+}

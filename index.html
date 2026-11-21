@@ -41,6 +41,8 @@
     .kv-strip::-webkit-scrollbar-thumb { background:rgba(120,130,150,.35); border-radius:3px; }
     .kv-card2 { flex:0 0 190px; scroll-snap-align:start; border-radius:14px; overflow:hidden; background:var(--surface); border:1px solid var(--border); text-decoration:none; color:inherit; }
     .kv-card2 img, .kv-card2 .ph { width:100%; aspect-ratio:16/9; object-fit:cover; background:#0c1220; display:flex; align-items:center; justify-content:center; font-size:28px; }
+    .kv-card2 { position:relative; }
+    .bili-tag { position:absolute; top:6px; left:6px; background:#FB7299; color:#fff; font-size:.64rem; padding:1px 7px; border-radius:999px; font-weight:700; }
     .kv-card2 .t { padding:8px 10px 10px; font-size:.82rem; font-weight:600; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     .kv-card2 .m { padding:0 10px 10px; font-size:.7rem; color:var(--text2); }
 
@@ -124,11 +126,11 @@
       <a class="jt-btn jt-btn-outline jt-btn-lg" href="trainer.html">AI 训练师</a>
     </div>
     <div class="ld-hero-cta" style="margin-top:14px;">
-      <a class="jt-btn jt-btn-lg app-download-btn" id="appDownloadBtn" href="download/Vertrise跃升-v1.7.7.apk" download>
+      <a class="jt-btn jt-btn-lg app-download-btn" id="appDownloadBtn" href="download/Vertrise跃升-v1.7.8.apk" download>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
         📱 下载安卓 App
       </a>
-      <div class="app-download-hint">Android 安装包 · 34.4MB · v1.7.7 自动压缩+创作者白名单+首页推荐 · 全部功能离线可用</div>
+      <div class="app-download-hint">Android 安装包 · 34.4MB · v1.7.8 支持 B 站外链视频 · 全部功能离线可用</div>
     </div>
     <div class="ld-hero-trust">
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>无需注册</span>
@@ -571,7 +573,7 @@
     var BASE = (CFG.PROXY_URL || CFG.SUPABASE_URL || '').replace(/\/+$/, '');
     var KEY = CFG.SUPABASE_ANON_KEY || '';
     if (!BASE || !KEY || !window.fetch) return;
-    fetch(BASE + '/rest/v1/knowledge_videos?select=id,title,creator_name,cover_path,created_at&published=eq.true&order=created_at.desc&limit=8', {
+    fetch(BASE + '/rest/v1/knowledge_videos?select=id,title,creator_name,cover_path,cover_url,platform,ext_id,created_at&published=eq.true&order=created_at.desc&limit=8', {
       headers: { apikey: KEY, Authorization: 'Bearer ' + KEY }
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
       if (!rows || !rows.length) return;
@@ -583,9 +585,13 @@
         var a = document.createElement('a');
         a.className = 'kv-card2';
         a.href = 'knowledge.html';
-        var cover = r.cover_path
-          ? '<img loading="lazy" src="' + BASE + '/storage/v1/object/public/knowledge/' + r.cover_path + '" alt="">'
+        var cu = r.cover_path
+          ? BASE + '/storage/v1/object/public/knowledge/' + r.cover_path
+          : (r.cover_url || (r.platform === 'bilibili' && r.ext_id ? 'https://i0.hdslb.com/bfs/archive/' + r.ext_id + '.jpg' : ''));
+        var cover = cu
+          ? '<img loading="lazy" src="' + cu + '" alt="" onerror="this.style.display=\'none\'">'
           : '<div class="ph">🎬</div>';
+        if (r.platform === 'bilibili') cover = cover + '<div class="bili-tag">B站</div>';
         a.innerHTML = cover + '<div class="t">' + (r.title || '未命名') + '</div>' +
           '<div class="m">' + (r.creator_name || '创作者') + '</div>';
         strip.appendChild(a);
