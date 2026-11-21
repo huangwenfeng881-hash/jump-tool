@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "10月3日(7).MP3",
+  "sha256": "d8ca13259fc010fbd2364fc6bdf34e61f1f5e07d9856f8e000335de1a53c98c1",
+  "sourceSha256": "9845b5611f91977776391c0b2854ae8a0fe09b512f3b374774f9e3c2c2c3c366",
+  "duration": 60.03,
+  "samplePeakDb": -5.9,
+  "hasAudio": true,
+  "measurement": "sample peak; not true peak or LUFS",
+  "provenance": {
+    "provider": "upload"
+  },
+  "changes": [
+    "Decoded to stereo 48kHz PCM for mixing"
+  ],
+  "createdAt": "2026-11-21T08:01:52.904Z"
+}

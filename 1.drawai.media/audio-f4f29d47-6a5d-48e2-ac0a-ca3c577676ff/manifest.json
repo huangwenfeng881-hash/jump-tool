@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "kind": "raster",
+  "fps": 12,
+  "width": 320,
+  "height": 180,
+  "source": null,
+  "sourceOffset": 0,
+  "frames": [],
+  "duration": 0
+}
