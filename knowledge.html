@@ -133,7 +133,7 @@
 <script src="js/vendor/supabase.js"></script>
 <script src="js/supabase-config.js?v=20261121"></script>
 <script src="js/auth.js?v=20261121"></script>
-<script src="js/knowledge.js?v=20261121"></script>
+<script src="js/knowledge.js?v=20261123"></script>
 <script src="js/ui.js?v=15"></script>
 <script>
 (function () {
@@ -229,13 +229,17 @@
     $('kvProg').classList.add('show');
     $('kvProgText').textContent = '正在上传 0%';
     $('kvProgBar').style.width = '0%';
-    K.upload(f, { title: title || '未命名', note: note }, function (p) {
-      var pct = Math.round(p * 100);
-      $('kvProgText').textContent = '正在上传 ' + pct + '%';
+    K.upload(f, { title: title || '未命名', note: note }, function (st) {
+      var pct = Math.round((st.p || 0) * 100);
+      $('kvProgText').textContent = (st.stage === 'compress' ? '正在压缩 ' : '正在上传 ') + pct + '%';
       $('kvProgBar').style.width = pct + '%';
-    }).then(function () {
+    }).then(function (row) {
       $('kvProg').classList.remove('show');
-      toast('已发布，所有人都能看到');
+      var saved = '';
+      if (row && row.compressed && row.originalSize) {
+        saved = '（已压缩 ' + (row.originalSize / 1048576).toFixed(1) + 'MB 起）';
+      }
+      toast('已发布，所有人都能看到' + saved);
       load();
     }).catch(function (err) {
       $('kvProg').classList.remove('show');
