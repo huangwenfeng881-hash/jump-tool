@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人信息与训练评估 · Vertrise跃升</title>
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/ux.css?v=15">
+  <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
+  <style>
+    body { display:flex; flex-direction:column; align-items:center; }
+    .st-wrap { width:100%; max-width:620px; margin:0 auto; padding:20px 16px 60px; display:flex; flex-direction:column; gap:14px; }
+    .st-head h1 { font-size:1.45rem; font-weight:800; background:var(--gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .st-head p { color:var(--text2); font-size:.85rem; margin-top:4px; }
+    .st-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+    .st-card h2 { font-size:1rem; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .st-card h2 .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+    .row { display:grid; grid-template-columns: 1fr 108px; gap:10px; align-items:center; margin-bottom:10px; }
+    .row label { font-size:.88rem; color:var(--text2); }
+    .row .val { grid-column:1 / -1; display:flex; gap:8px; align-items:center; }
+    .row input { flex:1; min-width:0; }
+    .row .unit { font-size:.78rem; color:var(--text2); width:34px; }
+    .mini { font-size:.75rem; padding:7px 12px; border-radius:999px; border:1px solid var(--accent); color:var(--accent); background:transparent; white-space:nowrap; cursor:pointer; }
+    .mini:active { transform:scale(.97); }
+    .st-actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .st-btn { flex:1; min-width:150px; padding:14px; border-radius:14px; font-weight:700; font-size:.95rem; cursor:pointer; border:none; background:var(--gradient); color:#fff; }
+    .st-btn.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+    .step { opacity:0; transform:translateY(14px); transition:all .45s cubic-bezier(.2,.8,.2,1); }
+    .step.in { opacity:1; transform:none; }
+    .step { display:flex; gap:12px; padding:12px; border-radius:14px; background:var(--surface2); border:1px solid var(--border); margin-bottom:10px; }
+    .step .idx { width:30px; height:30px; border-radius:50%; background:var(--accent); color:#08110a; font-weight:800; display:flex; align-items:center; justify-content:center; flex:none; }
+    .step .body { flex:1; min-width:0; }
+    .step .t { font-weight:700; font-size:.92rem; display:flex; justify-content:space-between; gap:8px; }
+    .step .t .grade { font-size:.78rem; padding:2px 8px; border-radius:999px; background:rgba(120,255,170,.14); color:var(--accent); white-space:nowrap; }
+    .step .v { font-size:.82rem; color:var(--text2); margin-top:3px; }
+    .step .adv { font-size:.8rem; color:var(--text2); margin-top:6px; line-height:1.5; }
+    .type-card { border-radius:18px; padding:18px; background:linear-gradient(135deg, rgba(92,124,255,.18), rgba(120,255,170,.14)); border:1px solid var(--border); }
+    .type-card .k { font-size:.78rem; color:var(--text2); }
+    .type-card .name { font-size:1.5rem; font-weight:900; margin:4px 0 8px; }
+    .type-card .desc { font-size:.85rem; color:var(--text2); line-height:1.6; }
+    .tagline { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .tagline span { font-size:.75rem; padding:5px 10px; border-radius:999px; background:var(--surface2); border:1px solid var(--border); color:var(--text2); }
+    .toast { position:fixed; left:50%; bottom:36px; transform:translateX(-50%) translateY(20px); background:#111; color:#fff; padding:10px 18px; border-radius:999px; font-size:.85rem; opacity:0; transition:all .25s; pointer-events:none; z-index:99; }
+    .toast.show { opacity:1; transform:translateX(-50%); }
+    .hidden { display:none !important; }
+    .rsi-pop { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:60; padding:20px; }
+    .rsi-pop.show { display:flex; }
+    .rsi-box { width:100%; max-width:360px; background:var(--surface); border-radius:18px; padding:18px; }
+    .rsi-box h3 { font-size:1rem; margin-bottom:10px; }
+    .rsi-box input { width:100%; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+  <nav class="jt-nav">
+    <a class="jt-nav-logo" href="index.html">
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="jt-nav-links">
+    <a class="jt-nav-link" href="index.html">首页</a>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="ai-jump.html">AI弹跳分析</a>
+        <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+        <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+        <a class="jt-nav-link" href="pose.html">动作分析</a>
+        <a class="jt-nav-link" href="trainer.html">AI教练</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">数据<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="progress.html">进步曲线</a>
+        <a class="jt-nav-link" href="barbell-chart.html">杠铃图表</a>
+        <a class="jt-nav-link" href="leaderboard.html">排行榜</a>
+      </div>
+    </div>
+    <div class="jt-nav-group active">
+      <button class="jt-nav-link jt-nav-trigger" type="button">训练<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link active" href="profile-setup.html">信息评估</a>
+        <a class="jt-nav-link" href="workout.html">一周训练</a>
+        <a class="jt-nav-link" href="knowledge.html">弹跳知识</a>
+        <a class="jt-nav-link" href="checkin.html">训练打卡</a>
+        <a class="jt-nav-link" href="plans.html">训练计划</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">我的<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="profile.html">我的资料</a>
+        <a class="jt-nav-link" href="history.html">训练记录</a>
+        <a class="jt-nav-link feedback-nav" href="feedback.html">问题反馈</a>
+        <a class="jt-nav-link" href="membership.html">会员</a>
+        <a class="jt-nav-link" href="login.html">登录 / 注册</a>
+      </div>
+    </div>
+    </div>
+    <div class="jt-nav-user">
+      <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
+<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+<svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.signOut()">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html?next=checkin.html" style="display:none">登录</a>
+    </div>
+  </nav>
+</div>
+
+<div class="st-wrap">
+  <div class="st-head">
+    <h1>先认识你，再给你训练</h1>
+    <p>填完这 13 项，系统会判出你的训练者类型，并据此生成一周计划。</p>
+  </div>
+
+  <div class="st-card" id="formCard">
+    <h2><span class="dot"></span>基本信息</h2>
+    <div class="row"><label>身高</label><div class="val"><input class="jt-input" id="f_height" type="number" inputmode="decimal" placeholder="181"><span class="unit">cm</span></div></div>
+    <div class="row"><label>体重</label><div class="val"><input class="jt-input" id="f_weight" type="number" inputmode="decimal" placeholder="70"><span class="unit">kg</span></div></div>
+    <div class="row"><label>臂展</label><div class="val"><input class="jt-input" id="f_armspan" type="number" inputmode="decimal" placeholder="183"><span class="unit">cm</span></div></div>
+    <div class="row"><label>站立摸高</label><div class="val"><input class="jt-input" id="f_reach" type="number" inputmode="decimal" placeholder="232"><span class="unit">cm</span></div></div>
+  </div>
+
+  <div class="st-card">
+    <h2><span class="dot"></span>弹跳</h2>
+    <div class="row"><label>原地起跳高度</label><div class="val"><input class="jt-input" id="f_vstand" type="number" inputmode="decimal" placeholder="65"><span class="unit">cm</span><button class="mini" data-measure="vstand">立即测</button></div></div>
+    <div class="row"><label>助跑起跳高度</label><div class="val"><input class="jt-input" id="f_vrun" type="number" inputmode="decimal" placeholder="72"><span class="unit">cm</span><button class="mini" data-measure="vrun">立即测</button></div></div>
+  </div>
+
+  <div class="st-card">
+    <h2><span class="dot"></span>运动素质</h2>
+    <div class="row"><label>100 米成绩</label><div class="val"><input class="jt-input" id="f_sprint" type="number" inputmode="decimal" placeholder="13.2"><span class="unit">秒</span></div></div>
+    <div class="row"><label>立定跳远</label><div class="val"><input class="jt-input" id="f_jump" type="number" inputmode="decimal" placeholder="240"><span class="unit">cm</span></div></div>
+    <div class="row"><label>RSI 反应力量指数</label><div class="val"><input class="jt-input" id="f_rsi" type="number" inputmode="decimal" placeholder="1.8"><span class="unit"></span><button class="mini" id="btnRsi">立即算</button></div></div>
+  </div>
+
+  <div class="st-card">
+    <h2><span class="dot"></span>力量</h2>
+    <div class="row"><label>高翻（Power Clean）</label><div class="val"><input class="jt-input" id="f_clean" type="number" inputmode="decimal" placeholder="80"><span class="unit">kg</span><button class="mini" data-measure="barbell">杠铃测速</button></div></div>
+    <div class="row"><label>深蹲</label><div class="val"><input class="jt-input" id="f_squat" type="number" inputmode="decimal" placeholder="120"><span class="unit">kg</span><button class="mini" data-measure="barbell">杠铃测速</button></div></div>
+    <div class="row"><label>硬拉</label><div class="val"><input class="jt-input" id="f_deadlift" type="number" inputmode="decimal" placeholder="150"><span class="unit">kg</span><button class="mini" data-measure="barbell">杠铃测速</button></div></div>
+  </div>
+
+  <div class="st-card">
+    <h2><span class="dot"></span>恢复</h2>
+    <div class="row"><label>平均每月感冒/生病</label><div class="val"><input class="jt-input" id="f_colds" type="number" inputmode="decimal" placeholder="1"><span class="unit">次</span></div></div>
+  </div>
+
+  <div class="st-actions">
+    <button class="st-btn" id="btnSubmit">生成我的训练者评估</button>
+    <button class="st-btn ghost" id="btnReset">清空重填</button>
+  </div>
+
+  <div id="resultWrap" class="hidden">
+    <div class="st-card" style="margin-bottom:14px">
+      <h2><span class="dot"></span>六步判定</h2>
+      <div id="stepsBox"></div>
+    </div>
+    <div class="type-card" id="typeCard" style="margin-bottom:14px"></div>
+    <div class="st-actions">
+      <button class="st-btn" id="btnPlan">用这份结果生成一周训练</button>
+      <button class="st-btn ghost" id="btnEdit">修改数据</button>
+    </div>
+  </div>
+</div>
+
+<div class="rsi-pop" id="rsiPop">
+  <div class="rsi-box">
+    <h3>RSI = 跳起高度(m) ÷ 触地时间(s)</h3>
+    <input class="jt-input" id="rsiH" type="number" inputmode="decimal" placeholder="跳起高度 cm，例如 32">
+    <input class="jt-input" id="rsiT" type="number" inputmode="decimal" placeholder="触地时间 ms，例如 180">
+    <div class="st-actions">
+      <button class="st-btn" id="rsiOk">算出来填入</button>
+      <button class="st-btn ghost" id="rsiCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/ui.js?v=15"></script>
+<script src="js/store.js?v=20261121"></script>
+<script src="js/assessment.js?v=20261121"></script>
+<script>
+(function () {
+  'use strict';
+  var S = window.JTStore, A = window.JTAssess;
+  var MAP = {
+    height: 'f_height', weight: 'f_weight', armspan: 'f_armspan', standingReach: 'f_reach',
+    vertStand: 'f_vstand', vertRun: 'f_vrun', sprint100: 'f_sprint', standingJump: 'f_jump',
+    rsi: 'f_rsi', clean: 'f_clean', squat: 'f_squat', deadlift: 'f_deadlift', colds: 'f_colds'
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._t); t._t = setTimeout(function () { t.classList.remove('show'); }, 1900);
+  }
+
+  function fillForm(p) {
+    if (!p) return;
+    Object.keys(MAP).forEach(function (k) {
+      var el = $(MAP[k]);
+      if (el && p[k] !== undefined && p[k] !== null) el.value = p[k];
+    });
+  }
+  function readForm() {
+    var p = {};
+    Object.keys(MAP).forEach(function (k) {
+      var v = $(MAP[k]).value.trim();
+      p[k] = v === '' ? null : parseFloat(v);
+    });
+    if (p.colds === null) p.colds = 0;
+    return p;
+  }
+
+  function render(res) {
+    var box = $('stepsBox');
+    box.innerHTML = '';
+    res.steps.forEach(function (s) {
+      var el = document.createElement('div');
+      el.className = 'step';
+      el.innerHTML =
+        '<div class="idx">' + s.index + '</div>' +
+        '<div class="body">' +
+          '<div class="t"><span>' + s.title + '</span><span class="grade">' + s.label + '</span></div>' +
+          '<div class="v">' + s.value + '</div>' +
+          '<div class="adv">' + s.advice + '</div>' +
+        '</div>';
+      box.appendChild(el);
+    });
+    var tc = $('typeCard');
+    tc.innerHTML =
+      '<div class="k">你是</div>' +
+      '<div class="name">' + res.type.name + '</div>' +
+      '<div class="desc">' + res.type.desc + '</div>' +
+      '<div class="tagline">' +
+        '<span>平均等级 ' + res.avgGrade.toFixed(1) + ' / 5</span>' +
+        (res.weak.length ? '<span>短板：' + res.weak.join('、') + '</span>' : '<span>无明显短板</span>') +
+        (res.type.hint ? '<span>' + res.type.hint + '</span>' : '') +
+      '</div>';
+    $('formCard').classList.add('hidden');
+    $('resultWrap').classList.remove('hidden');
+    // 逐条显现
+    var items = box.querySelectorAll('.step');
+    items.forEach(function (el, i) {
+      setTimeout(function () { el.classList.add('in'); }, 120 + i * 260);
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function submit() {
+    var p = readForm();
+    if (!p.height || !p.weight) { toast('至少填身高和体重'); return; }
+    var res = A.compute(p);
+    S.saveProfile(p);
+    S.saveAssessment(res);
+    render(res);
+    toast('评估完成，已存到我的数据');
+  }
+
+  $('btnSubmit').addEventListener('click', submit);
+  $('btnReset').addEventListener('click', function () {
+    if (!confirm('清空已填资料与评估结果？')) return;
+    S.reset();
+    Object.keys(MAP).forEach(function (k) { $(MAP[k]).value = ''; });
+    $('resultWrap').classList.add('hidden');
+    $('formCard').classList.remove('hidden');
+  });
+  $('btnEdit').addEventListener('click', function () {
+    $('resultWrap').classList.add('hidden');
+    $('formCard').classList.remove('hidden');
+  });
+  $('btnPlan').addEventListener('click', function () {
+    location.href = 'workout.html?from=assess';
+  });
+
+  // 立即测：跳转到测量页，带上返回地址
+  document.querySelectorAll('[data-measure]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var kind = btn.getAttribute('data-measure');
+      var target = kind === 'barbell' ? 'barbell.html' : 'jump.html';
+      location.href = target + '?back=' + encodeURIComponent('profile-setup.html');
+    });
+  });
+
+  // RSI 计算器
+  $('btnRsi').addEventListener('click', function () { $('rsiPop').classList.add('show'); });
+  $('rsiCancel').addEventListener('click', function () { $('rsiPop').classList.remove('show'); });
+  $('rsiOk').addEventListener('click', function () {
+    var h = parseFloat($('rsiH').value), t = parseFloat($('rsiT').value);
+    if (!h || !t) { toast('填高度和触地时间'); return; }
+    var v = (h / 100) / (t / 1000);
+    $('f_rsi').value = v.toFixed(2);
+    $('rsiPop').classList.remove('show');
+    toast('RSI = ' + v.toFixed(2));
+  });
+
+  // 回到本页时：读取测量结果
+  function pullMeasure() {
+    var p = S.getProfile() || {};
+    try {
+      var last = JSON.parse(localStorage.getItem('vt_measure_last') || 'null');
+      if (last && last.heightCm) {
+        var t = last.at || 0;
+        if (Date.now() - t < 30 * 60 * 1000) {
+          if (!$('f_vrun').value) $('f_vrun').value = last.heightCm.toFixed(1);
+          else if (!$('f_vstand').value) $('f_vstand').value = last.heightCm.toFixed(1);
+          toast('已填入刚测的弹跳高度 ' + last.heightCm.toFixed(1) + 'cm');
+        }
+      }
+    } catch (e) {}
+  }
+  addEventListener('visibilitychange', function () { if (!document.hidden) pullMeasure(); });
+  addEventListener('pageshow', pullMeasure);
+
+  // 初始化
+  var prof = S.getProfile();
+  fillForm(prof);
+  var as = S.getAssessment();
+  if (as && as.steps) render(as);
+  pullMeasure();
+})();
+</script>
+</body>
+</html>

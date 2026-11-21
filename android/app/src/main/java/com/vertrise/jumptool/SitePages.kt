@@ -31,6 +31,9 @@ object SitePages {
     const val FEEDBACK = "feedback.html"
     const val MEMBERSHIP = "membership.html"
     const val LOGIN = "login.html"
+    const val PROFILE_SETUP = "profile-setup.html"
+    const val WORKOUT = "workout.html"
+    const val KNOWLEDGE = "knowledge.html"
 
     /** App 内加载用：一律走包内资源 */
     fun url(page: String): String =

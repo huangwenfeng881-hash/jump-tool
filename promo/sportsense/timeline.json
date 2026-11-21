@@ -1,0 +1,61 @@
+{
+ "total": 59.644,
+ "scenes": [
+  {
+   "name": "s1",
+   "text": "先看这一跳。起跳前的最后两步，决定了你这一跳能飞多高。",
+   "audio": "D:\\jump app\\promo\\sportsense\\voice\\s1.mp3",
+   "dur": 6.912,
+   "start": 0.0,
+   "len": 10.112
+  },
+  {
+   "name": "s2",
+   "text": "AI 会把这一跳拆成六项指标：弹跳高度、屈膝深度、起跳角度、摆臂速度，还有最后两步节奏和落地稳定性。",
+   "audio": "D:\\jump app\\promo\\sportsense\\voice\\s2.mp3",
+   "dur": 10.68,
+   "start": 10.112,
+   "len": 12.88
+  },
+  {
+   "name": "s3",
+   "text": "你在球馆里，用手机拍一段助跑起跳的视频就够了。",
+   "audio": "D:\\jump app\\promo\\sportsense\\voice\\s3.mp3",
+   "dur": 4.68,
+   "start": 22.992,
+   "len": 6.28
+  },
+  {
+   "name": "s4",
+   "text": "系统自动识别三十三个关键点，逐帧追踪你的身体。",
+   "audio": "D:\\jump app\\promo\\sportsense\\voice\\s4.mp3",
+   "dur": 5.088,
+   "start": 29.272,
+   "len": 6.588
+  },
+  {
+   "name": "s5",
+   "text": "再判断你是力量型还是速度型，指出最该改的短板，给出四周训练计划。",
+   "audio": "D:\\jump app\\promo\\sportsense\\voice\\s5.mp3",
+   "dur": 7.68,
+   "start": 35.86,
+   "len": 9.28
+  },
+  {
+   "name": "s6",
+   "text": "每一跳自动存档，还能测一测，你离扣篮还差几厘米。",
+   "audio": "D:\\jump app\\promo\\sportsense\\voice\\s6.mp3",
+   "dur": 6.024,
+   "start": 45.14,
+   "len": 7.624
+  },
+  {
+   "name": "s7",
+   "text": "Vertrise 跃升，安卓已经上线，现在就试。",
+   "audio": "D:\\jump app\\promo\\sportsense\\voice\\s7.mp3",
+   "dur": 4.68,
+   "start": 52.764,
+   "len": 6.88
+  }
+ ]
+}

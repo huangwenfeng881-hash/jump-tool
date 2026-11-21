@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一周训练 · Vertrise跃升</title>
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/ux.css?v=15">
+  <script>(function(){var q=location.search.match(/theme=([^&]*)/);var t=q?q[1]:'';if(t!=='dark'){try{t=localStorage.getItem('vertrise-theme')||'light';}catch(e){t='light';}if(t!=='dark')t='light';}document.documentElement.setAttribute('data-theme',t);})();</script>
+  <style>
+    body { display:flex; flex-direction:column; align-items:center; }
+    .wk-wrap { width:100%; max-width:620px; margin:0 auto; padding:20px 16px 80px; display:flex; flex-direction:column; gap:14px; }
+    .wk-head h1 { font-size:1.45rem; font-weight:800; background:var(--gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .wk-head p { color:var(--text2); font-size:.85rem; margin-top:4px; line-height:1.6; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+    .btn { flex:1; min-width:140px; padding:14px; border-radius:14px; font-weight:700; border:none; background:var(--gradient); color:#fff; cursor:pointer; }
+    .btn.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .day { border:1px solid var(--border); border-radius:14px; margin-bottom:10px; overflow:hidden; background:var(--surface2); }
+    .day-h { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; cursor:pointer; }
+    .day-h .l { font-weight:700; font-size:.95rem; }
+    .day-h .r { font-size:.78rem; color:var(--text2); }
+    .day-b { padding:0 14px 12px; display:none; }
+    .day.open .day-b { display:block; }
+    .ex { padding:10px 0; border-top:1px dashed var(--border); }
+    .ex:first-child { border-top:none; }
+    .ex .n { font-weight:600; font-size:.9rem; }
+    .ex .m { font-size:.8rem; color:var(--text2); margin-top:3px; }
+    .ex .note { font-size:.76rem; color:var(--text2); margin-top:4px; opacity:.85; }
+    .setrow { display:flex; align-items:center; gap:10px; padding:8px 0; }
+    .setrow .cb { width:26px; height:26px; border-radius:8px; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none; font-size:15px; color:transparent; }
+    .setrow.done .cb { background:var(--accent); border-color:var(--accent); color:#08110a; }
+    .setrow .lbl { font-size:.86rem; }
+    .setrow .st { margin-left:auto; display:flex; gap:6px; opacity:0; pointer-events:none; transition:.2s; }
+    .setrow.done .st { opacity:1; pointer-events:auto; }
+    .stc { font-size:.72rem; padding:5px 9px; border-radius:999px; border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; }
+    .stc.on { background:var(--accent); color:#08110a; border-color:var(--accent); font-weight:700; }
+    .bar { height:8px; border-radius:999px; background:var(--surface2); overflow:hidden; }
+    .bar > i { display:block; height:100%; width:0; background:var(--gradient); transition:width .3s; }
+    .log { font-size:.78rem; color:var(--text2); line-height:1.7; max-height:160px; overflow:auto; }
+    .pill { display:inline-block; font-size:.72rem; padding:4px 10px; border-radius:999px; background:var(--surface2); border:1px solid var(--border); color:var(--text2); }
+    .done-card { text-align:center; padding:26px 16px; }
+    .done-card .big { font-size:2rem; font-weight:900; margin-bottom:8px; }
+    .hidden { display:none !important; }
+    .toast { position:fixed; left:50%; bottom:34px; transform:translateX(-50%) translateY(20px); background:#111; color:#fff; padding:10px 18px; border-radius:999px; font-size:.85rem; opacity:0; transition:.25s; pointer-events:none; z-index:99; }
+    .toast.show { opacity:1; transform:translateX(-50%); }
+  </style>
+</head>
+<body>
+  <nav class="jt-nav">
+    <a class="jt-nav-logo" href="index.html">
+      <img class="logo-img" src="img/logo.png" alt="Vertrise跃升">
+      <span>Vertrise跃升</span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="jt-nav-links">
+    <a class="jt-nav-link" href="index.html">首页</a>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">工具<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="ai-jump.html">AI弹跳分析</a>
+        <a class="jt-nav-link" href="jump.html">弹跳测量</a>
+        <a class="jt-nav-link" href="barbell.html">杠铃测速</a>
+        <a class="jt-nav-link" href="pose.html">动作分析</a>
+        <a class="jt-nav-link" href="trainer.html">AI教练</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">数据<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="progress.html">进步曲线</a>
+        <a class="jt-nav-link" href="barbell-chart.html">杠铃图表</a>
+        <a class="jt-nav-link" href="leaderboard.html">排行榜</a>
+      </div>
+    </div>
+    <div class="jt-nav-group active">
+      <button class="jt-nav-link jt-nav-trigger" type="button">训练<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="profile-setup.html">信息评估</a>
+        <a class="jt-nav-link active" href="workout.html">一周训练</a>
+        <a class="jt-nav-link" href="knowledge.html">弹跳知识</a>
+        <a class="jt-nav-link" href="checkin.html">训练打卡</a>
+        <a class="jt-nav-link" href="plans.html">训练计划</a>
+      </div>
+    </div>
+    <div class="jt-nav-group">
+      <button class="jt-nav-link jt-nav-trigger" type="button">我的<span class="jt-nav-caret">▾</span></button>
+      <div class="jt-nav-drop">
+        <a class="jt-nav-link" href="profile.html">我的资料</a>
+        <a class="jt-nav-link" href="history.html">训练记录</a>
+        <a class="jt-nav-link feedback-nav" href="feedback.html">问题反馈</a>
+        <a class="jt-nav-link" href="membership.html">会员</a>
+        <a class="jt-nav-link" href="login.html">登录 / 注册</a>
+      </div>
+    </div>
+    </div>
+    <div class="jt-nav-user">
+      <button class="theme-toggle" id="themeToggle" aria-label="切换深浅色">
+<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+<svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <span class="user-name" id="navUserName">未登录</span>
+      <span class="plan-pill" id="navPlan">FREE</span>
+      <button class="jt-btn jt-btn-ghost jt-btn-sm" id="btnLogout" style="display:none" onclick="JTAuth.signOut()">退出</button>
+      <a class="jt-btn jt-btn-accent jt-btn-sm" id="btnLogin" href="login.html?next=checkin.html" style="display:none">登录</a>
+    </div>
+  </nav>
+</div>
+
+<div class="wk-wrap">
+  <div class="wk-head">
+    <h1>一周训练</h1>
+    <p id="sub">根据你的评估结果生成，练完一组打一个勾；每组可以标记状态，后面的安排会实时调整。</p>
+  </div>
+
+  <div id="emptyBox" class="card hidden">
+    <div style="font-size:.9rem;line-height:1.7">还没有评估结果。<br>先去填 13 项身体数据，系统才知道该给你练什么。</div>
+    <div class="actions" style="margin-top:14px"><button class="btn" onclick="location.href='profile-setup.html'">去填写个人信息</button></div>
+  </div>
+
+  <div id="genBox" class="card hidden">
+    <div style="font-size:.9rem" id="genTip">正在根据你的评估生成一周计划…</div>
+    <div class="bar" style="margin-top:12px"><i id="genBar" style="width:35%"></i></div>
+  </div>
+
+  <div id="planBox" class="hidden">
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-weight:800;font-size:1.05rem" id="planTitle"></div>
+      <div style="font-size:.84rem;color:var(--text2);margin-top:6px;line-height:1.6" id="planSummary"></div>
+      <div style="margin-top:10px" class="pill" id="planSource"></div>
+      <div style="font-size:.8rem;color:var(--text2);margin-top:10px" id="planNote"></div>
+      <div class="actions" style="margin-top:14px">
+        <button class="btn" id="btnStart">开始今天的训练</button>
+        <button class="btn ghost" id="btnRegen">重新生成</button>
+      </div>
+    </div>
+    <div id="daysBox"></div>
+  </div>
+
+  <div id="runBox" class="hidden">
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:800" id="runTitle">今天：下肢力量</div>
+        <div style="font-size:.8rem;color:var(--text2)" id="runCount">0 / 0</div>
+      </div>
+      <div class="bar" style="margin-top:10px"><i id="runBar"></i></div>
+    </div>
+    <div id="runList"></div>
+    <div class="card" style="margin-top:12px">
+      <div style="font-weight:700;font-size:.9rem;margin-bottom:8px">实时调整记录</div>
+      <div class="log" id="adaptLog">还没有调整。标记「吃力」会自动降重，标记「轻松」会加量。</div>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button class="btn ghost" id="btnBackPlan">返回计划</button>
+    </div>
+  </div>
+
+  <div id="doneBox" class="hidden">
+    <div class="card done-card">
+      <div class="big">✅ 今日训练完成</div>
+      <div style="font-size:.86rem;color:var(--text2)" id="doneTip"></div>
+      <div class="actions" style="margin-top:18px">
+        <button class="btn" id="btnAgain">再练一次</button>
+        <button class="btn ghost" id="btnToPlan">回到计划</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/ui.js?v=15"></script>
+<script src="js/store.js?v=20261121"></script>
+<script src="js/workout-engine.js?v=20261121"></script>
+<script src="js/glm.js?v=20261121"></script>
+<script>
+(function () {
+  'use strict';
+  var S = window.JTStore, W = window.JTWorkout;
+  function $(id) { return document.getElementById(id); }
+  function toast(m) { var t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(function(){ t.classList.remove('show'); }, 1800); }
+  function show(el) { el.classList.remove('hidden'); }
+  function hide(el) { el.classList.add('hidden'); }
+
+  var plan = S.getPlan();
+  var run = null;   // { dayIndex, done:{}, status:{}, adapt:[] }
+
+  function loadPlanView() {
+    var profile = S.getProfile(), assess = S.getAssessment();
+    if (!profile || !assess) {
+      // 首次进入：直接跳到个人信息填写（带引导参数，避免来回跳）
+      if (new URLSearchParams(location.search).get('edit') !== '1') {
+        location.replace('profile-setup.html?from=workout');
+        return;
+      }
+      show($('emptyBox')); hide($('planBox')); return;
+    }
+    if (!plan) { generate(); return; }
+    renderPlan();
+  }
+
+  function generate() {
+    var profile = S.getProfile(), assess = S.getAssessment();
+    hide($('emptyBox')); hide($('planBox')); show($('genBox'));
+    $('genTip').textContent = '正在根据你的评估生成一周计划…（AI 需要 5~20 秒，失败会自动用本地模板）';
+    var t0 = Date.now();
+    W.generateAI(profile, assess).then(function (p) {
+      plan = S.savePlan(p);
+      var wait = Math.max(0, 900 - (Date.now() - t0));
+      setTimeout(function () {
+        hide($('genBox'));
+        renderPlan();
+        toast(plan.source === 'ai' ? 'AI 计划已生成' : '已用本地模板生成（AI 暂不可用）');
+      }, wait);
+    });
+  }
+
+  function todayIndex() {
+    var d = new Date().getDay(); // 0 Sun
+    var map = { 1: 0, 2: 1, 3: 4, 4: 2, 5: 3, 6: 5, 0: 5 };
+    var idx = 0;
+    var target = map[d] || 0;
+    if (plan.days[target] && plan.days[target].items.length) idx = target;
+    return idx;
+  }
+
+  function renderPlan() {
+    show($('planBox'));
+    $('planTitle').textContent = plan.title || '一周训练';
+    $('planSummary').textContent = plan.summary || '';
+    $('planNote').textContent = plan.note || '根据首周训练效果灵活调整下次训练。';
+    $('planSource').textContent = plan.source === 'ai' ? 'AI 生成' : '本地模板';
+
+    var box = $('daysBox');
+    box.innerHTML = '';
+    plan.days.forEach(function (d, di) {
+      var el = document.createElement('div');
+      el.className = 'day' + (di === todayIndex() ? ' open' : '');
+      var items = d.items.map(function (it) {
+        return '<div class="ex"><div class="n">' + it.name + '</div>' +
+               '<div class="m">' + it.sets + ' 组 × ' + it.reps + ' @ ' + it.load + ' · 间歇 ' + it.rest + '</div>' +
+               (it.note ? '<div class="note">' + it.note + '</div>' : '') + '</div>';
+      }).join('') || '<div class="m" style="color:var(--text2);font-size:.82rem">休息日</div>';
+      el.innerHTML =
+        '<div class="day-h"><span class="l">' + d.day + ' · ' + d.focus + '</span>' +
+        '<span class="r">' + (d.items.length ? d.items.length + ' 个动作' : '休息') + '</span></div>' +
+        '<div class="day-b">' + items + (d.assist ? '<div class="note" style="margin-top:8px;color:var(--text2);font-size:.78rem">' + d.assist + '</div>' : '') + '</div>';
+      el.querySelector('.day-h').addEventListener('click', function () { el.classList.toggle('open'); });
+      box.appendChild(el);
+    });
+  }
+
+  function startRun() {
+    var di = todayIndex();
+    if (!plan.days[di] || !plan.days[di].items.length) {
+      // 今天休息：找第一个有动作的天
+      di = plan.days.findIndex(function (d) { return d.items.length; });
+    }
+    var saved = S.getDaily();
+    run = (saved && saved.dayIndex === di) ? saved : { dayIndex: di, done: {}, status: {}, adapt: [] };
+    show($('runBox')); hide($('planBox')); hide($('doneBox'));
+    renderRun();
+  }
+
+  function renderRun() {
+    var d = plan.days[run.dayIndex];
+    $('runTitle').textContent = '今天：' + d.day + ' · ' + d.focus;
+    var box = $('runList'); box.innerHTML = '';
+    var total = 0, finished = 0;
+
+    d.items.forEach(function (it, ei) {
+      var card = document.createElement('div');
+      card.className = 'card';
+      card.style.marginBottom = '10px';
+      var head = document.createElement('div');
+      head.innerHTML = '<div style="font-weight:700;font-size:.92rem">' + it.name + '</div>' +
+        '<div style="font-size:.78rem;color:var(--text2);margin-top:3px">' + it.reps + ' @ ' + it.load + ' · 间歇 ' + it.rest + '</div>';
+      card.appendChild(head);
+
+      for (var si = 0; si < it.sets; si++) {
+        total++;
+        var key = ei + '-' + si;
+        var done = !!run.done[key];
+        if (done) finished++;
+        var row = document.createElement('div');
+        row.className = 'setrow' + (done ? ' done' : '');
+        row.innerHTML = '<div class="cb">✓</div><div class="lbl">第 ' + (si + 1) + ' 组</div>' +
+          '<div class="st">' +
+            ['easy', 'ok', 'hard', 'fail'].map(function (s) {
+              return '<button class="stc' + (run.status[key] === s ? ' on' : '') + '" data-s="' + s + '">' + W.STATUS_TXT[s] + '</button>';
+            }).join('') + '</div>';
+        row.querySelector('.cb').addEventListener('click', function () { toggleSet(ei, si); });
+        row.querySelectorAll('.stc').forEach(function (btn) {
+          btn.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            markStatus(ei, si, btn.getAttribute('data-s'));
+          });
+        });
+        card.appendChild(row);
+      }
+      box.appendChild(card);
+    });
+
+    $('runCount').textContent = finished + ' / ' + total;
+    $('runBar').style.width = total ? Math.round(finished * 100 / total) + '%' : '0%';
+    $('adaptLog').innerHTML = run.adapt.length ? run.adapt.map(function (x) { return '• ' + x; }).join('<br>') : '还没有调整。标记「吃力」会自动降重，标记「轻松」会加量。';
+    S.saveDaily(run);
+    if (total > 0 && finished >= total) finishRun();
+  }
+
+  function toggleSet(ei, si) {
+    var key = ei + '-' + si;
+    run.done[key] = !run.done[key];
+    if (!run.done[key]) delete run.status[key];
+    renderRun();
+  }
+
+  function markStatus(ei, si, status) {
+    var key = ei + '-' + si;
+    run.status[key] = status;
+    run.done[key] = true;
+    var item = plan.days[run.dayIndex].items[ei];
+    var ad = W.adaptation(status, item, si);
+    ad.apply(item);
+    run.adapt.unshift(item.name + ' 第 ' + (si + 1) + ' 组「' + W.STATUS_TXT[status] + '」→ ' + ad.msg);
+    if (item._skipRest) {
+      for (var k = si + 1; k < item.sets; k++) { run.done[ei + '-' + k] = true; }
+      delete item._skipRest;
+    }
+    S.savePlan(plan);
+    renderRun();
+  }
+
+  function finishRun() {
+    run.finishedAt = new Date().toISOString();
+    S.saveDaily(run);
+    hide($('runBox')); show($('doneBox'));
+    $('doneTip').textContent = '已完成 ' + Object.keys(run.done).length + ' 组，记录已保存。' +
+      (run.adapt.length ? '（本次自动调整 ' + run.adapt.length + ' 处）' : '');
+    toast('今日训练完成 🎉');
+  }
+
+  $('btnStart').addEventListener('click', startRun);
+  $('btnRegen').addEventListener('click', function () { S.clearPlan(); plan = null; generate(); });
+  $('btnBackPlan').addEventListener('click', function () { hide($('runBox')); show($('planBox')); renderPlan(); });
+  $('btnAgain').addEventListener('click', function () { run = null; hide($('doneBox')); startRun(); });
+  $('btnToPlan').addEventListener('click', function () { hide($('doneBox')); hide($('runBox')); show($('planBox')); renderPlan(); });
+
+  // 启动
+  var q = new URLSearchParams(location.search);
+  loadPlanView();
+  if (q.get('from') === 'assess' && !plan) { /* loadPlanView 已经触发 generate */ }
+})();
+</script>
+</body>
+</html>

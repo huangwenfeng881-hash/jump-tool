@@ -29,7 +29,7 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         bindAppLinks(binding.root)
-        binding.btnContinue.setOnClickListener { openAppWeb("AI 教练", SitePages.TRAINER) }
+        binding.btnContinue.setOnClickListener { openAppWeb("一周训练", SitePages.WORKOUT) }
         binding.btnBell.setOnClickListener {
             Toast.makeText(requireContext(), "暂无新消息", Toast.LENGTH_SHORT).show()
         }

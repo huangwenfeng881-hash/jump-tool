@@ -300,7 +300,7 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:padding="14dp"
-                    android:tag="page:plans.html|训练计划">
+                    android:tag="page:workout.html|一周训练">
 
                     <TextView
                         android:layout_width="38dp"
@@ -315,7 +315,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
-                        android:text="训练计划模板"
+                        android:text="一周训练计划"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp"
                          />
