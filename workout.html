@@ -287,18 +287,13 @@
         if (done) finished++;
         var row = document.createElement('div');
         row.className = 'setrow' + (done ? ' done' : '');
+        row.setAttribute('data-ex', ei);
+        row.setAttribute('data-set', si);
         row.innerHTML = '<div class="cb">✓</div><div class="lbl">第 ' + (si + 1) + ' 组</div>' +
           '<div class="st">' +
             ['easy', 'ok', 'hard', 'fail'].map(function (s) {
               return '<button class="stc' + (run.status[key] === s ? ' on' : '') + '" data-s="' + s + '">' + W.STATUS_TXT[s] + '</button>';
             }).join('') + '</div>';
-        row.querySelector('.cb').addEventListener('click', function () { toggleSet(ei, si); });
-        row.querySelectorAll('.stc').forEach(function (btn) {
-          btn.addEventListener('click', function (ev) {
-            ev.stopPropagation();
-            markStatus(ei, si, btn.getAttribute('data-s'));
-          });
-        });
         card.appendChild(row);
       }
       box.appendChild(card);
@@ -342,6 +337,23 @@
       (run.adapt.length ? '（本次自动调整 ' + run.adapt.length + ' 处）' : '');
     toast('今日训练完成 🎉');
   }
+
+  // 事件委托：勾选 / 状态标记（避免循环里 var 闭包取到最后一组）
+  $('runList').addEventListener('click', function (ev) {
+    var t = ev.target;
+    var cb = t.closest ? t.closest('.cb') : null;
+    if (cb) {
+      var row = cb.closest('.setrow');
+      if (row) toggleSet(parseInt(row.getAttribute('data-ex'), 10), parseInt(row.getAttribute('data-set'), 10));
+      return;
+    }
+    var st = t.closest ? t.closest('.stc') : null;
+    if (st) {
+      ev.stopPropagation();
+      var row2 = st.closest('.setrow');
+      if (row2) markStatus(parseInt(row2.getAttribute('data-ex'), 10), parseInt(row2.getAttribute('data-set'), 10), st.getAttribute('data-s'));
+    }
+  });
 
   $('btnStart').addEventListener('click', startRun);
   $('btnRegen').addEventListener('click', function () { S.clearPlan(); plan = null; generate(); });

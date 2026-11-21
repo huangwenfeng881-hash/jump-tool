@@ -192,6 +192,7 @@
 (function () {
   'use strict';
   var S = window.JTStore, A = window.JTAssess;
+  var DRAFT_KEY = 'vt_profile_draft';
   var MAP = {
     height: 'f_height', weight: 'f_weight', armspan: 'f_armspan', standingReach: 'f_reach',
     vertStand: 'f_vstand', vertRun: 'f_vrun', sprint100: 'f_sprint', standingJump: 'f_jump',
@@ -211,6 +212,21 @@
       if (el && p[k] !== undefined && p[k] !== null) el.value = p[k];
     });
   }
+  function saveDraft() {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(readForm())); } catch (e) {}
+  }
+  function restoreDraft() {
+    try {
+      var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+      if (!d) return false;
+      var applied = false;
+      Object.keys(MAP).forEach(function (k) {
+        if (d[k] !== null && d[k] !== undefined && d[k] !== '') { $(MAP[k]).value = d[k]; applied = true; }
+      });
+      return applied;
+    } catch (e) { return false; }
+  }
+
   function readForm() {
     var p = {};
     Object.keys(MAP).forEach(function (k) {
@@ -263,8 +279,14 @@
     S.saveProfile(p);
     S.saveAssessment(res);
     render(res);
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
     toast('评估完成，已存到我的数据');
   }
+
+  Object.keys(MAP).forEach(function (k) {
+    var el = $(MAP[k]);
+    if (el) el.addEventListener('input', saveDraft);
+  });
 
   $('btnSubmit').addEventListener('click', submit);
   $('btnReset').addEventListener('click', function () {
@@ -324,6 +346,7 @@
   // 初始化
   var prof = S.getProfile();
   fillForm(prof);
+  restoreDraft();
   var as = S.getAssessment();
   if (as && as.steps) render(as);
   pullMeasure();

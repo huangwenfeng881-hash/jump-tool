@@ -100,6 +100,14 @@
     </div>
     <div class="pf-guide" id="gapGuide">先填写下方「站立摸高」，马上告诉你距离扣篮还差多少 👇</div>
 
+    <div class="pf-card" id="vtBodyCard" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
+        <b style="font-size:.95rem">🧬 体测资料 · 训练者类型</b>
+        <a class="jt-btn jt-btn-ghost jt-btn-sm" href="profile-setup.html" style="flex:none">填写 / 更新</a>
+      </div>
+      <div id="vtBodyInner" style="font-size:.86rem;color:var(--text2)">加载中…</div>
+    </div>
+
     <div class="pf-card">
       <label>📐 个人资料</label>
       <div class="pf-row"><span>昵称</span><input type="text" id="inNick" maxlength="16" placeholder="上榜时展示的昵称（可不填）"><span class="pf-unit"></span></div>
@@ -126,7 +134,8 @@
 
   <div class="jt-toast" id="toast"></div>
 
-  <script src="js/vendor/supabase.js?v=20261120"></script>
+  <script src="js/store.js?v=20261121"></script>
+<script src="js/vendor/supabase.js?v=20261120"></script>
   <script src="js/supabase-config.js?v=20261120"></script>
   <script src="js/auth.js?v=20261120"></script>
   <script src="js/ui.js?v=20261120"></script>
@@ -192,9 +201,33 @@
         };
         if (!data.reach_cm) return toast('请至少填写站立摸高，才能计算扣篮差距', 'err');
         if (data.public_show && !data.nickname) return toast('开启公开榜单需要先填写昵称', 'err');
+        if (!Auth.current || !Auth.current()) {
+          // 未登录：存本机（训练/评估/训练计划都用这份数据）
+          var p0 = (window.JTStore && JTStore.getProfile()) || {};
+          if (data.height_cm) p0.height = data.height_cm;
+          if (data.weight_kg) p0.weight = data.weight_kg;
+          if (data.reach_cm) p0.standingReach = data.reach_cm;
+          if (data.wingspan_cm) p0.armspan = data.wingspan_cm;
+          if (window.JTStore) JTStore.saveProfile(p0);
+          renderGap(data.reach_cm);
+          if (window.renderVtBody) window.renderVtBody();
+          toast('已保存到本机（登录后可同步到云端）', 'ok');
+          return;
+        }
         Auth.saveProfile(data).then(function (res) {
           if (res.error) return toast('保存失败: ' + (res.error.message || ''), 'err');
           renderGap(data.reach_cm);
+          try {
+            if (window.JTStore) {
+              var sp = JTStore.getProfile() || {};
+              if (data.height_cm) sp.height = data.height_cm;
+              if (data.weight_kg) sp.weight = data.weight_kg;
+              if (data.reach_cm) sp.standingReach = data.reach_cm;
+              if (data.wingspan_cm) sp.armspan = data.wingspan_cm;
+              JTStore.saveProfile(sp);
+              if (window.renderVtBody) window.renderVtBody();
+            }
+          } catch (e) {}
           toast(data.public_show ? '已保存，你的成绩将展示在排行榜' : '已保存，未公开成绩', 'ok');
         });
       });
@@ -210,11 +243,88 @@
         });
       });
 
+      function loadLocal() {
+        var p = (window.JTStore && JTStore.getProfile()) || null;
+        if (p) {
+          if (p.standingReach) document.getElementById('inReach').value = p.standingReach;
+          if (p.height) document.getElementById('inHeight').value = p.height;
+          if (p.weight) document.getElementById('inWeight').value = p.weight;
+          if (p.armspan) document.getElementById('inWing').value = p.armspan;
+          renderGap(p.standingReach || null);
+        } else {
+          renderGap(null);
+        }
+        if (window.renderVtBody) window.renderVtBody();
+      }
+
       Auth.init(function (session) {
-        if (!session) { location.href = 'login.html?next=profile.html'; return; }
+        if (!session) {
+          // 未登录也能看本机资料；云端同步只是可选增强
+          loadLocal();
+          var tip = document.getElementById('vtLoginTip');
+          if (tip) tip.style.display = 'block';
+          return;
+        }
         load();
       });
     })();
   </script>
+
+<script>
+(function () {
+  'use strict';
+  var ROWS = [
+    ['height', '身高', 'cm'], ['weight', '体重', 'kg'], ['armspan', '臂展', 'cm'],
+    ['standingReach', '站立摸高', 'cm'], ['vertStand', '原地起跳', 'cm'], ['vertRun', '助跑起跳', 'cm'],
+    ['sprint100', '100 米', 's'], ['standingJump', '立定跳远', 'cm'], ['rsi', 'RSI', ''],
+    ['clean', '高翻', 'kg'], ['squat', '深蹲', 'kg'], ['deadlift', '硬拉', 'kg'], ['colds', '每月感冒', '次']
+  ];
+  function render() {
+    var box = document.getElementById('vtBodyInner');
+    if (!box || !window.JTStore) return;
+    var p = JTStore.getProfile();
+    var a = JTStore.getAssessment();
+    if (!p || !p.height || !p.weight) {
+      box.innerHTML = '还没有完整体测资料。<br>去填 13 项数据，就能得到训练者类型和一周训练计划。' +
+        '<div style="margin-top:10px"><a class="jt-btn jt-btn-accent jt-btn-sm" href="profile-setup.html">去填写</a></div>';
+      return;
+    }
+    var html = '';
+    if (a && a.type) {
+      html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
+        '<span style="font-size:1.05rem;font-weight:800;color:var(--text)">' + a.type.name + '</span>' +
+        '<span style="font-size:.72rem;padding:3px 9px;border-radius:999px;background:var(--surface2);border:1px solid var(--border)">平均 ' + (a.avgGrade || 0).toFixed(1) + '/5</span>' +
+        (a.weak && a.weak.length ? '<span style="font-size:.72rem;padding:3px 9px;border-radius:999px;background:var(--surface2);border:1px solid var(--border)">短板：' + a.weak.join('、') + '</span>' : '') +
+        '</div>';
+      if (a.type.desc) html += '<div style="font-size:.8rem;line-height:1.6;margin-bottom:10px">' + a.type.desc + '</div>';
+    } else {
+      html += '<div style="margin-bottom:10px">还没有评估结果，<a class="jt-link" href="profile-setup.html">去生成</a></div>';
+    }
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:.82rem">';
+    ROWS.forEach(function (r) {
+      var v = p[r[0]];
+      var txt = (v === null || v === undefined || v === '') ? '—' : (v + (r[2] ? ' ' + r[2] : ''));
+      html += '<div style="display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--border);padding-bottom:4px">' +
+        '<span style="color:var(--text2)">' + r[1] + '</span><b>' + txt + '</b></div>';
+    });
+    html += '</div>';
+    if (a && a.steps && a.steps.length) {
+      html += '<div style="margin-top:12px;font-size:.78rem;line-height:1.8">';
+      a.steps.forEach(function (st) {
+        html += '<div style="display:flex;justify-content:space-between;gap:8px"><span>' + st.index + '. ' + st.title + '</span><span>' + st.label + '</span></div>';
+      });
+      html += '</div>';
+    }
+    html += '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<a class="jt-btn jt-btn-sm" href="workout.html">看一周训练</a>' +
+      '<a class="jt-btn jt-btn-ghost jt-btn-sm" href="profile-setup.html">重新评估</a></div>';
+    box.innerHTML = html;
+  }
+  window.renderVtBody = render;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render);
+  else render();
+  setTimeout(render, 400);
+})();
+</script>
 </body>
 </html>
